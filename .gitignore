@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+**/node_modules/
+**/dist/
+**/.angular/
+**/bin/
+**/obj/
+**/TestResults/
+**/coverage/
+**/playwright-report/
+**/test-results/
+*.user
+*.suo
+*.pfx
+.DS_Store

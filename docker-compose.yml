@@ -1,0 +1,85 @@
+name: inventario
+
+x-application: &application
+  image: inventario-app:local
+
+x-database-environment: &database-environment
+  Database__Host: sqlserver
+  Database__Name: ${DB_NAME:-InventoryDev}
+  Database__User: ${SQL_APP_USER:-inventory_app}
+  Database__Password: ${SQL_APP_PASSWORD:-LocalSqlApp_2026!}
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    platform: linux/amd64
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${SQL_SA_PASSWORD:-LocalSqlAdmin_2026!}
+      INVENTORY_DATABASE: ${DB_NAME:-InventoryDev}
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -C -b -Q "SELECT 1" -o /dev/null
+      interval: 10s
+      timeout: 5s
+      start_period: 45s
+      retries: 20
+    restart: unless-stopped
+
+  initialize:
+    <<: *application
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["--initialize-database", "true"]
+    environment:
+      <<: *database-environment
+      Database__AdminPassword: ${SQL_SA_PASSWORD:-LocalSqlAdmin_2026!}
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    restart: "no"
+
+  smtp:
+    image: axllent/mailpit:latest
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: "5000"
+    volumes:
+      - mailpit-data:/data
+    ports:
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${MAILPIT_PORT:-8025}:8025"
+    restart: unless-stopped
+
+  app:
+    <<: *application
+    pull_policy: never
+    environment:
+      <<: *database-environment
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: "8080"
+      DataProtection__KeyDirectory: /app/keys
+      Smtp__Host: smtp
+      Smtp__Port: "1025"
+      Smtp__From: ${SMTP_FROM:-inventario@localhost.test}
+    ports:
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8081}:8080"
+    volumes:
+      - app-keys:/app/keys
+    depends_on:
+      initialize:
+        condition: service_completed_successfully
+      smtp:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  sqlserver-data:
+  app-keys:
+  mailpit-data:

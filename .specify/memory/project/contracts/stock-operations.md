@@ -1,0 +1,120 @@
+# Contrato del núcleo de stock
+
+**Versión de diseño**: 1 · **Proponente**: B · **Consumidores**: A y B.
+Base: [modelo](../data-model.md), [plan global](../../project-plan.md),
+[constitución](../../constitution.md) I, II, IV y V.
+Es un contrato interno, no un endpoint genérico para sobrescribir saldos.
+
+## Operaciones admitidas
+
+Receive, Reserve, ReleaseReservation, Ship, ApplyCountAdjustment y CorrectMovement.
+Los handlers de documentos coordinan el comando completo. El núcleo recibe las
+asignaciones artículo/ubicación/lote, cantidades, documento origen, motivo, OperationId,
+actor verificado e instante del hecho. El usuario no elige el instante de registro.
+
+El resultado identifica documento, movimientos y operación. Solo existe éxito definitivo
+tras commit de todos los efectos. Los comandos de stock no hacen llamadas HTTP internas
+a la misma API ni inician otra transacción o DbContext.
+
+## Protocolo obligatorio de cada comando
+
+1. Autenticar, autorizar y validar la forma de la petición, incluidas unidades y precisión.
+2. Ejecutar mediante la estrategia de resiliencia una transacción nueva por intento;
+   DbContext limpio, misma conexión y transacción para documento, stock y alertas.
+3. Adquirir applock exclusivo `operation:{uuid}` con propietario Transaction.
+   Si existe resultado, validar actor/permisos y huella: devolverlo si coincide;
+   rechazar si el contenido o recurso difiere.
+4. Adquirir los bloqueos de documentos involucrados, por tipo e ID ordenados.
+   Una corrección declara de antemano todos los documentos relacionados que modifica.
+5. Determinar el conjunto de ubicaciones y adquirir sus bloqueos por ID ordenado.
+6. Determinar artículos afectados y adquirir sus bloqueos por ID ordenado. El bloqueo
+   `article:{uuid}` coordina todas sus ubicaciones/lotes y la evaluación global de mínimos.
+7. Leer después de los bloqueos: estado actual del documento, maestros, congelación,
+   saldos, reservas y pendientes. Si aparecen recursos anteriores al orden ya adquirido,
+   rollback y replanificación del intento, sin improvisar un nuevo orden.
+8. Validar todas las invariantes, preparar nuevas filas si faltan y aplicar cambios.
+   Persistir documento, diario, reservas, saldos, alertas internas y OperationResult juntos.
+9. Commit. Un fallo revierte todos los cambios y libera los bloqueos. Un worker externo
+   solo recibe intenciones persistidas, nunca trabajo en memoria necesario para la corrección.
+
+Los nombres de recursos se normalizan, tienen menos de 255 caracteres y usan la misma
+base y DbPrincipal. El comparador de IDs es único para todos los comandos. Timeout de
+bloqueo inicial: 5 s; retorno negativo obliga a rollback explícito, incluso deadlock de applock.
+Máximo tres intentos completos ante fallos transitorios; después se devuelve error recuperable.
+La configuración de EF debe ejecutar la transacción completa dentro de su estrategia,
+no combinar reintentos de comandos SQL individuales con decisiones ya calculadas.
+
+## Alcance y disciplina de escritura
+
+- Todas las rutas de escritura, importaciones y trabajos en segundo plano siguen el
+  protocolo. Las restricciones SQL son defensa adicional; applock es cooperativo.
+- Desactivar un artículo o cambiar su mínimo adquiere el mismo bloqueo de artículo.
+  Cambiar el estado de una ubicación adquiere el de ubicación. Nunca se adquiere
+  ubicación después de artículo. Editar varios maestros sigue orden de IDs consistente.
+- Las asignaciones de reserva y salida son explícitas; no se decide disponibilidad
+  a partir de filas que se leyeron antes del bloqueo. Una reserva sobre un bucket vacío
+  se rechaza, aunque su ubicación o lote todavía no tenga fila de saldo.
+- Un lock por artículo protege también la agregación para alertas y la creación de un
+  nuevo lote. El lock de ubicación impide iniciar un conteo mientras cambia su stock.
+- Un comando de modificación del pedido de cliente declara primero las reservas que va
+  a liberar y sus ubicaciones, conservando la jerarquía documento → ubicación → artículo.
+
+## Cálculo de salida
+
+Para cada bucket se usa Q = cantidad a servir, Rpropia = reserva remanente del pedido,
+F = físico, R = reservado total, D = F − R.
+
+- Consumir = min(Q, Rpropia).
+- SinReserva = Q − Consumir; debe cumplirse SinReserva ≤ D y Q ≤ F.
+- NuevoF = F − Q; NuevoR = R − Consumir.
+
+Ejemplo: F=10, R=7 (propia 4, ajena 3), D=3. Servir Q=6 es válido: consume 4 de
+la reserva propia y 2 disponibles; quedan F=4, R=3, D=1. Servir Q=8 se rechaza.
+Además se respeta el pendiente de la línea del pedido. Repetir la confirmación no cambia nada.
+Si las reservas remanentes del propio pedido en otros buckets excedieran su nuevo pendiente,
+se rechaza con ReservedStockConflict: liberar/reasignar explícitamente antes de servir desde
+un origen alternativo. No se dejan reservas sin pedido pendiente ni se liberan sin auditoría.
+
+## Recepción y compra
+
+La confirmación bloquea la compra y la recepción antes de ubicaciones/artículos. Revalida
+pendientes bajo ese bloqueo: dos parciales de 6 no pueden consumir un pendiente de 10.
+AcceptedQuantity se distribuye exactamente en destinos válidos. En un commit incrementa
+el acumulado de la compra, deriva su estado, crea movimientos y saldos y evalúa alertas.
+No cambia el estado de compra si el correo aún no fue aceptado y el pedido sigue Draft.
+
+## Conteo sin transacción humana abierta
+
+Inicio: bloquear documento y ubicaciones; rechazar solapamiento; guardar congelación y
+teórico, y terminar la transacción. Incluir todos los lotes actuales y permitir registrar
+hallazgos físicos nuevos durante el conteo. Todos los escritores comprueban la congelación.
+
+Mientras se cuenta: no recepciones, salidas ni nuevas reservas en esas ubicaciones.
+Se permite liberar compromisos para resolver físico contado inferior a reservado,
+con motivo y auditoría. No se levanta automáticamente la congelación por timeout.
+
+Confirmación: bloquear el mismo alcance y todos los artículos ajustados; exigir permiso
+de ajuste, motivo y aprobación persistida. Revalidar reservado y físico teórico; calcular
+diferencia, añadir movimientos y liberar el alcance en un commit. Si falta resolver una
+reserva, conservar el conteo y el alcance congelado, mostrando el conflicto.
+Cancelar explícitamente conserva el conteo histórico, no modifica saldos y libera alcance.
+
+## Correcciones y contingencia
+
+Una corrección agrega movimiento compensatorio enlazado, nunca modifica el diario original.
+Si afecta recibido o expedido, sus acumulados y estado se corrigen en el mismo commit.
+No se revierte stock ya consumido o comprometido sin resolver antes los documentos afectados.
+
+Ante caída se usa comprobante físico con identificador único, responsable, fecha y detalle
+incluidas ubicaciones/lotes. Se suspenden operaciones ordinarias sobre su alcance pendiente
+de conciliación. Tras recuperar el servicio, un usuario autorizado incorpora el comprobante
+por los mismos comandos y verifica saldos antes de reabrir ese alcance.
+
+## Consulta y recuperación de resultado incierto
+
+Las consultas no leen cambios sin commit ni usan NOLOCK. Para una pantalla se obtiene un
+snapshot consistente. Si se pierde la respuesta tras confirmar, la UI muestra «resultado
+pendiente de comprobar» y consulta OperationId. Si aún no hay resultado, no interpreta
+ausencia como fallo definitivo: repite con la misma clave o espera al comando en curso.
+El lock de operación serializa intentos iguales; la unicidad documental evita duplicados
+con una clave distinta. Ningún mensaje de éxito antecede al commit.

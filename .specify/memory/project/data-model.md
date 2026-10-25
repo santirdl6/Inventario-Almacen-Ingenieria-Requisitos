@@ -1,0 +1,263 @@
+# Modelo de datos común
+
+**Fecha**: 2026-10-25 · **Base**: [plan global](../project-plan.md), [decisiones](research.md).
+Modelo de diseño; no contiene migraciones ni afirma que las tablas ya existan.
+
+## Convenciones e invariantes
+
+- UUID como identificador; códigos de negocio únicos normalizados. Campos obligatorios
+  NOT NULL; cadenas con longitud limitada y espacios extremos eliminados.
+- Cantidades decimal(18,3), precios decimal(18,2), moneda única configurada en el almacén.
+  Cada artículo define unidad base y si admite fracciones; no se permiten conversiones
+  implícitas. Cambiar unidad o modo de seguimiento con historial queda prohibido.
+- Fechas datetimeoffset en UTC; distinguir OccurredAt (hecho) y RecordedAt (registro
+  del servidor). ActorId se obtiene de Identity; nunca del cuerpo HTTP.
+- rowversion en agregados editables y saldos. Es token opaco de concurrencia, no una fecha.
+- Foreign keys con borrado restringido en documentos, movimientos y referencias históricas.
+  Los documentos guardan instantáneas de código, descripción, unidad y contraparte relevantes.
+- El saldo nace en cero y solo cambia mediante el protocolo de [stock](contracts/stock-operations.md).
+  Stock inicial, correcciones e importaciones generan movimientos; no se insertan saldos sueltos.
+- Por bucket: Physical ≥ 0; Reserved ≥ 0; Reserved ≤ Physical;
+  Available = Physical − Reserved. Available se calcula, no se mantiene como tercer contador.
+- Physical coincide con la suma de efectos físicos del diario; Reserved con la suma de
+  reservas remanentes, y con los efectos reservados del diario. Se verifica por conciliación.
+
+## Datos maestros — Persona A / HU-08
+
+### Family
+
+Id, Code único, Name, IsActive, Version. Una familia tiene varios artículos; un artículo
+pertenece a una familia. No se elimina una familia referenciada; puede desactivarse.
+
+### Supplier
+
+Id, Code único, Name, Email, TaxIdentifier opcional, IsActive, Version.
+Email válido y obligatorio para enviar pedidos. Un proveedor tiene varios pedidos.
+No se borra si tiene documentos referenciados; sus cambios no reescriben las instantáneas.
+
+### Article
+
+Id, Sku único, Name, FamilyId, BaseUnit, AllowsFractional, TracksLot, IsActive, Version.
+Crear el artículo crea su StockPolicy con mínimo cero, para que GET/PUT tenga versión inicial.
+No se elimina con historial de stock; tampoco con documentos o reservas referenciados.
+La desactivación conserva todos los enlaces y se audita. Reglas de operaciones pendientes
+en R-05; el backend comprueba el estado bajo el bloqueo compartido de artículo.
+
+### MasterDataAudit
+
+Id, EntityType, EntityId, Action, Before, After, ActorId, RecordedAt, OperationId.
+Registro append-only para altas, modificaciones y desactivaciones. No guarda secretos.
+
+## Dimensiones y existencias — Persona B / HU-02, HU-05
+
+### Location
+
+Id, Code único, Aisle, Rack, Level, Kind (Storage o Receiving), IsActive, Version.
+Pasillo/estantería/nivel obligatorios incluso para una ubicación temporal identificada.
+No se desactiva con stock, reservas o un conteo abierto. No se borra con historial.
+Un artículo puede aparecer en cualquier número de ubicaciones.
+
+### Lot
+
+Id, ArticleId, Code, IsUntracked. Unicidad (ArticleId, Code).
+Cada artículo sin seguimiento tiene un bucket SIN-LOTE; para artículos con seguimiento
+se exige código real, y no se usa SIN-LOTE. Todas las filas de StockBalance tienen LotId
+no nulo. No hay series, caducidad ni selección FEFO en esta base.
+
+### StockBalance
+
+ArticleId, LocationId, LotId, Physical, Reserved, Version.
+Clave única (ArticleId, LocationId, LotId); LotId debe pertenecer al mismo ArticleId,
+mediante FK compuesta hacia Lot. CHECK de cantidades y Reserved ≤ Physical.
+La unicidad cubre también el primer saldo creado concurrentemente.
+
+Índices previstos: artículo/ubicación/lote para consulta; ubicación/artículo para conteos.
+Consulta global y filtrada agrega Physical y Reserved y calcula Available después de sumar.
+No debe restar dos veces las reservas ni usar un total global con un filtro de lote local.
+
+## Compras y recepciones — Persona A / HU-07, HU-01
+
+### PurchaseOrder y PurchaseOrderLine
+
+Cabecera: Id, Number único, SupplierId, SupplierSnapshot, State, SendStatus,
+ExpectedDeliveryDate, CreatedBy, CreatedAt, SentAt opcional, Version.
+
+Línea: Id, PurchaseOrderId, ArticleId, ArticleSnapshot, OrderedQuantity,
+ReceivedQuantity, UnitPrice, ExpectedDeliveryDate. Cantidad pedida > 0; precio ≥ 0;
+0 ≤ ReceivedQuantity ≤ OrderedQuantity; Pending = OrderedQuantity − ReceivedQuantity.
+El acumulado recibido coincide con las recepciones confirmadas y sus correcciones válidas.
+
+Transiciones:
+
+- Draft → Sent: el worker confirma aceptación del correo por SMTP.
+- Sent → PartiallyReceived: existe recepción y queda pendiente.
+- Sent o PartiallyReceived → Received: todas las líneas tienen pendiente cero.
+- SendStatus: None → Pending → Accepted; error agotado → Failed, con reintento explícito.
+  Pending y Failed no convierten el pedido en enviado. Una vez creada la intención de
+  envío se bloquea la edición, incluso en Failed: el reintento conserva la misma instantánea.
+  Solo Draft con SendStatus None permite editar. Un pedido enviado ya no edita sus líneas.
+
+El comando de envío guarda la instantánea del documento y el outbox atómicamente.
+SMTP no se ejecuta dentro de la transacción. Correcciones posteriores a una recepción
+deben recalcular estado y pendientes bajo el bloqueo del pedido; no se elimina la recepción.
+
+### Receipt, ReceiptLine y ReceiptAllocation
+
+Cabecera: Id, PurchaseOrderId, SupplierDocumentReference opcional, State
+(Draft/Confirmed), OccurredAt, RecordedAt, ActorId, OperationId, Version.
+
+Línea: Id, ReceiptId, PurchaseOrderLineId, ReportedQuantity, AcceptedQuantity,
+DiscrepancyReason opcional. Reported ≥ 0; Accepted ≥ 0; Accepted ≤ Reported.
+Al menos una línea de la recepción debe aceptar cantidad positiva. Se registra la diferencia
+entre lo pendiente antes de recibir y lo aceptado; una entrega parcial conserva pendientes.
+
+Asignación: Id, ReceiptLineId, LocationId, LotId, Quantity > 0.
+La suma de asignaciones coincide con AcceptedQuantity. No se confirma con destino desconocido.
+Solo AcceptedQuantity aumenta stock y recibido acumulado; excesos, faltas o sustituciones
+observados quedan como incidencia. Un artículo ajeno al pedido no se acepta como stock.
+Una recepción confirmada no se edita ni se confirma de nuevo.
+
+## Compromisos y salidas — Persona B / HU-03, HU-05
+
+### CustomerOrder y CustomerOrderLine
+
+Referencia mínima local del pedido: Id, ExternalReference única, CustomerReference,
+State (Open/Fulfilled/Cancelled), Version; líneas con Id, CustomerOrderId, ArticleId,
+OrderedQuantity > 0 y ShippedQuantity entre cero y lo pedido.
+No incluye precios comerciales, facturación ni integración ERP automática.
+Su alta mínima controlada permite vincular y probar las salidas de las historias.
+
+### Reservation y ReservationAllocation
+
+Cabecera: Id, CustomerOrderLineId, State (Active/Consumed/Released), Version.
+Asignación: Id, ReservationId, ArticleId, LocationId, LotId, AllocatedQuantity,
+ConsumedQuantity, ReleasedQuantity. Remaining = Allocated − Consumed − Released ≥ 0.
+
+Las asignaciones remanentes suman Reserved por bucket; nunca exceden lo pendiente del
+pedido descontando otras reservas activas. Reservar aumenta Reserved, no Physical.
+Liberar disminuye Reserved sin cambiar Physical. Estado derivado: Active si queda remanente;
+Consumed si no queda y se consumió todo; Released si no queda y hubo liberación.
+
+### Shipment y ShipmentLine
+
+Cabecera: Id, CustomerOrderId, State (Draft/Confirmed), OccurredAt, RecordedAt,
+ActorId, OperationId, Version.
+Línea: Id, ShipmentId, CustomerOrderLineId, ArticleId, LocationId, LotId,
+Quantity > 0, OwnReservationConsumed entre cero y Quantity.
+
+Cantidad no superior al pendiente del pedido. Physical disminuye en Quantity;
+Reserved disminuye solo en OwnReservationConsumed. La parte sin reserva debe caber
+en Available. No se consumen reservas de otro pedido ni se descuenta dos veces la propia.
+Después de servir, el remanente de reservas de la línea no puede superar su nuevo pendiente;
+si el origen elegido deja reservas sobrantes en otra ubicación, se requiere liberarlas
+o cambiar la asignación antes de confirmar, sin liberación silenciosa.
+
+## Conteos — Persona B / HU-04
+
+### CycleCount, CountLocation y CountLine
+
+Cabecera: Id, State (Draft/Counting/AwaitingApproval/Confirmed/Cancelled), CreatedBy,
+StartedAt, ApprovedBy opcional, ApprovedAt opcional, Version.
+CountLocation: CountId, LocationId, IsFrozen; índice único filtrado por LocationId
+cuando IsFrozen = true para impedir dos conteos activos sobre la misma ubicación.
+
+CountLine: Id, CountId, ArticleId, LocationId, LotId, TheoreticalPhysical,
+CountedPhysical ≥ 0, Difference, Reason, CountedBy, CountedAt.
+Difference = CountedPhysical − TheoreticalPhysical. Se incluyen buckets esperados
+y artículos/lotes hallados físicamente que no aparecían en el stock teórico.
+
+Al iniciar se congelan ubicaciones completas y se captura el teórico, bajo bloqueos.
+No hay transacción abierta mientras el trabajador cuenta. Se bloquean recepciones,
+salidas, traslados y nuevas reservas sobre el alcance; sí puede liberarse una reserva
+para resolver una discrepancia antes de cerrar. El almacén suspende también el movimiento físico.
+
+Draft → Counting → AwaitingApproval → Confirmed; Draft/Counting/AwaitingApproval
+pueden cancelarse explícitamente sin actualizar stock, liberando el alcance.
+El ajuste exige motivo, identidad de quien cuenta y autorización de una cuenta con
+permiso Inventory.Adjust; autorización registrada aunque la misma persona tenga ambos permisos.
+No se confirma si el físico contado quedaría por debajo del reservado remanente.
+Confirmar añade movimientos de ajuste y libera congelación en la misma transacción.
+
+## Diario y operaciones — común, B propone / A integra
+
+### StockMovement y StockEntry
+
+Movimiento: Id, Kind (Receipt/Shipment/Adjustment/Reservation/Release/Correction),
+SourceDocumentType, SourceDocumentId, OriginalMovementId opcional, Reason,
+ActorId, OccurredAt, RecordedAt, OperationId, SupportReference opcional,
+SupportNotApplicableReason cuando no existe soporte externo, CounterpartyReference
+o explicación de no aplicabilidad.
+
+Entrada: Id, MovementId, ArticleId, LocationId, LotId, Quantity > 0,
+BaseUnitSnapshot, Effect, PhysicalDelta, ReservedDelta.
+
+| Effect | PhysicalDelta | ReservedDelta |
+|--------|---------------|---------------|
+| Receive / AdjustUp | +Quantity | 0 |
+| ShipAvailable / AdjustDown | −Quantity | 0 |
+| Reserve | 0 | +Quantity |
+| Release | 0 | −Quantity |
+| ShipReserved | −Quantity | −Quantity |
+
+Una salida mixta tiene entradas separadas de ShipReserved y ShipAvailable, sumando
+la cantidad expedida. Una diferencia cero no genera entrada de cantidad cero.
+Las correcciones enlazan al original, indican motivo y usan efectos compensatorios
+permitidos por las invariantes actuales. En caso de dependencias consumidas, se rechaza
+la reversión ciega y se exige resolver la cadena de documentos afectados.
+
+Diario solo de adición; rol SQL de ejecución sin UPDATE/DELETE sobre sus tablas.
+Confirmar recepción, salida o conteo tiene unicidad por tipo/documento/Confirm;
+crear reserva tiene unicidad por ReservationId. Liberaciones parciales y correcciones
+son hechos distintos con ReleaseId/CorrectionId propios: cada uno se aplica una sola vez,
+sin impedir varias liberaciones legítimas de una misma reserva. Auditoría de reservas
+conserva el histórico reservado reconstruible.
+
+### OperationResult
+
+OperationId UUID único, ActorId, RequestHash, Method, Resource, ResultStatus,
+ResultBody, SourceDocumentId, RecordedAt. Solo se persiste junto a un commit exitoso.
+No se purga en la base inicial. La consulta requiere autorización sobre el recurso original.
+La ausencia de fila no prueba por sí sola un fallo: una transacción puede seguir ejecutándose.
+
+### ContingencyReference
+
+Id externo único del comprobante, Type, OccurredAt, ResponsibleReference,
+Details, ReconciledOperationId, ReconciledAt. La incorporación invoca los mismos comandos
+y el mismo protocolo, no edita saldos. Evita duplicar hechos registrados durante una caída.
+Procedimiento de soporte de los movimientos existentes; no crea una novena historia funcional.
+
+## Reposición y mensajería — Persona A / HU-06, HU-07
+
+### StockPolicy y StockAlert
+
+StockPolicy: ArticleId único, MinimumAvailable ≥ 0, Version.
+StockAlert: Id, ArticleId, State (Active/Resolved), PhysicalSnapshot, ReservedSnapshot,
+AvailableSnapshot, MinimumSnapshot, SuggestedQuantity, OpenedAt, UpdatedAt, ResolvedAt.
+Índice único filtrado para un solo episodio Active por artículo.
+
+Un mínimo cero no alerta con disponibilidad no negativa. Si Available < Minimum,
+crea/actualiza episodio; al recuperar el mínimo lo resuelve. Sugerencia = Minimum − Available
+si positiva. Cambios de saldo, reserva o mínimo evalúan la política en la misma transacción.
+La desactivación resuelve el aviso y suspende nuevas alertas; reactivación reevalúa la política.
+
+### OutboxMessage
+
+Id, Type (PurchaseOrderEmail), DocumentId, PayloadSnapshot, MessageId estable,
+State (Pending/Processing/Sent/Failed), Attempts, NextAttemptAt, LeaseUntil,
+LastError, CreatedAt, SentAt. Unicidad de intención por pedido y versión de envío.
+Worker reclama con lease para recuperación tras caída; nunca guarda credenciales en Payload.
+Entrega al menos una vez; tras aceptación SMTP puede repetirse si se pierde el acuse local.
+
+## Identidad y permisos — común
+
+Tablas de ASP.NET Core Identity con claves Guid; roles Operario, ResponsableAlmacen,
+Comprador, GestorMaestros y Administrador. Políticas por operación, no autorización
+basada únicamente en esconder botones. Usuarios históricos no se borran si son actores
+referenciados; se deshabilita su acceso. Permisos y errores en [API](contracts/api.md).
+
+## Evolución y conciliación
+
+Una cadena de migraciones compartida, con índices/constraints incluidos. No hay cambios
+de esquema automáticos al arrancar producción. Consultas de conciliación comparan diario,
+saldos, reservas, recibidos y expedidos; una diferencia bloquea la aceptación y se resuelve
+con investigación y corrección trazable, nunca mediante UPDATE manual del saldo.

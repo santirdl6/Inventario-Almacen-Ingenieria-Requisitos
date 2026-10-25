@@ -1,0 +1,15 @@
+body {
+  margin: 0;
+  background: #f4f6f8;
+  color: #18212f;
+  font-family: system-ui, sans-serif;
+}
+
+main {
+  max-width: 52rem;
+  margin: 3rem auto;
+  padding: 0 1.5rem;
+}
+
+h1 { line-height: 1.2; }
+p { line-height: 1.6; }

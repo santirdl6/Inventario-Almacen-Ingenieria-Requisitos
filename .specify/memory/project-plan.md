@@ -1,0 +1,245 @@
+# Plan global de inventario y almacén
+
+**Date**: 2026-10-25 | **Ámbito**: todas las specs del proyecto.
+**Ampliación**: entorno contenedorizado y base ejecutable H0, 2026-10-25.
+**Base normativa**: [constitución v1.0.0](constitution.md).
+**Origen**: solicitud de arquitectura conjunta con Angular + PrimeNG, ASP.NET Core
+con CQRS ligero y SQL Server; [catálogo y reparto](../../specs/001-reparto-specs-inventario/spec.md).
+
+Este documento y sus anexos en `project/` son la fuente única de acuerdos técnicos
+compartidos. Cada spec tiene su propio plan de implementación y referencia esta base.
+
+## Summary
+
+Establecer la arquitectura y los contratos compartidos de las ocho historias, conservando
+el reparto A: HU-08, HU-07, HU-01, HU-06; B: HU-02, HU-05, HU-03, HU-04.
+Cada persona desarrollará verticalmente sus pantallas, endpoints, reglas y pruebas.
+La constitución v1.0.0 es la norma superior; este plan concreta su aplicación técnica.
+
+Una SPA Angular y una API ASP.NET Core, organizadas por funcionalidad, trabajan sobre una
+única base SQL Server. CQRS separa comandos y consultas dentro del proceso. Un servicio
+común de inventario aplica saldos, reservas e historial en la misma transacción que los
+documentos. Las consultas leen cambios confirmados sin proyecciones diferidas.
+
+Los acuerdos de [research.md](project/research.md), [data-model.md](project/data-model.md) y
+[contracts](project/contracts/api.md) son la base a referenciar desde cada futura spec. Estas
+podrán concretar sus flujos, sin crear otro cálculo de disponibilidad ni otra vía de escritura.
+
+## Technical Context
+
+**Language/Version**: TypeScript 6.0.x con Angular/CLI 22.2.x y Node 24 LTS;
+C# 14 en .NET/ASP.NET Core 10 LTS. Baseline investigada: Angular 22.2.3 y TS 6.0.3.
+
+**Primary Dependencies**: PrimeNG 22.1.4 y CDK 22 compatible; RxJS 7.8.x;
+EF Core 10 y Microsoft.EntityFrameworkCore.SqlServer del mismo parche; ASP.NET Core
+Identity; OpenAPI del backend. Handlers invocados directamente por DI.
+
+**Storage**: SQL Server 2025; una base, un InventoryDbContext por comando, migraciones
+EF Core compartidas; dinero decimal(18,2), cantidades decimal(18,3), UTC datetimeoffset,
+identificadores UUID y rowversion para edición de documentos.
+La preparación de la base habilita READ_COMMITTED_SNAPSHOT y ALLOW_SNAPSHOT_ISOLATION
+para las lecturas consistentes definidas en research R-03.
+
+**Testing**: xUnit; WebApplicationFactory con SQL Server real aislado; Vitest/TestBed;
+Playwright. Matriz de validación en [quickstart.md](project/quickstart.md).
+
+**Target Platform**: SPA de navegador en español, Chrome/Edge vigentes; API sobre
+Linux o Windows x64 con HTTPS; SQL Server local x64 o remoto. Desarrollo en macOS
+admitido con SQL Server remoto/VM x64, o emulación amd64 para desarrollo con Compose.
+Worker de correo previsto en el proceso API siempre activo.
+
+**Project Type**: aplicación web interna; monolito modular; REST JSON bajo /api/v1.
+
+**Performance Goals**: objetivos iniciales, no mediciones: p95 ≤ 2 s para consulta paginada
+y confirmación de hasta 20 líneas, excluyendo espera por conflicto y envío SMTP;
+25 sesiones concurrentes, 10.000 artículos y 1.000.000 de entradas de historial.
+Confirmación de stock y alerta interna visibles en la primera consulta tras el commit.
+
+**Constraints**: ninguna confirmación parcial; no stock negativo ni reservas superiores
+al físico; no duplicados por reintento; historial no editable; ubicación obligatoria;
+permisos de servidor y usuario auditado. RPO ≤ 15 min / RTO ≤ 4 h propuestos, con
+aprobación y restauración demostrada antes de producción. La base H0 incluye frontend/API
+de estado y arranque Compose; la implementación del inventario corresponde a las ocho specs.
+
+**Scale/Scope**: una pyme, un almacén inicial con varias ubicaciones, dos desarrolladores,
+ocho futuras specs. Pedidos de cliente y reservas mínimos como soporte de HU-03/HU-05;
+sin facturación, módulo comercial completo ni reservas automáticas.
+
+## Constitution Check
+
+*GATE: revisión previa a Phase 0 y repetición después de Phase 1. PASS significa
+conformidad del diseño; no certifica una implementación ni una validación operativa.*
+
+| Principio o regla | Compromiso verificable de diseño | Antes | Después |
+|------------------|----------------------------------|-------|---------|
+| I. Correspondencia almacén/sistema | Confirmación al realizar la operación; incidencias explícitas; conciliación de diario/saldos; comprobante de contingencia e importación con identidad única. | PASS | PASS |
+| II. Ubicación precisa | Código único, pasillo/estantería/nivel; saldo por artículo/ubicación/lote; recepción exige destino incluso temporal. | PASS | PASS |
+| III. Uso intuitivo | Formularios en español, revisión antes de confirmar, errores conservando datos, validación con operarios y resultados no basados solo en color. | PASS | PASS |
+| IV. Trazabilidad | Diario append-only, actor de sesión, instantes del hecho y registro, unidad, motivo y documento; correcciones compensatorias relacionadas. | PASS | PASS |
+| V. Integridad | Transacciones y bloqueos SQL, idempotencia, permisos y restricciones; concurrencia comprobada en SQL real; restauración con objetivos definidos. | PASS | PASS |
+| Controles operativos | Artículo/unidad únicos; autorizar ajustes; conteos por ubicación con motivo y responsables; calendario de conteos definido antes de operar. | PASS | PASS |
+| Revisión y gobernanza | Cada spec referencia esta matriz y la constitución vigente; evidencia por historia, revisión cruzada y actualización de contratos afectados. | PASS | PASS |
+
+Evidencia de diseño: [entidades e invariantes](project/data-model.md),
+[protocolo transaccional](project/contracts/stock-operations.md),
+[errores y permisos](project/contracts/api.md), [interacción](project/contracts/ui.md)
+y [escenarios V-01 a V-14](project/quickstart.md). No se detectan excepciones constitucionales.
+Los flujos adicionales de devoluciones y traslados quedan sujetos al mismo protocolo cuando
+se especifiquen; no se presentan como funcionalidades ya cubiertas por las ocho historias.
+
+## Project Structure
+
+### Documentación global y por spec
+
+```text
+AGENTS.md                         # Lectura de la base global en el flujo del proyecto
+.specify/memory/
+├── constitution.md               # Principios y gobernanza
+├── project-plan.md               # Acuerdos técnicos globales (este documento)
+└── project/
+    ├── research.md
+    ├── data-model.md
+    ├── quickstart.md
+    └── contracts/
+        ├── api.md
+        ├── stock-operations.md
+        └── ui.md
+specs/
+└── 001-reparto-specs-inventario/
+    ├── spec.md                   # Catálogo y propuesta de reparto 4+4
+    ├── plan.md                   # Hitos y coordinación de esa propuesta
+    └── checklists/requirements.md
+```
+
+### Source Code (repository root)
+
+La base ejecutable incluye el proyecto API, el frontend, el inicializador y la migración
+de infraestructura. Las carpetas de funcionalidades y suites de negocio siguientes
+son la estructura prevista para las futuras specs.
+
+```text
+Dockerfile                       # Node build → .NET publish → runtime sin privilegios
+.dockerignore
+docker-compose.yml
+.env.example
+README.md
+scripts/verify-containers.sh
+backend/
+├── Inventario.slnx
+├── src/Inventario.Api/
+│   ├── Features/
+│   │   ├── MasterData/       # A: HU-08
+│   │   ├── Purchasing/       # A: HU-07
+│   │   ├── Receiving/        # A: HU-01
+│   │   ├── Replenishment/    # A: HU-06
+│   │   ├── Locations/        # B: HU-02
+│   │   ├── Stock/            # B: HU-05, reservas y servicio común
+│   │   ├── Shipping/         # B: HU-03
+│   │   └── CycleCounts/      # B: HU-04
+│   ├── Domain/
+│   └── Infrastructure/
+│       ├── Persistence/Migrations/
+│       ├── Identity/
+│       └── Messaging/
+└── tests/
+    ├── Inventario.UnitTests/
+    └── Inventario.IntegrationTests/
+frontend/
+├── src/app/
+│   ├── core/                # sesión, HTTP, errores y navegación
+│   ├── shared/              # controles y presentación reutilizables
+│   └── features/            # mismas ocho áreas del backend
+└── e2e/                     # Playwright
+```
+
+**Structure Decision**: un proyecto backend productivo, carpetas por funcionalidad y dos
+proyectos de pruebas. Dentro de cada feature: Commands, Queries y transporte HTTP.
+Domain contiene reglas comunes; Infrastructure configura persistencia, identidad y correo.
+No se crean ocho bases ni capas desplegables. Cada persona mantiene ambos extremos de sus
+funciones. Los archivos transversales se revisan conjuntamente antes de fusionarse.
+
+### Alcance global y coordinación
+
+La investigación y el diseño compartido están documentados en `project/`.
+No quedan incógnitas técnicas bloqueantes; los defaults se revisarán al detallar cada historia.
+La revisión constitucional de este diseño es PASS, sin excepciones.
+
+La secuencia H0–H5, el reparto de trabajo y los puntos de encuentro se mantienen en el
+[plan de coordinación](../../specs/001-reparto-specs-inventario/plan.md).
+Cada futura spec añade su propio plan, tareas y evidencia de aceptación, sin copiar los
+acuerdos de arquitectura. La base técnica global no depende de la selección de una feature
+en `.specify/feature.json` ni de una rama Git concreta.
+
+### Entorno contenedorizado común
+
+El arranque local se realiza con `docker compose up` desde la raíz, sin SDKs locales,
+sin copia obligatoria de `.env` y sin inicialización manual. El
+[README](../../README.md) contiene los comandos y la tabla de variables.
+
+- Un `Dockerfile` de tres etapas compila Angular/PrimeNG, publica ASP.NET Core y crea
+  una imagen de ejecución sin privilegios. La API sirve los recursos de Angular en el
+  mismo origen; la URL `/api/v1` relativa evita configuración de backend en el bundle.
+- Servicios: `sqlserver` (SQL Server 2025 Developer), `initialize` (misma imagen app,
+  modo de inicialización y finalización), `app` y `smtp` (Mailpit).
+- SQL debe superar su healthcheck real; `initialize` crea la base y aplica migraciones
+  EF Core, habilita RCSI/SNAPSHOT y configura un usuario de ejecución sin permisos DDL.
+  La app solo se inicia si el inicializador termina correctamente. No hay reseteo ni
+  carga de datos de negocio al arrancar.
+- La automatización de migraciones se limita al Compose de desarrollo. En producción
+  se mantiene la aplicación explícita de migraciones y la validación previa de cambios.
+- `sqlserver-data`, `app-keys` y `mailpit-data` conservan base, claves Data Protection
+  y mensajes. El borrado de volúmenes es una acción explícita, nunca parte del arranque.
+- Puertos y credenciales se configuran por entorno, con defaults públicos de desarrollo;
+  la credencial administrativa se entrega solo a SQL/inicializador, no a la API.
+  El usuario de ejecución tiene lectura/escritura sin DDL. Al crear el diario, su migración
+  añadirá las restricciones de UPDATE/DELETE exigidas por el contrato de trazabilidad.
+- Publicación local en loopback y HTTP; producción conserva HTTPS. SQL no publica puerto
+  al host. Mailpit captura los mensajes sin enviarlos a proveedores reales.
+- SQL Server usa `linux/amd64`; Apple Silicon requiere emulación Docker para este entorno
+  local. La ejecución de producción se realiza sobre SQL Server x64 soportado.
+
+La entrega H0 inicial es la pantalla de estado y la comprobación SQL; no implica haber
+implementado Identity, handlers de negocio, diario, reservas o worker SMTP. Esos cortes
+verticales mantendrán estos contenedores y el contrato de arranque.
+
+### Sincronización con las futuras specs
+
+1. Cada futura spec y plan enlaza este plan, la constitución vigente y las secciones
+   de contratos/modelo que consume. Identifica HU original y responsable principal.
+2. Incluye su matriz de principios aplicables, aceptación, permisos y dependencias.
+3. Cambiar cantidades, reservas, estados o efectos transaccionales requiere revisar
+   las dos personas, modificar aquí el acuerdo común y registrar el impacto en specs consumidoras.
+4. Un cambio técnico no modifica por sí mismo la constitución; si altera una obligación
+   normativa, se tramita la enmienda según Governance antes de aceptar ese diseño.
+5. Una única cadena de migraciones: nombrar por HU y propósito; coordinar generación
+   sobre la última migración integrada. Si dos cambios alteran el snapshot, regenerar
+   la migración local aún no compartida, sin borrar migraciones ya aplicadas en entornos comunes.
+6. Integrar por cortes verticales y ejecutar pruebas de contratos/SQL afectadas antes
+   de continuar con el siguiente hito. Estimar por historia antes de comprometer fechas.
+
+### Estrategia de aceptación
+
+La guía quickstart define herramientas, ejecución y resultados V-01 a V-14. Se priorizan
+concurrencia, rollback, duplicación, reservas propias/ajenas, ubicaciones y reconstrucción
+del historial. Los recorridos de UI se contrastan con trabajadores representativos:
+completan recepción y salida sin asistencia técnica ni errores no detectados; se conserva
+evidencia y se corrigen los fallos antes de aprobar la entrega.
+
+Antes de producción: calendario de conteos aprobado por el responsable del almacén;
+responsables de registrar/autorizar/revisar identificados; RPO/RTO aprobados y demostrados;
+procedimiento de contingencia y conciliación practicado. Estos son criterios derivados
+de la constitución, no tareas declaradas ya realizadas.
+
+Revisión documental final (2026-10-25): ocho HU asignadas 4+4; los cinco principios
+tienen controles y escenarios; modelo y contratos comparten efectos, estados y precisión;
+las incógnitas técnicas tienen defaults explícitos en research; no se requieren excepciones.
+Se revisaron en particular reservas remanentes al servir desde otro origen, liberaciones
+parciales repetidas y recuperación de respuestas perdidas. Builds, tests de aplicación,
+usabilidad y restauración de las historias siguen pendientes. La validación del contenedor
+se realiza por separado con la guía común y su prueba de persistencia.
+
+## Complexity Tracking
+
+Sin violaciones constitucionales que justificar. Los bloqueos, el diario y la idempotencia
+responden directamente a integridad y trazabilidad. El outbox se limita al correo de compras;
+la alerta interna es transaccional y no necesita mensajería externa.
