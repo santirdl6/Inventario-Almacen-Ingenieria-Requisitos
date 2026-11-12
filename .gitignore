@@ -13,4 +13,5 @@
 *.user
 *.suo
 *.pfx
+**/.keys/
 .DS_Store

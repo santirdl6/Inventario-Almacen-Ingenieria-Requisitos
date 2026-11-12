@@ -95,6 +95,31 @@ historia antes de comprometer fechas y revisar conjuntamente la carga de trabajo
 
 ### Integración de las futuras specs
 
+Preparación técnica Persona A / H0: implementados la API de sesión, Identity Guid,
+migración `H0Identity`, seed de roles/cuenta y base de policies. El borrador HTTP global
+distingue endpoints implementados y recursos futuros. Esta preparación se mantiene
+en el plan conjunto, sin crear otra spec de negocio. Las pruebas de integración SQL
+verifican sesión, antiforgery, permisos y reinicialización; el cierre conjunto de H0
+incluye el trabajo de B y la revisión de los acuerdos transversales.
+
+Preparación A → B (2026-11-12): A aporta Article mínima en
+`20261112105657_H0ArticleReference`, ICurrentActor con implementación Identity y carga de
+configuraciones por entidad. B puede referenciar Article desde su primera migración de
+stock; genera `H0_StockCore` sobre esta cadena sin renombrar `H0Identity`. La familia y
+el mantenimiento completo del artículo permanecen en HU-08. Detalles y evidencia en el
+[handoff de HU-08](../002-gestionar-datos-maestros/h0-handoff.md).
+
+Para H0, B implementa el esqueleto y Receive/Reserve/Ship mínimos que permitan demostrar
+idempotencia, rollback y concurrencia en SQL real; las reglas completas quedan en sus
+historias. B concreta CustomerOrder mínimo en HU-03 como soporte de HU-03/HU-05.
+La revisión cruzada A+B de esta ampliación sigue pendiente de registrarse.
+
+Flujo propuesto por el equipo: ramas cortas desde main, PR revisado por la otra persona
+y rebase antes de fusionar. B utiliza `b/h0-stock-service` y `b/hu-0X-...`. Si dos migraciones
+se generaron en paralelo, se regenera la local no compartida sobre el snapshot integrado;
+un rebase por sí solo no garantiza la consistencia del modelo. Esta documentación no crea
+ramas, commits ni PRs.
+
 Cada spec identifica HU original, responsable, dependencias y documentos globales que
 consume. Cada plan referencia la base global y añade sus decisiones locales, tareas y
 criterios de aceptación. Los cambios compartidos siguen el procedimiento de sincronización

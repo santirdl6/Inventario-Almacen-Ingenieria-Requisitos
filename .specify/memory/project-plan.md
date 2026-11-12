@@ -2,6 +2,11 @@
 
 **Date**: 2026-10-25 | **Ámbito**: todas las specs del proyecto.
 **Ampliación**: entorno contenedorizado y base ejecutable H0, 2026-10-25.
+**Persona A / H0**: API de sesión Identity, migración y bootstrap de identidad, contratos
+y pruebas de integración SQL. Preparación técnica transversal, sin nueva spec de negocio.
+**Desbloqueo A → B, 2026-11-12**: referencia mínima de Article, configuraciones por entidad
+e ICurrentActor implementados para que el núcleo H0 de B pueda consumir identidad y claves
+foráneas reales. La revisión cruzada A+B de esta ampliación sigue pendiente de registrarse.
 **Base normativa**: [constitución v1.0.0](constitution.md).
 **Origen**: solicitud de arquitectura conjunta con Angular + PrimeNG, ASP.NET Core
 con CQRS ligero y SQL Server; [catálogo y reparto](../../specs/001-reparto-specs-inventario/spec.md).
@@ -184,7 +189,9 @@ sin copia obligatoria de `.env` y sin inicialización manual. El
 - SQL debe superar su healthcheck real; `initialize` crea la base y aplica migraciones
   EF Core, habilita RCSI/SNAPSHOT y configura un usuario de ejecución sin permisos DDL.
   La app solo se inicia si el inicializador termina correctamente. No hay reseteo ni
-  carga de datos de negocio al arrancar.
+  carga de datos de negocio al arrancar. Después de la migración de Identity se crean
+  los cinco roles y la cuenta administrativa configurada. La reinicialización no resetea
+  su contraseña ni duplica roles/usuarios.
 - La automatización de migraciones se limita al Compose de desarrollo. En producción
   se mantiene la aplicación explícita de migraciones y la validación previa de cambios.
 - `sqlserver-data`, `app-keys` y `mailpit-data` conservan base, claves Data Protection
@@ -198,9 +205,52 @@ sin copia obligatoria de `.env` y sin inicialización manual. El
 - SQL Server usa `linux/amd64`; Apple Silicon requiere emulación Docker para este entorno
   local. La ejecución de producción se realiza sobre SQL Server x64 soportado.
 
-La entrega H0 inicial es la pantalla de estado y la comprobación SQL; no implica haber
-implementado Identity, handlers de negocio, diario, reservas o worker SMTP. Esos cortes
-verticales mantendrán estos contenedores y el contrato de arranque.
+La base de Persona A / H0 incorpora Identity con claves Guid, endpoints de sesión,
+policies de permisos por rol y errores ProblemDetails con traceId. La cookie interna
+antiforgery y el token de Angular son distintos y se renueva el token de petición al
+autenticar. Los endpoints nuevos exigen sesión por defecto y declaran sus excepciones
+anónimas. Cookies Secure fuera de Development; el Compose local mantiene HTTP en loopback.
+OpenAPI generado solo en Development documenta health y sesión. Los contratos de negocio
+siguen siendo borradores para las ocho historias.
+
+El modo de inicialización registra su DbContext de Identity con la conexión administrativa
+de destino, migra y siembra cuentas. La API registra únicamente la conexión de ejecución.
+Ambos procesos comparten el modelo, no sus credenciales administrativas. La configuración
+de diseño respeta ConnectionStrings__Inventory y no requiere una contraseña ficticia
+embebida para generar migraciones. La confianza en el certificado SQL autofirmado se
+habilita expresamente en el Compose local, no por defecto en la configuración general.
+
+La preparación A → B incorpora `Domain/MasterData/Article`, tabla `Articles` y
+`InventoryDbContext.Articles`, mediante `20261112105657_H0ArticleReference` sobre
+`20261029111255_H0Identity`. Incluye ID Guid, SKU único, nombre, unidad base, fracciones,
+lotes, estado y rowversion. Es una referencia técnica sin altas HTTP ni mantenimiento:
+familia obligatoria, proveedores, auditoría y política inicial se completan en HU-08.
+No se crean artículos ni existencias de negocio al arrancar. Las referencias de B deben
+usar este Article y restringir el borrado, sin crear otra entidad paralela.
+
+`Domain/Identity/ICurrentActor.GetRequiredActorIdAsync` es el contrato de actor de los
+comandos. Su implementación scoped usa el principal autenticado de Identity y comprueba
+que el usuario existe en el mismo contexto; sin actor válido rechaza la escritura, con
+401 ProblemDetails en HTTP. No acepta ActorId del cliente ni asigna un actor predeterminado
+fuera de una petición. Las pruebas del núcleo pueden sustituir la interfaz por un actor
+controlado que corresponda a un usuario de su base de pruebas.
+
+El contexto aplica `IEntityTypeConfiguration` del ensamblado después de configurar Identity;
+cada entidad nueva tiene su archivo en `Infrastructure/Persistence/Configurations/`.
+Esto reduce conflictos de configuración, pero no divide el contexto ni la cadena de
+migraciones. B genera `H0_StockCore` después de integrar `H0ArticleReference`, regenerando
+su migración local no compartida si partía de un snapshot antiguo.
+La preparación y evidencia particulares están en el
+[handoff H0 de HU-08](../../specs/002-gestionar-datos-maestros/h0-handoff.md).
+
+Las pruebas WebApplicationFactory usan SQL Server real y bases/logins temporales con
+nombre aleatorio. El perfil `test` permite ejecutarlas sin SDK local, con una imagen
+backend independiente de la compilación Angular. No altera InventoryDev.
+El diario, reservas y Receive/Reserve/Ship mínimos para probar el protocolo corresponden
+a la parte B de H0; sus reglas completas se concretan en HU-01/HU-03/HU-04/HU-05.
+El worker SMTP y la interfaz de login se desarrollan en sus cortes posteriores.
+La parte B del núcleo de stock y la revisión conjunta de H0
+se coordinan con el [plan de reparto](../../specs/001-reparto-specs-inventario/plan.md).
 
 ### Sincronización con las futuras specs
 

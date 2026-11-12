@@ -46,6 +46,14 @@ no combinar reintentos de comandos SQL individuales con decisiones ya calculadas
 
 ## Alcance y disciplina de escritura
 
+- La referencia de artículo de H0 es `Domain.MasterData.Article`, tabla `Articles`,
+  compartida por A y B. Lot, StockBalance y StockEntry deben declarar claves foráneas
+  a ese artículo con borrado restringido desde su primera migración. Las configuraciones
+  se mantienen en archivos `IEntityTypeConfiguration` dentro del mismo contexto.
+- Los comandos obtienen el actor mediante `ICurrentActor.GetRequiredActorIdAsync` y
+  comprueban sus permisos antes de ejecutar. La implementación Identity rechaza ausencia
+  de sesión, identificador inválido o usuario inexistente. No se recibe ActorId del cliente;
+  la interfaz no sustituye la autorización del endpoint ni los permisos de la operación.
 - Todas las rutas de escritura, importaciones y trabajos en segundo plano siguen el
   protocolo. Las restricciones SQL son defensa adicional; applock es cooperativo.
 - Desactivar un artículo o cambiar su mínimo adquiere el mismo bloqueo de artículo.

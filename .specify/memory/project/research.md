@@ -123,6 +123,13 @@ en producción y proxy /api en desarrollo. Antiforgery en mutaciones: cookie XSR
 y cabecera X-XSRF-TOKEN, emitidas/validadas por el servidor. Roles y políticas en la API;
 usuario de auditoría derivado de la sesión, nunca confiado al cuerpo enviado por el cliente.
 
+Concreción H0: `Inventario.Session` es HttpOnly y SameSite=Lax; el ticket dura 8 horas
+con renovación deslizante. Cookie interna `Inventario.Antiforgery` HttpOnly distinta
+de `XSRF-TOKEN`, que contiene el token de petición legible y se envía en X-XSRF-TOKEN.
+Login renueva ese token ya vinculado a la identidad autenticada. Cookies Secure fuera
+de Development; HTTP local de Compose usa SameAsRequest. Los rechazos por credenciales,
+bloqueo o cuenta no confirmada comparten el error público InvalidCredentials.
+
 Angular usa componentes standalone, formularios reactivos tipados, rutas lazy por función,
 servicios HTTP y estado local con signals. PrimeNG aporta tablas, formularios, diálogos y
 mensajes; etiquetas, navegación por teclado y estados no dependientes solo del color.
@@ -216,3 +223,36 @@ se comprueba recreando contenedores, no solo reiniciando procesos.
 - https://docs.docker.com/build/building/multi-stage/
 - https://docs.docker.com/compose/how-tos/startup-order/
 - https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying
+
+## R-10. Desbloqueo de referencias e identidad del núcleo H0
+
+**Fecha**: 2026-11-12. **Estado**: implementado por solicitud de A; revisión de B pendiente.
+
+**Decisión**: A adelanta Article mínima y su migración antes de `H0_StockCore`. B conserva
+claves foráneas reales a Article desde el inicio. El contexto aplica configuraciones por
+entidad desde archivos separados, manteniendo una única cadena de migraciones. No se
+renombra ni regenera `H0Identity` ya existente. Tras integrar cambios, quien genere después
+regenera su migración local aún no compartida si su snapshot quedó obsoleto.
+
+El núcleo consume `ICurrentActor` sin depender del transporte. A lo implementa con Identity,
+exigiendo un usuario autenticado existente, sin fallback al ejecutar fuera de HTTP. Las
+pruebas pueden usar un actor controlado y las pruebas HTTP conservan la sesión real.
+
+**Motivo**: evita tablas de stock con referencias huérfanas y dos definiciones de artículo,
+y permite a B desarrollar el protocolo sin esperar al mantenimiento completo de HU-08.
+
+**Alternativa descartada**: crear las tablas de B sin las claves foráneas y añadirlas en
+HU-08, porque difiere la comprobación de integridad y puede exigir reparar referencias.
+
+**Impacto y alcance**: no cambia estados ni efectos de stock, ni sustituye la futura
+familia obligatoria, política inicial o auditoría de altas de HU-08. Article de H0 solo
+se crea en preparación controlada de pruebas; no hay alta de negocio provisional. El
+contrato completo de núcleo sigue en stock-operations: operación → documentos → ubicaciones
+→ artículos, y escritura atómica de documento, diario, saldos, reservas aplicables y resultado.
+El esqueleto y Receive/Reserve/Ship mínimos de B se validan en SQL Server real; las reglas
+completas se concretan en sus historias. CustomerOrder mínimo queda a cargo de B en HU-03.
+
+La spec consumidora HU-08 mantiene sus requisitos y registra esta preparación en su
+[handoff H0](../../../specs/002-gestionar-datos-maestros/h0-handoff.md). HU-02/HU-03/HU-04/
+HU-05/HU-07 aún deben consumir estos acuerdos al preparar sus specs. No se modifican
+obligaciones constitucionales ni se acredita una revisión A+B no realizada.

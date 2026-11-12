@@ -1,8 +1,8 @@
 # Guía de ejecución y validación conjunta
 
-**Estado**: la base técnica H0 tiene frontend/API de estado, migración de infraestructura
-y arranque contenedorizado. Los comandos y recorridos de autenticación, pruebas y negocio
-de las secciones posteriores se completarán con sus correspondientes historias del
+**Estado**: H0 incluye frontend de estado, API de sesión Identity, policies por rol,
+migraciones y bootstrap de identidad, pruebas de integración SQL y arranque contenedorizado.
+Los recorridos de negocio y su interfaz se completarán con las historias del
 [plan global](../project-plan.md). Los hitos se describen en el
 [plan de coordinación](../../../specs/001-reparto-specs-inventario/plan.md).
 Los escenarios de negocio definen resultados esperados pendientes de sus funcionalidades.
@@ -41,6 +41,77 @@ imagen app previa, inicializador Exited (0), health SQL 200, dato conservado al 
 contenedores, puerto publicado cambiado mediante entorno y API desconocida con 404.
 El usuario de ejecución se comprobó sin sysadmin ni permiso CREATE TABLE.
 
+### H0 de Persona A: sesión y permisos
+
+Tras cambiar el backend, actualizar la imagen y esperar a la inicialización:
+
+```bash
+docker compose up --build -d --wait --wait-timeout 300
+docker compose --profile test run --build --rm tests
+```
+
+El inicializador añade `H0Identity` sobre el historial existente sin borrar la migración
+inicial. Crea cinco roles y una cuenta Administrador; repetir no duplica usuarios ni
+restablece su contraseña. La conexión administrativa solo se usa en el inicializador.
+Cuenta local y variables `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD` en el README.
+
+El borrador generado se consulta en http://localhost:8081/openapi/v1.json durante Development.
+Las operaciones de sesión son csrf → login → me → logout. GET csrf devuelve requestToken,
+una cookie interna HttpOnly y XSRF-TOKEN legible; el cliente conserva cookies y envía el
+token legible en X-XSRF-TOKEN. Login devuelve un token nuevo ligado al usuario y logout
+lo requiere. Sin sesión, me/logout devuelven 401, sin redirección a una página HTML.
+
+Pruebas del proyecto `Inventario.IntegrationTests`: anonimato, antiforgery ausente/ajeno,
+rotación de token, validación de campos, bloqueo tras cinco intentos fallidos, combinación
+de permisos sin duplicados, Administrador sin privilegios implícitos de stock, seed repetible,
+usuario SQL sin DDL, sesión recuperable por otra instancia con las mismas claves,
+cookies Secure de producción y OpenAPI limitado a Development.
+
+Se crea una base `InventoryH0Tests_...` y un login aleatorios por ejecución; el fixture
+solo puede eliminar los nombres que generó, nunca InventoryDev. El perfil Compose usa
+Testing__SqlHost y Testing__SqlAdminPassword; fuera de Docker se exige una conexión
+Testing__SqlConnection explícita con sa de un servidor de desarrollo/pruebas.
+
+Verificación de esta entrega H0-A: 8 pruebas de integración aprobadas, migración y modelo
+consistentes y `initialize` terminado con código 0 sobre el entorno Compose existente.
+Se comprobó además por HTTP real que login/me/logout funcionan, que la cuenta no cambia
+al repetir la inicialización y que la cookie sigue siendo válida tras recrear la app
+con el mismo volumen de claves. El proceso API no recibe las contraseñas administrativas
+de bootstrap o de SQL. El trabajo del núcleo de stock de B y la revisión conjunta de H0
+se completan según el plan de coordinación.
+
+### Desbloqueo A → B: Article e ICurrentActor
+
+La cadena añade `20261112105657_H0ArticleReference` después de `H0Identity`. El inicializador
+aplica la tabla `Articles`; no crea artículos de negocio. La familia y el mantenimiento
+de artículos/proveedores siguen en HU-08. B consume la referencia existente y el servicio
+scoped `ICurrentActor`; detalles en el
+[handoff H0](../../../specs/002-gestionar-datos-maestros/h0-handoff.md).
+
+Verificación realizada el 2026-11-12 con SQL Server real en Docker: **18 pruebas aprobadas**
+(8 de Identity y 10 casos nuevos de referencia/actor). Incluye unicidad SQL de SKU sin
+distinguir mayúsculas, metadata y rowversion, edición obsoleta, rollback de alta técnica,
+actor ausente/anónimo/malformado/vacío/inexistente, sesión real y rechazo tras borrar al
+usuario. Modelo y snapshot consistentes según `dotnet ef migrations has-pending-model-changes`.
+Los fixtures migran bases aleatorias y prueban también reinicialización sin resetear cuentas.
+No se acredita con estas pruebas la idempotencia ni la concurrencia de stock: corresponden
+al núcleo H0 de B y necesitan sus tablas y comandos.
+
+La compilación y pruebas se ejecutaron sobre el código actual montado en la imagen SDK
+de pruebas ya disponible. El intento de reconstruir la imagen con `--build` agotó el tiempo
+de descarga de una nueva imagen base; no fue un fallo de compilación. El comando utilizado
+desde la raíz para las 18 pruebas fue:
+
+```bash
+docker compose --profile test run --no-deps --rm \
+  --volume "$PWD/backend:/source/backend" --entrypoint sh tests -c \
+  'dotnet restore Inventario.slnx --force && dotnet test Inventario.slnx --configuration Release --no-restore --nologo'
+```
+
+Este comando de verificación necesita `sqlserver` saludable e imagen `inventario-h0-tests:local`
+existente; el comando ordinario con `--build` sigue siendo el arranque reproducible del README.
+La verificación aplica las migraciones solo en bases aisladas de pruebas, no en InventoryDev.
+
 ## 1. Requisitos para desarrollo y pruebas fuera de contenedores
 
 - Node 24 LTS compatible con Angular 22 y .NET SDK 10 estable.
@@ -50,8 +121,9 @@ El usuario de ejecución se comprobó sin sysadmin ni permiso CREATE TABLE.
   restringido sin UPDATE/DELETE sobre el diario. Cadena de conexión mediante secreto local.
 - Servidor SMTP de pruebas que capture mensajes sin enviarlos a proveedores reales.
 - Navegador compatible; Playwright instala sus navegadores al preparar E2E.
-- H0 deberá aportar manifiesto dotnet-tools con dotnet-ef 10, solución backend, lockfile npm,
-  configuración de proxy /api hacia https://localhost:7043 y usuarios de prueba controlados.
+- Ya existen manifiesto dotnet-tools con dotnet-ef 10, solución backend y lockfile npm.
+  El proxy Angular apunta a la API Compose en http://localhost:8081; si se ejecuta la API
+  directamente en https://localhost:7043, ajustar ese destino para la sesión de desarrollo.
 
 Comprobar herramientas, desde cualquier directorio:
 
@@ -65,13 +137,14 @@ Resultado esperado: Node 24 ≥ 24.15.0 y SDK .NET 10; versiones frontend compat
 
 ## 2. Preparación del backend
 
-Directorio de ejecución: `backend/`. H0 fijará la configuración Development y la URL 7043.
+Directorio de ejecución: `backend/`. Usar Development para el entorno local y la URL 7043.
 Definir previamente INVENTARIO_SQL_MIGRATION_CONNECTION para migrar e
 INVENTARIO_SQL_CONNECTION para ejecutar con permisos restringidos; ambas apuntan a InventoryDev,
 con SMTP de prueba configurado mediante secretos. No incluir credenciales en Git ni
 en documentación.
 
 ```bash
+export ASPNETCORE_ENVIRONMENT=Development
 dotnet dev-certs https --trust
 dotnet tool restore
 dotnet restore Inventario.slnx
@@ -92,7 +165,7 @@ nunca escribiendo saldos manualmente. La API no envía correo real en Developmen
 
 ## 3. Preparación del frontend
 
-Directorio de ejecución: `frontend/`, en otra terminal. El proxy se creará en H0.
+Directorio de ejecución: `frontend/`, en otra terminal. El proxy existente apunta a Compose.
 
 ```bash
 npm ci
@@ -100,24 +173,25 @@ npx --no-install ng version
 npx --no-install ng serve --port 4200 --proxy-config proxy.conf.json
 ```
 
-Abrir http://localhost:4200, iniciar sesión con cuenta de prueba y comprobar /api/v1/auth/me.
+Abrir http://localhost:4200; la pantalla actual muestra el estado del entorno. La interfaz
+de login y el menú por permisos se incorporan en el trabajo de frontend. La API de sesión
+ya permite comprobar /api/v1/auth/me y los tokens desde un cliente HTTP conservando cookies.
 El navegador usa /api del mismo origen mediante proxy; producción sirve todo por HTTPS.
-Verificar token antiforgery, menú por permisos y mensajes en español.
 
 ## 4. Pruebas automatizadas
 
-Directorio `backend/`; preparar INVENTARIO_TEST_SQL_CONNECTION para una base desechable,
-distinta de producción. El fixture deberá crear/limpiar datos de su ejecución y aplicar
-migraciones sin tocar otras bases. En H0 se añadirá una comprobación que rechace usar
-una base de producción o una conexión no declarada expresamente como entorno Test.
+Directorio `backend/`; preparar INVENTARIO_TEST_SQL_CONNECTION con acceso sa a SQL Server
+de desarrollo/pruebas. El fixture crea una base y un login con nombres aleatorios propios,
+aplica migraciones y los elimina al finalizar. No reutiliza InventoryDev ni acepta una
+conexión implícita. No ejecutar esta suite contra un servidor de producción.
 
 ```bash
 export Testing__SqlConnection="${INVENTARIO_TEST_SQL_CONNECTION:?Definir conexión SQL aislada de pruebas}"
 dotnet test Inventario.slnx --configuration Release --no-build
 ```
 
-Resultado esperado: reglas unitarias y pruebas HTTP/SQL correctas. Los tests de carrera
-usan conexiones independientes y barreras para forzar solapamiento; no solo peticiones secuenciales.
+Resultado esperado actual: pruebas HTTP/SQL de Identity correctas. Las futuras pruebas
+de carrera del stock utilizarán conexiones independientes y solapamiento controlado.
 
 Directorio `frontend/`:
 

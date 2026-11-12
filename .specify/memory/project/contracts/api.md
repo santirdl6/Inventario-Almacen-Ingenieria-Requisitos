@@ -27,18 +27,23 @@ deberán ajustarse a él. Cambios compartidos requieren revisión A+B.
 
 ## Sesión, permisos y errores
 
-Mismo origen, cookie HttpOnly/Secure y antiforgery para todas las mutaciones, incluido
-inicio/cierre de sesión. Angular envía X-XSRF-TOKEN a partir de XSRF-TOKEN.
+Mismo origen, cookie de sesión HttpOnly/SameSite=Lax y antiforgery para todas las mutaciones,
+incluido inicio/cierre de sesión. Fuera de Development las cookies son Secure; el HTTP
+local de Compose usa SameAsRequest. Angular envía X-XSRF-TOKEN a partir de XSRF-TOKEN.
+La cookie interna `Inventario.Antiforgery` es HttpOnly y distinta del token de petición
+legible. Los dos tokens deben pertenecer al mismo cliente y a la identidad actual.
 
 | Método y ruta | Entrada / salida |
 |---------------|-----------------|
-| GET /auth/csrf | Emite token antiforgery y cookie XSRF-TOKEN; 204. Renovar tras login. |
-| POST /auth/login | email, password; 204 con cookie de sesión. 401 sin revelar si existe la cuenta. |
-| POST /auth/logout | Cierra sesión; 204. |
-| GET /auth/me | Usuario y permisos actuales; 401 si no hay sesión. |
+| GET /auth/csrf | Disponible anónimo o autenticado; emite cookie interna y XSRF-TOKEN y devuelve `{ requestToken }` con 200. |
+| POST /auth/login | Anónimo y antiforgery; email, password; 200 con cookie de sesión y nuevo `{ requestToken }`. 401 no revela si existe la cuenta. |
+| POST /auth/logout | Sesión autenticada y antiforgery; cierra cookie; 204. |
+| GET /auth/me | Sesión autenticada; `{ id, email, roles, permissions }`; 401 si no hay sesión. |
 
 Las rutas anteriores se prefijan con /api/v1. No exigen clave idempotente porque no
-son mutaciones de documentos; sí protección antiforgery en los POST.
+son mutaciones de documentos; sí protección antiforgery en login/logout. Solicitudes API
+sin sesión devuelven 401 JSON, nunca una redirección HTML a login. Las cuentas iniciales
+se crean por configuración del entorno durante la inicialización; no hay alta pública.
 
 | Actor | Permisos mínimos |
 |-------|------------------|
@@ -46,10 +51,14 @@ son mutaciones de documentos; sí protección antiforgery en los POST.
 | ResponsableAlmacen | Inventory.Read, Reservations.Manage, Inventory.Adjust, Counts.Record, StockPolicy.Manage, Alerts.Read. |
 | Comprador | Purchasing.Manage, Purchasing.Send, Inventory.Read, Alerts.Read. |
 | GestorMaestros | MasterData.Manage, Inventory.Read. |
-| Administrador | Gestiona cuentas y asigna permisos; no se supone autorización implícita para alterar el diario. |
+| Administrador | Users.Manage; sin permisos implícitos de inventario. La API de gestión de cuentas se incorpora posteriormente. |
 
-Las cuentas pueden combinar roles. La autorización de ajustes y las acciones de un operario
-quedan diferenciadas y registradas. Autorización en cada endpoint y en el recurso consultado.
+Las cuentas pueden combinar roles. Las policies del servidor usan claims `permission`
+derivados de roles; los guards del frontend no son una barrera de autorización. Identity
+comprueba contraseña, bloqueo temporal y unicidad de correo. La autorización de ajustes y
+las acciones de un operario quedan diferenciadas y registradas. La base H0 siembra los
+roles anteriores y crea una cuenta local de Administrador desde variables exclusivas del
+servicio inicializador. Asignar roles a nuevos usuarios queda para las futuras specs.
 
 Errores `application/problem+json`: type, title, status, detail legible en español,
 code, traceId, operationId cuando aplique y errors por campo. No contienen trazas ni SQL.
@@ -63,6 +72,29 @@ code, traceId, operationId cuando aplique y errors por campo. No contienen traza
 | 412 / 428 | Versión obsoleta / falta If-Match. |
 | 422 | Campos de negocio inválidos, cantidades/unidades o suma de asignaciones incorrectas. |
 | 503 | LockTimeout o indisponibilidad tras reintentos; Retry-After. Comprobar operationId antes de repetir. |
+
+Para esta base H0, credenciales incorrectas, cuenta bloqueada o no confirmada devuelven
+`InvalidCredentials` con 401 genérico para no revelar si existe la cuenta. Cinco fallos
+bloquean nuevos accesos durante 15 minutos. Las contraseñas exigen al menos 12 caracteres,
+mayúsculas, minúsculas, número y símbolo. Antiforgery devuelve `AntiforgeryValidationFailed`
+con 400; campos vacíos/inválidos, `ValidationFailed` con 422. El healthcheck
+no requiere sesión y solo revela `healthy/database ready` o `unhealthy/database unavailable`.
+
+### Estado de implementación del borrador
+
+Implementados en H0: health, csrf, login, me y logout. OpenAPI generado en
+`/openapi/v1.json` solo en Development, con los endpoints realmente implementados.
+Los recursos de negocio de las secciones siguientes siguen siendo el borrador compartido.
+
+`/auth/me`, `/auth/logout` y los futuros endpoints requieren sesión por defecto; únicamente
+health/csrf/login son anónimos. Ningún grupo de sesión completo lleva AllowAnonymous.
+La cookie se llama `Inventario.Session`, no es persistente en el navegador y protege un
+ticket de 8 horas con renovación deslizante. Login devuelve un token antiforgery vinculado
+al usuario; logout elimina la cookie de sesión y la cookie de petición. Los endpoints de
+sesión envían `Cache-Control: no-store`. No se emiten JWT ni se admiten tokens en localStorage.
+
+La ampliación H0 no implementa todavía ETag, idempotencia o paginación de documentos:
+son compromisos de los recursos de negocio y se conservan en este contrato para sus specs.
 
 ## Catálogo de recursos
 
@@ -180,7 +212,7 @@ La alerta no crea ni envía una compra; el comprador abre el flujo HU-07.
 La base contenedorizada H0 implementa GET /api/v1/health sin sesión: 200 con
 `{ "status": "healthy", "database": "ready" }` si SQL responde y no quedan migraciones
 pendientes, o 503 con estado genérico. No expone credenciales ni excepciones.
-Las demás rutas descritas son contratos para sus futuras specs. Una ruta /api desconocida
+Las rutas de negocio descritas son contratos para sus futuras specs. Una ruta /api desconocida
 devuelve 404, nunca el HTML de la SPA.
 
 ## Ejemplo de salida de consulta

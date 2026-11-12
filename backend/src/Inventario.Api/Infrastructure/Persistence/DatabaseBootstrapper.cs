@@ -1,11 +1,12 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Inventario.Api.Infrastructure.Identity;
 
 namespace Inventario.Api.Infrastructure.Persistence;
 
 internal static class DatabaseBootstrapper
 {
-    public static async Task InitializeAsync(IConfiguration configuration)
+    public static async Task InitializeAsync(IConfiguration configuration, IServiceProvider services)
     {
         var name = DatabaseConfiguration.Identifier(configuration["Database:Name"] ?? "InventoryDev");
         var user = DatabaseConfiguration.Identifier(configuration["Database:User"] ?? "inventory_app");
@@ -67,5 +68,9 @@ internal static class DatabaseBootstrapper
         // El inicializador no termina con éxito si las credenciales de ejecución no funcionan.
         await using var application = new SqlConnection(DatabaseConfiguration.ApplicationConnection(configuration));
         await application.OpenAsync();
+
+        // El scope de Identity usa la conexión administrativa solo en el modo initialize-database.
+        // Sembrar después de crear el usuario SQL permite también arrancar sobre una base vacía.
+        await IdentityBootstrapper.SeedAsync(configuration, services);
     }
 }

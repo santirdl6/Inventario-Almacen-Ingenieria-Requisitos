@@ -43,6 +43,21 @@ No se elimina con historial de stock; tampoco con documentos o reservas referenc
 La desactivación conserva todos los enlaces y se audita. Reglas de operaciones pendientes
 en R-05; el backend comprueba el estado bajo el bloqueo compartido de artículo.
 
+**Base técnica H0 A → B (2026-11-12)**: implementados `Article` y tabla `Articles` con
+Id, Sku, Name, BaseUnit, AllowsFractional, TracksLot, IsActive y Version. La migración
+`20261112105657_H0ArticleReference` no crea todavía FamilyId ni StockPolicy; la asociación
+obligatoria a familia y el mínimo inicial cero siguen siendo requisitos de las altas
+de HU-08. No hay endpoint de alta provisional ni seed de artículos de negocio.
+Al añadir la familia, HU-08 deberá asignar explícitamente una familia válida a cualquier
+referencia H0 existente antes de exigir el campo, sin borrar ni sustituir artículos.
+
+En esta base, Id se genera en la aplicación. Sku admite 64 caracteres, Name 200 y BaseUnit
+32; se eliminan espacios extremos y Sku/BaseUnit se convierten a mayúsculas. El índice
+único de Sku usa comparación SQL sin distinguir mayúsculas; campos obligatorios no vacíos
+y rowversion se comprueban también en SQL. B referencia `Articles.Id` desde Lot,
+StockBalance y StockEntry con borrado restringido; no duplica Article ni aplaza sus claves
+foráneas. La revisión cruzada de esta preparación se registra antes de integrar los cambios.
+
 ### MasterDataAudit
 
 Id, EntityType, EntityId, Action, Before, After, ActorId, RecordedAt, OperationId.
@@ -254,6 +269,21 @@ Tablas de ASP.NET Core Identity con claves Guid; roles Operario, ResponsableAlma
 Comprador, GestorMaestros y Administrador. Políticas por operación, no autorización
 basada únicamente en esconder botones. Usuarios históricos no se borran si son actores
 referenciados; se deshabilita su acceso. Permisos y errores en [API](contracts/api.md).
+
+H0 implementa `ApplicationUser`, `IdentityRole<Guid>` y las tablas estándar AspNetUsers,
+AspNetRoles, AspNetUserRoles, AspNetUserClaims, AspNetRoleClaims, AspNetUserLogins y
+AspNetUserTokens. La migración `H0Identity` amplía la migración inicial sin modificarla.
+Correo único validado por Identity, contraseñas hasheadas y bloqueo de acceso tras fallos.
+Roles y cuenta administrativa se siembran de forma repetible durante la inicialización.
+Las policies derivan los permisos del catálogo de roles en servidor, sin tabla de permisos
+adicional. No hay altas, borrados o cambios de roles públicos en esta base.
+
+`ICurrentActor` ofrece `Task<Guid> GetRequiredActorIdAsync(CancellationToken)` desde Domain.
+La implementación Identity comprueba sesión autenticada, claim de identidad Guid no vacío
+y usuario existente. Sin contexto HTTP o usuario válido lanza `UnauthenticatedActorException`;
+el transporte HTTP lo convierte en 401 con code `Unauthenticated`. ActorId nunca se toma
+del cuerpo del comando. Los fixtures pueden sustituir la interfaz; si hay claves foráneas
+a usuarios, el actor de pruebas debe existir en Identity.
 
 ## Evolución y conciliación
 
