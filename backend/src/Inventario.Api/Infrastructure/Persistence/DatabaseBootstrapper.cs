@@ -61,6 +61,10 @@ internal static class DatabaseBootstrapper
                     ALTER ROLE db_datareader ADD MEMBER [{user}];
                 IF IS_ROLEMEMBER(N'db_datawriter', N'{user}') <> 1
                     ALTER ROLE db_datawriter ADD MEMBER [{user}];
+                -- Diario y resultados de operación: solo adición para el rol de ejecución.
+                DENY UPDATE, DELETE ON OBJECT::dbo.StockMovements TO [{user}];
+                DENY UPDATE, DELETE ON OBJECT::dbo.StockEntries TO [{user}];
+                DENY UPDATE, DELETE ON OBJECT::dbo.OperationResults TO [{user}];
                 """;
             await permissions.ExecuteNonQueryAsync();
         }

@@ -112,6 +112,33 @@ Este comando de verificación necesita `sqlserver` saludable e imagen `inventari
 existente; el comando ordinario con `--build` sigue siendo el arranque reproducible del README.
 La verificación aplica las migraciones solo en bases aisladas de pruebas, no en InventoryDev.
 
+### Núcleo de stock H0 (B)
+
+La cadena añade `H0_StockCore` después de `H0ArticleReference`, sin modificar migraciones
+previas: Locations (referencia mínima de HU-02), Lots, StockBalances, StockMovements,
+StockEntries y OperationResults, con las FK, CHECK e índices del [modelo](data-model.md).
+El inicializador deniega UPDATE/DELETE al usuario de ejecución sobre StockMovements,
+StockEntries y OperationResults. Servicio scoped `Features/Stock/Core/StockCore` con
+Receive, Reserve, ReleaseReservation y Ship según el [protocolo](contracts/stock-operations.md).
+
+Verificación realizada el 2026-11-16 con SQL Server real de Compose: **26 pruebas aprobadas**
+(18 previas y 8 nuevas de `StockCoreTests`, repetidas tres veces sin fallos). Cubren el
+ejemplo de salida mixta del contrato (F=10, R=7: servir 6 válido, 8 rechazado), reintento
+con la misma clave (incluido 6 y 6.000), clave reutilizada con otro cuerpo o actor,
+otro OperationId sobre el mismo hecho documental, ocho reintentos simultáneos de la
+misma operación, fallo inducido tras escribir y antes del commit sin filas residuales,
+reservas y salidas solapadas sin físico negativo ni reservado superior al físico,
+reglas de lote/SIN-LOTE, unidades enteras, artículo desactivado y liberación excesiva,
+conciliación diario = saldo, denegación SQL 229 sobre el diario y CHECK 547 en saldos.
+`has-pending-model-changes` confirma modelo y snapshot consistentes.
+
+Sin SDK local, se ejecutó desde la raíz con la imagen SDK y la red Compose:
+
+```bash
+docker compose up -d sqlserver
+docker run --rm --network inventario_default -v "$PWD/backend:/src" -w /src   -e Testing__SqlHost=sqlserver -e 'Testing__SqlAdminPassword=LocalSqlAdmin_2026!'   mcr.microsoft.com/dotnet/sdk:10.0 sh -c 'dotnet tool restore && dotnet test Inventario.slnx --nologo'
+```
+
 ## 1. Requisitos para desarrollo y pruebas fuera de contenedores
 
 - Node 24 LTS compatible con Angular 22 y .NET SDK 10 estable.

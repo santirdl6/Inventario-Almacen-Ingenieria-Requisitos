@@ -152,3 +152,21 @@ reservas aplicables y OperationResult se confirman conjuntamente.
 Estas pruebas de protocolo aún corresponden a B: las pruebas de Article no demuestran
 idempotencia ni concurrencia del stock. B concreta CustomerOrder mínimo en HU-03; las
 reglas completas de operaciones y conteos permanecen en las historias correspondientes.
+
+## Revisión de B (2026-11-16)
+
+Revisados Article, ArticleConfiguration, ICurrentActor/IdentityCurrentActor, la cadena de
+migraciones y el snapshot, integrándolos en `H0_StockCore`. **Resultado: aceptado** para
+construir el núcleo; las 18 pruebas de A siguen aprobadas junto a las 8 del núcleo.
+
+- La migración de B es aditiva sobre `H0ArticleReference` y el snapshot se generó tras
+  integrar esta base; no se renombró ni modificó ninguna migración de A.
+- Lot, StockBalance y StockEntry referencian `Articles.Id` con borrado restringido;
+  la FK compuesta (ArticleId, LotId) usa una clave alternativa de Lot.
+- Observación para A: `Program.cs` usa `EnableRetryOnFailure()` con valores por defecto
+  (hasta 6 reintentos), mientras el [protocolo](../../.specify/memory/project/contracts/stock-operations.md)
+  fija un máximo de tres intentos completos. Propuesta: `EnableRetryOnFailure(maxRetryCount: 2)`.
+- Observación para HU-08: Article aún no tiene operación de desactivación; las pruebas de B
+  cambian `IsActive` directamente solo para comprobar R-05 en el núcleo.
+- `ApiExceptionHandler` y `DatabaseBootstrapper` reciben añadidos de B (mapeo de
+  `StockOperationException` y DENY sobre el diario); pendientes de revisión de A.

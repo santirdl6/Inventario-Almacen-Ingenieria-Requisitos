@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Inventario.Api.Domain.Identity;
+using Inventario.Api.Domain.Stock;
 
 namespace Inventario.Api.Infrastructure.Http;
 
@@ -52,6 +53,16 @@ internal sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) :
         if (error is UnauthenticatedActorException)
         {
             await ApiProblems.Status(401).ExecuteAsync(context);
+            return true;
+        }
+
+        if (error is StockOperationException stock)
+        {
+            var extensions = new Dictionary<string, object?>();
+            if (stock.Errors.Count > 0) extensions["errors"] = stock.Errors;
+            if (stock.OperationId is { } operationId) extensions["operationId"] = operationId;
+            if (stock.Status == 503) context.Response.Headers.RetryAfter = "1";
+            await ApiProblems.Create(stock.Status, stock.Code, stock.Message, extensions).ExecuteAsync(context);
             return true;
         }
 

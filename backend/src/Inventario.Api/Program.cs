@@ -1,3 +1,4 @@
+using Inventario.Api.Features.Stock.Core;
 using Inventario.Api.Infrastructure.Http;
 using Inventario.Api.Infrastructure.Identity;
 using Inventario.Api.Infrastructure.Persistence;
@@ -14,6 +15,7 @@ builder.Services.AddDbContext<InventoryDbContext>((services, options) =>
     options.UseSqlServer(connection, sql => sql.EnableRetryOnFailure());
 });
 builder.Services.AddInventoryIdentity(builder.Environment);
+builder.Services.AddStockCore();
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
 {
     context.ProblemDetails.Extensions.TryAdd("traceId", context.HttpContext.TraceIdentifier);

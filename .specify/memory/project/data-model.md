@@ -72,6 +72,12 @@ Pasillo/estantería/nivel obligatorios incluso para una ubicación temporal iden
 No se desactiva con stock, reservas o un conteo abierto. No se borra con historial.
 Un artículo puede aparecer en cualquier número de ubicaciones.
 
+**Base técnica H0 B (2026-11-16)**: `Domain.Locations.Location` y tabla `Locations` con
+todos los campos anteriores; Code (32) único sin distinguir mayúsculas, partes de 16
+caracteres normalizadas a mayúsculas. Sin endpoints ni reglas de desactivación: HU-02.
+Lot, StockBalance, StockMovement/StockEntry y OperationResult se crean en `H0_StockCore`
+según este modelo; ActorId de diario y resultados tiene FK restringida a AspNetUsers.
+
 ### Lot
 
 Id, ArticleId, Code, IsUntracked. Unicidad (ArticleId, Code).

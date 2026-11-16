@@ -67,6 +67,23 @@ no combinar reintentos de comandos SQL individuales con decisiones ya calculadas
 - Un comando de modificación del pedido de cliente declara primero las reservas que va
   a liberar y sus ubicaciones, conservando la jerarquía documento → ubicación → artículo.
 
+## Implementación H0 (B, 2026-11-16)
+
+`Inventario.Api.Features.Stock.Core.StockCore` (scoped) expone ReceiveAsync, ReserveAsync,
+ReleaseAsync y ShipAsync con `StockCommandContext` (OperationId, documento origen, OccurredAt,
+motivo, soporte o su no aplicabilidad, contraparte) y asignaciones explícitas por bucket.
+El núcleo valida la forma, obtiene el actor, sigue los pasos 2–9 y devuelve
+`StockOperationOutcome` con `Replayed` en los reintentos. No autoriza: el endpoint o handler
+consumidor comprueba el permiso antes de invocarlo. Los rechazos usan
+`StockOperationException` con los códigos y estados de la [API](api.md).
+
+Cada hecho documental es único por (SourceDocumentType, SourceDocumentId, Kind): una
+reserva o liberación usa su propio identificador como documento. En Ship, el consumidor
+indica `OwnReservedToConsume` = min(Q, Rpropia) a partir de sus reservas (HU-03); el
+núcleo comprueba que no excede el reservado del bucket y aplica las fórmulas siguientes.
+Pendiente para las historias: CustomerOrder/Reservation (HU-03/HU-05), congelación de
+conteos y ajustes (HU-04), alertas (HU-06) y correcciones.
+
 ## Cálculo de salida
 
 Para cada bucket se usa Q = cantidad a servir, Rpropia = reserva remanente del pedido,

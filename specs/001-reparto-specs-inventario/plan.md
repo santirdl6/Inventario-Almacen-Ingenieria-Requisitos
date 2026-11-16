@@ -114,6 +114,14 @@ idempotencia, rollback y concurrencia en SQL real; las reglas completas quedan e
 historias. B concreta CustomerOrder mínimo en HU-03 como soporte de HU-03/HU-05.
 La revisión cruzada A+B de esta ampliación sigue pendiente de registrarse.
 
+Entrega B / H0 (2026-11-16): esqueleto Angular en `b/h0-frontend-base` y núcleo de stock
+en `b/h0-stock-service` sobre la base de A: migración `H0_StockCore`, Location mínima,
+servicio Receive/Reserve/Release/Ship y 8 pruebas SQL de idempotencia, rollback y
+concurrencia (evidencia en la [guía común](../../.specify/memory/project/quickstart.md#núcleo-de-stock-h0-b)).
+B registró su revisión de la preparación de A en el
+[handoff de HU-08](../002-gestionar-datos-maestros/h0-handoff.md#revisión-de-b-2026-11-16);
+queda pendiente que A revise el núcleo y el frontend para cerrar H0.
+
 Flujo propuesto por el equipo: ramas cortas desde main, PR revisado por la otra persona
 y rebase antes de fusionar. B utiliza `b/h0-stock-service` y `b/hu-0X-...`. Si dos migraciones
 se generaron en paralelo, se regenera la local no compartida sobre el snapshot integrado;
