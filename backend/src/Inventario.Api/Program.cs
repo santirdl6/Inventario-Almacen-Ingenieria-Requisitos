@@ -1,6 +1,9 @@
 using Inventario.Api.Infrastructure.Http;
+using Inventario.Api.Features.MasterData;
+using Inventario.Api.Features.MasterData.Maintenance;
 using Inventario.Api.Infrastructure.Identity;
 using Inventario.Api.Infrastructure.Persistence;
+using Inventario.Api.Infrastructure.Persistence.Operations;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,6 +17,8 @@ builder.Services.AddDbContext<InventoryDbContext>((services, options) =>
     options.UseSqlServer(connection, sql => sql.EnableRetryOnFailure());
 });
 builder.Services.AddInventoryIdentity(builder.Environment);
+builder.Services.AddInventoryOperations();
+builder.Services.AddMasterData();
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
 {
     context.ProblemDetails.Extensions.TryAdd("traceId", context.HttpContext.TraceIdentifier);
@@ -21,19 +26,24 @@ builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = 
         ApiProblems.DefaultCode(context.ProblemDetails.Status ?? 500));
 });
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
-builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document, _, _) =>
+builder.Services.AddOpenApi(options =>
 {
-    document.Info.Title = "Inventario — base API H0";
-    document.Info.Description = "Sesión, antiforgery y disponibilidad. Los recursos de negocio se incorporan en sus specs.";
-    document.Info.Version = "v1";
-    return Task.CompletedTask;
-}));
+    MasterDataOpenApi.Configure(options);
+    options.AddDocumentTransformer((document, _, _) =>
+    {
+        document.Info.Title = "Inventario — H0 y datos maestros";
+        document.Info.Description = "Sesión, disponibilidad, resultados confirmados, catálogos de familias, proveedores y artículos; retirada e historial con disponibilidad explícita del diario compartido.";
+        document.Info.Version = "v1";
+        return Task.CompletedTask;
+    });
+});
 builder.Services.AddDataProtection()
     .SetApplicationName("Inventario")
     .PersistKeysToFileSystem(new DirectoryInfo(builder.Configuration["DataProtection:KeyDirectory"]
         ?? Path.Combine(builder.Environment.ContentRootPath, ".keys")));
 
 var app = builder.Build();
+var maintenance = app.Configuration.GetValue<bool>("Maintenance:Hu08FamilyPreparation");
 
 if (initialize)
 {
@@ -49,7 +59,7 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 app.Use(async (context, next) =>
 {
-    if (context.Request.Path.StartsWithSegments("/api/v1/auth"))
+    if (context.Request.Path.StartsWithSegments("/api/v1"))
         context.Response.Headers.CacheControl = "no-store";
     await next(context);
 });
@@ -61,7 +71,7 @@ api.MapGet("/health", async (InventoryDbContext database, CancellationToken canc
 {
     try
     {
-        var connected = await database.Database.CanConnectAsync(cancellation);
+        var connected = !maintenance && await database.Database.CanConnectAsync(cancellation);
         var pending = connected
             && (await database.Database.GetPendingMigrationsAsync(cancellation)).Any();
         return connected && !pending
@@ -75,6 +85,14 @@ api.MapGet("/health", async (InventoryDbContext database, CancellationToken canc
     }
 }).AllowAnonymous().WithTags("Infrastructure").WithSummary("Comprueba SQL y migraciones pendientes");
 api.MapSessionEndpoints();
+api.MapOperationEndpoints();
+if (maintenance)
+{
+    using var scope = app.Services.CreateScope();
+    if (await ArticleSchema.IsExpandedAsync(scope.ServiceProvider.GetRequiredService<InventoryDbContext>()))
+        api.MapHu08Maintenance();
+}
+else api.MapMasterDataEndpoints();
 
 if (app.Environment.IsDevelopment())
     app.MapOpenApi().AllowAnonymous();

@@ -19,6 +19,12 @@ deberán ajustarse a él. Cambios compartidos requieren revisión A+B.
 - Toda mutación de negocio lleva `Idempotency-Key` UUID. La misma clave, ruta, actor y
   cuerpo normalizado devuelve el mismo resultado; contenido distinto, 409. Los replays
   autorizados se resuelven antes de evaluar un If-Match que ya quedó obsoleto por el éxito.
+- OperationId coincide con Idempotency-Key. El resultado confirmado conserva también
+  ETag/Location y el permiso original; el replay se resuelve antes de comprobar si el
+  recurso sigue existiendo, sin ejecutar de nuevo un borrado ni reconstruir su respuesta.
+- La huella común es SHA-256 de método en mayúsculas, ruta canónica y JSON normalizado
+  del DTO, separados por salto de línea; cada contrato concreta el orden y normalización
+  de sus campos. No incluye If-Match, cookies ni tokens; el actor se compara por separado.
 - POST de alta: 201 y Location; confirmación: 200 con documento, movimiento(s) y operationId;
   envío de compra: 202 con intención persistida, no afirmación de correo entregado.
 - No hay DELETE/PUT/PATCH de saldos ni de movimientos confirmados.
@@ -82,9 +88,12 @@ no requiere sesión y solo revela `healthy/database ready` o `unhealthy/database
 
 ### Estado de implementación del borrador
 
-Implementados en H0: health, csrf, login, me y logout. OpenAPI generado en
+Implementados: health, csrf, login, me y logout; desde el corte HU-08 del 2026-11-17,
+GET de resultados autorizados, GET/POST/PUT de familias y artículos y contexto auxiliar
+de Article. El mantenimiento de transición solo se registra en su ventana explícita.
+OpenAPI generado en
 `/openapi/v1.json` solo en Development, con los endpoints realmente implementados.
-Los recursos de negocio de las secciones siguientes siguen siendo el borrador compartido.
+Las demás rutas de negocio de las secciones siguientes siguen siendo el borrador compartido.
 
 `/auth/me`, `/auth/logout` y los futuros endpoints requieren sesión por defecto; únicamente
 health/csrf/login son anónimos. Ningún grupo de sesión completo lleva AllowAnonymous.
@@ -93,8 +102,9 @@ ticket de 8 horas con renovación deslizante. Login devuelve un token antiforger
 al usuario; logout elimina la cookie de sesión y la cookie de petición. Los endpoints de
 sesión envían `Cache-Control: no-store`. No se emiten JWT ni se admiten tokens en localStorage.
 
-La ampliación H0 no implementa todavía ETag, idempotencia o paginación de documentos:
-son compromisos de los recursos de negocio y se conservan en este contrato para sus specs.
+La base común, familias y artículos ya implementan ETag, idempotencia, errores y paginación del
+catálogo. Los documentos/operaciones de stock incorporarán esas garantías en sus cortes;
+no se presentan como implementados por la existencia del catálogo.
 
 ## Catálogo de recursos
 
@@ -111,7 +121,29 @@ Todas las rutas siguientes son relativas a /api/v1 y requieren sesión.
 | GET /articles/{id}/movements | Historial paginado, filtros from/to/actorId/locationId/lotId. Incluye artículo inactivo. |
 
 Familias y proveedores usan la misma política de lectura/escritura. No se ofrecen borrados
-de esos recursos en la base inicial. No cambia unidad o seguimiento de un artículo con historial.
+de esos recursos en la base inicial. La unidad base, el seguimiento por lote y la admisión
+de fracciones solo pueden cambiarse mientras el artículo no tenga documentos, reservas ni
+movimientos asociados y no tenga activada la marca persistente de primer uso. Una referencia
+en un documento en borrador también fija esa marca; retirar la línea no desbloquea la definición.
+La marca sola no sustituye las comprobaciones de referencias e historial para permitir borrar.
+
+Concreciones HTTP de HU-08: PUT y DELETE requieren If-Match fuerte de rowversion, además
+de clave idempotente; DELETE exitoso devuelve 204. La consulta auxiliar del artículo informa
+capacidades y motivo de bloqueo, sin sustituir la revalidación al guardar. Los DTO, filtros,
+resultados y errores particulares se mantienen en el
+[contrato HU-08](../../../../specs/002-gestionar-datos-maestros/contracts/api.md).
+Los códigos compartidos añaden DuplicateCode, ArticleDefinitionLocked, VersionConflict,
+PreconditionRequired y DependencyUnavailable en sus estados HTTP allí especificados.
+
+Concreción de US2: el detalle de Article con ETag solo incluye datos persistidos propios.
+GET /articles/{id}/context devuelve familia/política/capacidades derivadas sin ETag, con
+articleVersion para detectar lecturas de distinta revisión. Así el ETag fuerte no permanece
+igual ante cambios de su representación por datos relacionados. La UI combina ambas lecturas.
+
+La preparación H0 de familia usa exclusivamente el modo HTTP autenticado de mantenimiento
+definido en ese contrato: MasterData.Manage, antiforgery, ICurrentActor y resultado idempotente
+común, sin ActorId proporcionado por el cliente. No se registra en el modo ordinario ni
+entrega DDL al proceso API; no es un alta provisional de artículos.
 
 ### HU-02 — B: ubicaciones
 
@@ -200,7 +232,10 @@ La alerta no crea ni envía una compra; el comprador abre el flujo HU-07.
 ### Transversal: operación incierta, corrección y contingencia
 
 - GET /operations/{operationId}: mismo permiso sobre el recurso original y resultado
-  confirmado. 404 significa «sin resultado observado», no «transacción necesariamente fallida».
+  confirmado. El permiso se conserva en el resultado para autorizar también tras eliminar
+  el recurso. Devuelve operationId, method, resource, status, body, headers y recordedAt;
+  headers solo incluye ETag/Location. 404 significa «sin resultado observado», no
+  «transacción necesariamente fallida».
 - POST /movements/{id}/corrections: Inventory.Adjust; motivo, referencia e impactos
   compensatorios permitidos y correctionId UUID estable, con If-Match del documento origen.
   Responde nuevo movimiento; repetir correctionId no repite el efecto.
@@ -211,7 +246,8 @@ La alerta no crea ni envía una compra; el comprador abre el flujo HU-07.
 
 La base contenedorizada H0 implementa GET /api/v1/health sin sesión: 200 con
 `{ "status": "healthy", "database": "ready" }` si SQL responde y no quedan migraciones
-pendientes, o 503 con estado genérico. No expone credenciales ni excepciones.
+pendientes y no está habilitado el modo de mantenimiento HU-08, o 503 con estado genérico.
+No expone credenciales ni excepciones.
 Las rutas de negocio descritas son contratos para sus futuras specs. Una ruta /api desconocida
 devuelve 404, nunca el HTML de la SPA.
 

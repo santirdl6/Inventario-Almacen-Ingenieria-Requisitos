@@ -22,5 +22,8 @@ internal sealed class ArticleConfiguration : IEntityTypeConfiguration<Article>
         builder.Property(article => article.Name).HasMaxLength(200).IsRequired();
         builder.Property(article => article.BaseUnit).HasMaxLength(32).IsRequired();
         builder.Property(article => article.Version).IsRowVersion();
+        builder.HasOne<Family>().WithMany().HasForeignKey(article => article.FamilyId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(article => article.Policy).WithOne().HasForeignKey<Inventario.Api.Domain.Stock.StockPolicy>(value => value.ArticleId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

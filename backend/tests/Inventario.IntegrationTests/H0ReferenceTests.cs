@@ -31,7 +31,7 @@ public sealed class H0ReferenceTests(IdentityFixture fixture) : IClassFixture<Id
     public async Task Article_reference_preserves_metadata_and_enforces_unique_skus_in_sql()
     {
         var sku = "REF-" + Guid.NewGuid().ToString("N").ToUpperInvariant();
-        var article = new Article($" {sku.ToLowerInvariant()} ", " Artículo H0 ", " ud ", false, true);
+        var article = await fixture.NewArticleAsync($" {sku.ToLowerInvariant()} ", " Artículo H0 ", " ud ", false, true);
         await using (var database = ApplicationDatabase())
         {
             database.Articles.Add(article);
@@ -54,7 +54,7 @@ public sealed class H0ReferenceTests(IdentityFixture fixture) : IClassFixture<Id
         await using (var database = ApplicationDatabase())
         {
             // Saltar la normalización del constructor para comprobar también la restricción SQL.
-            database.Articles.Add(new Article(sku, "Duplicado", "UD", false, false));
+            database.Articles.Add(await fixture.NewArticleAsync(sku, "Duplicado", "UD", false, false));
             database.Entry(database.Articles.Local.Single()).Property(value => value.Sku).CurrentValue = sku.ToLowerInvariant();
             var error = await Assert.ThrowsAsync<DbUpdateException>(() => database.SaveChangesAsync());
             var sql = Assert.IsType<SqlException>(error.InnerException);
@@ -68,7 +68,7 @@ public sealed class H0ReferenceTests(IdentityFixture fixture) : IClassFixture<Id
     [Fact]
     public async Task Article_rowversion_prevents_a_stale_write_in_sql()
     {
-        var article = new Article("VER-" + Guid.NewGuid().ToString("N"), "Original", "UD", false, false);
+        var article = await fixture.NewArticleAsync("VER-" + Guid.NewGuid().ToString("N"), "Original", "UD", false, false);
         await using (var setup = ApplicationDatabase())
         {
             setup.Articles.Add(article);
@@ -91,7 +91,7 @@ public sealed class H0ReferenceTests(IdentityFixture fixture) : IClassFixture<Id
     [Fact]
     public async Task Article_insert_is_rolled_back_on_failure_in_the_shared_sql_context()
     {
-        var article = new Article("RB-" + Guid.NewGuid().ToString("N"), "No confirmado", "UD", false, false);
+        var article = await fixture.NewArticleAsync("RB-" + Guid.NewGuid().ToString("N"), "No confirmado", "UD", false, false);
         await using (var database = ApplicationDatabase())
         {
             await Assert.ThrowsAsync<InvalidOperationException>(() => database.Database.CreateExecutionStrategy().ExecuteAsync(async () =>

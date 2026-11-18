@@ -1,5 +1,6 @@
 using Inventario.Api.Infrastructure.Identity;
 using Inventario.Api.Infrastructure.Persistence;
+using Inventario.IntegrationTests.Fixtures;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.DataProtection;
@@ -61,32 +62,32 @@ public sealed class IdentityFixture : IAsyncLifetime
         Settings["initialize-database"] = "false";
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(Settings).Build();
         Directory.CreateDirectory(KeysDirectory);
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(KeysDirectory));
-        services.AddSingleton<IConfiguration>(configuration);
-        services.AddInventoryIdentity(new TestEnvironment());
-        services.AddDbContext<InventoryDbContext>(options => options.UseSqlServer(
-            DatabaseConfiguration.InitializationConnection(configuration), sql => sql.EnableRetryOnFailure()));
-        bootstrapServices = services.BuildServiceProvider();
+        bootstrapServices = MasterDataTestData.BootstrapServices(configuration,
+            DatabaseConfiguration.InitializationConnection(configuration), KeysDirectory);
         initializationAttempted = true;
         await DatabaseBootstrapper.InitializeAsync(configuration, bootstrapServices);
     }
 
     public ApiFactory Factory(string environment = "Development") => new(Settings, environment);
 
+    public InventoryDbContext ApplicationDatabase() => MasterDataTestData.ApplicationDatabase(
+        new ConfigurationBuilder().AddInMemoryCollection(Settings).Build());
+
+    public async Task<Inventario.Api.Domain.MasterData.Article> NewArticleAsync(string sku, string name,
+        string unit, bool fractions, bool lots)
+    {
+        // Referencia técnica controlada: familia existente; la política viaja en el grafo del artículo.
+        await using var db = ApplicationDatabase();
+        var family = new Inventario.Api.Domain.MasterData.Family(Guid.NewGuid(), "FX-" + Guid.NewGuid().ToString("N").ToUpperInvariant(), "Familia del fixture");
+        db.Set<Inventario.Api.Domain.MasterData.Family>().Add(family);
+        await db.SaveChangesAsync();
+        return Inventario.Api.Domain.MasterData.Article.Create(family.Id, sku, name, unit, fractions, lots);
+    }
+
     public async Task<string> CreateUserAsync(params string[] roles)
     {
-        using var scope = BootstrapServices.CreateScope();
-        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var email = $"{Guid.NewGuid():N}@h0.test";
-        var user = new ApplicationUser
-        {
-            Id = Guid.NewGuid(), UserName = email, Email = email,
-            EmailConfirmed = true, LockoutEnabled = true
-        };
-        Assert.True((await users.CreateAsync(user, Password)).Succeeded);
-        Assert.True((await users.AddToRolesAsync(user, roles)).Succeeded);
+        await MasterDataTestData.CreateAccountAsync(BootstrapServices, email, Password, roles);
         return email;
     }
 
@@ -119,7 +120,7 @@ public sealed class IdentityFixture : IAsyncLifetime
             Directory.Delete(KeysDirectory, recursive: true);
     }
 
-    private sealed class TestEnvironment : IHostEnvironment
+    internal sealed class TestEnvironment : IHostEnvironment
     {
         public string EnvironmentName { get; set; } = Environments.Development;
         public string ApplicationName { get; set; } = "Inventario.Api";
@@ -128,7 +129,7 @@ public sealed class IdentityFixture : IAsyncLifetime
     }
 }
 
-public sealed class ApiFactory(Dictionary<string, string?> settings, string environment)
+public sealed class ApiFactory(Dictionary<string, string?> settings, string environment, Action<IServiceCollection>? configure = null)
     : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -137,5 +138,6 @@ public sealed class ApiFactory(Dictionary<string, string?> settings, string envi
         builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(settings));
         builder.ConfigureServices(services => services.AddDataProtection()
             .PersistKeysToFileSystem(new DirectoryInfo(settings["DataProtection:KeyDirectory"]!)));
+        if (configure is not null) builder.ConfigureServices(configure);
     }
 }

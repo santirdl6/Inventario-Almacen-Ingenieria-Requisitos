@@ -1,0 +1,30 @@
+import { randomUUID } from 'node:crypto';
+import { test, expect } from './fixtures/master-data.fixture';
+
+test('artículo sin uso conserva consulta de inactivo, explica diario ausente y permite borrado revisado', async ({ page, environment, gestor }) => {
+  const familyResponse = await gestor.request.post('/api/v1/families', { headers: { 'X-XSRF-TOKEN': gestor.csrfToken, 'Idempotency-Key': randomUUID() }, data: { code: `LIFE-${randomUUID()}`, name: 'Familia retirada' } });
+  expect(familyResponse.status()).toBe(201); const familyId = (await familyResponse.json()).resource.id;
+  const sku = `LIFE-${randomUUID()}`.toUpperCase();
+  const response = await gestor.request.post('/api/v1/articles', { headers: { 'X-XSRF-TOKEN': gestor.csrfToken, 'Idempotency-Key': randomUUID() }, data: { sku, name: 'Artículo sin referencias', familyId, baseUnit: 'UD', allowsFractional: false, tracksLot: false } });
+  expect(response.status()).toBe(201); const id = (await response.json()).resource.id;
+  await page.goto('/login'); await page.getByLabel('Correo electrónico (obligatorio)').fill(environment.accounts.gestor.email); await page.getByLabel('Contraseña (obligatoria)').fill(environment.accounts.gestor.password); await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
+  await page.goto(`/maestros/articulos/${id}`); await expect(page.getByLabel('Código de artículo (obligatorio)')).toHaveValue(sku);
+  await page.getByLabel('Artículo activo', { exact: true }).uncheck(); await page.getByRole('button', { name: 'Guardar artículo' }).click();
+  const deactivated = page.waitForResponse(value => value.url().endsWith(`/api/v1/articles/${id}`) && value.request().method() === 'PUT' && value.status() === 200);
+  await page.getByRole('button', { name: 'Confirmar', exact: true }).click(); await deactivated;
+  await page.getByRole('link', { name: 'Consultar historial de movimientos' }).click();
+  await expect(page.getByText('Inactivo', { exact: true })).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('Historial pendiente de integración');
+  await expect(page.getByText('No hay movimientos que coincidan con los filtros.')).toHaveCount(0);
+  await page.getByRole('link', { name: 'Volver al artículo', exact: true }).click();
+  await page.getByRole('button', { name: 'Eliminar artículo', exact: true }).click();
+  await expect(page.getByText(/Dejará de aparecer en el catálogo/)).toContainText(sku);
+  const deleted = page.waitForResponse(value => value.url().endsWith(`/api/v1/articles/${id}`) && value.request().method() === 'DELETE');
+  await page.getByRole('button', { name: 'Eliminar definitivamente', exact: true }).click();
+  const result = await deleted; expect(result.status()).toBe(204);
+  await expect(page).toHaveURL(/\/maestros\/articulos$/);
+  expect((await gestor.request.get(`/api/v1/articles/${id}`)).status()).toBe(404);
+  const outcome = await gestor.request.get(`/api/v1/operations/${result.request().headers()['idempotency-key']}`);
+  expect(outcome.status()).toBe(200); expect((await outcome.json()).status).toBe(204);
+});

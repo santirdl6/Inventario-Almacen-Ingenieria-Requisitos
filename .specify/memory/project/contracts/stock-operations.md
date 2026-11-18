@@ -44,6 +44,12 @@ Máximo tres intentos completos ante fallos transitorios; después se devuelve e
 La configuración de EF debe ejecutar la transacción completa dentro de su estrategia,
 no combinar reintentos de comandos SQL individuales con decisiones ya calculadas.
 
+Concreción de formato para consumidores: UUID D en minúsculas; ordenar recursos de cada
+fase por su representación canónica con comparación ordinal. Los maestros Family/Supplier
+usan `document:family:{uuid}` y `document:supplier:{uuid}` dentro de la fase documental.
+Todos sus escritores y los que los asignan o validan estado comparten esos recursos;
+no adquirir familia/proveedor después de bloquear un artículo.
+
 ## Alcance y disciplina de escritura
 
 - La referencia de artículo de H0 es `Domain.MasterData.Article`, tabla `Articles`,
@@ -59,6 +65,20 @@ no combinar reintentos de comandos SQL individuales con decisiones ya calculadas
 - Desactivar un artículo o cambiar su mínimo adquiere el mismo bloqueo de artículo.
   Cambiar el estado de una ubicación adquiere el de ubicación. Nunca se adquiere
   ubicación después de artículo. Editar varios maestros sigue orden de IDs consistente.
+- Editar unidad base, seguimiento por lote o admisión de fracciones y crear referencias
+  documentales al artículo se coordinan con el mismo bloqueo de artículo. Tras adquirirlo,
+  la edición comprueba marca de primer uso false y ausencia de documentos, reservas o
+  movimientos asociados. Crear la primera referencia fija IsDefinitionLocked=true dentro
+  de la misma transacción, incluidos borradores. La marca no se revierte al retirar líneas;
+  crear una referencia revalida la definición vigente después del bloqueo y respeta el orden global.
+- Los lectores de uso cubren las FK consumidoras de las features integradas; una dependencia
+  presente sin lector autoritativo impide habilitar la mutación, no equivale a «sin uso».
+  Antes de admitir cambios de definición también se acredita el enlace de primera referencia
+  de cada escritor presente. Si falta, DependencyUnavailable; una nueva feature completa
+  ambas conexiones y sus pruebas antes de habilitar sus escritores. La ausencia acreditada
+  de consumidores permite el corte H1 sin esperar todas las historias futuras.
+  Política de propiedad e interfaces particulares en la
+  [integración HU-08](../../../../specs/002-gestionar-datos-maestros/contracts/integration.md).
 - Las asignaciones de reserva y salida son explícitas; no se decide disponibilidad
   a partir de filas que se leyeron antes del bloqueo. Una reserva sobre un bucket vacío
   se rechaza, aunque su ubicación o lote todavía no tenga fila de saldo.

@@ -1,0 +1,143 @@
+import { test as base, expect, type APIRequestContext, type PlaywrightWorkerArgs } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import { resolve } from 'node:path';
+
+type AccountKey = 'gestor' | 'lector' | 'administrador';
+type Account = { email: string; password: string; role: string };
+type Me = { id: string; email: string; roles: string[]; permissions: string[] };
+export type Session = { request: APIRequestContext; csrfToken: string; me: Me };
+type Environment = { baseURL: string; accounts: Record<AccountKey, Account> };
+type WorkerFixtures = { environment: Environment };
+type TestFixtures = { gestor: Session; lector: Session; administrador: Session };
+type RequestFactory = PlaywrightWorkerArgs['playwright']['request'];
+
+const repositoryRoot = resolve(__dirname, '../../..');
+const project = 'inventario-hu08-e2e';
+
+function configuration(): { baseURL: string; env: NodeJS.ProcessEnv } {
+  const url = new URL(process.env['HU08_E2E_BASE_URL'] ?? 'http://localhost:8082');
+  if (url.protocol !== 'http:' || !['localhost', '127.0.0.1'].includes(url.hostname)
+    || url.username || url.password || url.pathname !== '/' || url.search || url.hash || !url.port)
+    throw new Error('E2E requiere una URL HTTP local con puerto explícito para su proyecto dedicado.');
+  if (url.port === '8081')
+    throw new Error('El fixture E2E no utiliza el puerto de InventoryDev.');
+  return {
+    baseURL: url.origin,
+    env: {
+      ...process.env,
+      DB_NAME: 'InventoryHu08E2E',
+      APP_BIND_ADDRESS: '127.0.0.1',
+      APP_PORT: url.port,
+      MAILPIT_PORT: '8026'
+    }
+  };
+}
+
+function compose(env: NodeJS.ProcessEnv, args: string[], timeout = 720_000): void {
+  execFileSync('docker', ['compose', '--project-name', project, '--file',
+    resolve(repositoryRoot, 'docker-compose.yml'), ...args], {
+    cwd: repositoryRoot, env, stdio: 'inherit', timeout
+  });
+}
+
+function provision(env: NodeJS.ProcessEnv, accounts: Record<AccountKey, Account>, mode: 'provision' | 'retire'): void {
+  compose({
+    ...env,
+    HU08_E2E_PROVISION: '1',
+    HU08_E2E_DATABASE: 'InventoryHu08E2E',
+    HU08_E2E_USERS_JSON: JSON.stringify(Object.values(accounts))
+  }, ['--profile', 'test', 'run', '--no-deps', '--rm',
+    '--volume', `${repositoryRoot}:/workspace`, '--workdir', '/workspace',
+    '--env', 'HU08_E2E_PROVISION', '--env', 'HU08_E2E_DATABASE', '--env', 'HU08_E2E_USERS_JSON',
+    '--entrypoint', 'sh', 'tests', '-c',
+    `dotnet restore backend/Inventario.slnx --force && dotnet run --file scripts/provision-e2e-users.cs -- ${mode}`]);
+}
+
+async function authenticate(factory: RequestFactory, environment: Environment, key: AccountKey): Promise<Session> {
+  const request = await factory.newContext({ baseURL: environment.baseURL });
+  try {
+    const csrf = await request.get('/api/v1/auth/csrf');
+    expect(csrf.status(), 'El emisor CSRF debe estar disponible').toBe(200);
+    const anonymous = await csrf.json() as { requestToken: string };
+    const account = environment.accounts[key];
+    const login = await request.post('/api/v1/auth/login', {
+      headers: { 'X-XSRF-TOKEN': anonymous.requestToken },
+      data: { email: account.email, password: account.password }
+    });
+    expect(login.status(), `Inicio de sesión E2E de ${key}`).toBe(200);
+    const token = await login.json() as { requestToken: string };
+    expect(token.requestToken).not.toBe(anonymous.requestToken);
+    const response = await request.get('/api/v1/auth/me');
+    expect(response.status()).toBe(200);
+    return { request, csrfToken: token.requestToken, me: await response.json() as Me };
+  } catch (error) {
+    await request.dispose();
+    throw error;
+  }
+}
+
+async function useSession(factory: RequestFactory, environment: Environment, key: AccountKey,
+  use: (session: Session) => Promise<void>): Promise<void> {
+  const session = await authenticate(factory, environment, key);
+  try {
+    await use(session);
+  } finally {
+    try {
+      const logout = await session.request.post('/api/v1/auth/logout', {
+        headers: { 'X-XSRF-TOKEN': session.csrfToken }, data: {}
+      });
+      expect(logout.status()).toBe(204);
+    } finally {
+      await session.request.dispose();
+    }
+  }
+}
+
+export const test = base.extend<TestFixtures, WorkerFixtures>({
+  environment: [async ({ playwright }, use) => {
+    const { baseURL, env } = configuration();
+    const run = randomUUID().replaceAll('-', '');
+    const account = (role: string): Account => ({
+      email: `${run}.${role.toLowerCase()}@hu08.e2e.test`,
+      password: `Test_${randomUUID()}!aA9`, role
+    });
+    const accounts = {
+      gestor: account('GestorMaestros'), lector: account('Operario'), administrador: account('Administrador')
+    };
+    let provisioningAttempted = false;
+    try {
+      compose(env, ['up', process.env['HU08_E2E_SKIP_BUILD'] === '1' ? '--no-build' : '--build',
+        '-d', '--wait', '--wait-timeout', '300']);
+      provisioningAttempted = true;
+      provision(env, accounts, 'provision');
+      await use({ baseURL, accounts });
+    } finally {
+      try {
+        if (provisioningAttempted) {
+          provision(env, accounts, 'retire');
+          const request = await playwright.request.newContext({ baseURL });
+          try {
+            const csrf = await request.get('/api/v1/auth/csrf');
+            const token = await csrf.json() as { requestToken: string };
+            const rejected = await request.post('/api/v1/auth/login', {
+              headers: { 'X-XSRF-TOKEN': token.requestToken },
+              data: { email: accounts.gestor.email, password: accounts.gestor.password }
+            });
+            expect(rejected.status(), 'La cuenta temporal debe quedar bloqueada al limpiar').toBe(401);
+          } finally {
+            await request.dispose();
+          }
+        }
+      } finally {
+        if (process.env['HU08_E2E_KEEP_RUNNING'] !== '1')
+          compose(env, ['stop', '--timeout', '60'], 120_000);
+      }
+    }
+  }, { scope: 'worker', timeout: 900_000 }],
+  gestor: async ({ playwright, environment }, use) => useSession(playwright.request, environment, 'gestor', use),
+  lector: async ({ playwright, environment }, use) => useSession(playwright.request, environment, 'lector', use),
+  administrador: async ({ playwright, environment }, use) => useSession(playwright.request, environment, 'administrador', use)
+});
+
+export { expect };

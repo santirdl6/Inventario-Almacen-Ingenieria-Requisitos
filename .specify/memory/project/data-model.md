@@ -9,7 +9,9 @@ Modelo de diseño; no contiene migraciones ni afirma que las tablas ya existan.
   NOT NULL; cadenas con longitud limitada y espacios extremos eliminados.
 - Cantidades decimal(18,3), precios decimal(18,2), moneda única configurada en el almacén.
   Cada artículo define unidad base y si admite fracciones; no se permiten conversiones
-  implícitas. Cambiar unidad o modo de seguimiento con historial queda prohibido.
+  implícitas. La unidad base, el seguimiento por lote y la admisión de fracciones solo
+  pueden cambiarse si el artículo no tiene documentos, reservas ni movimientos asociados;
+  la primera referencia, incluso en un documento en borrador, bloquea los tres campos.
 - Fechas datetimeoffset en UTC; distinguir OccurredAt (hecho) y RecordedAt (registro
   del servidor). ActorId se obtiene de Identity; nunca del cuerpo HTTP.
 - rowversion en agregados editables y saldos. Es token opaco de concurrencia, no una fecha.
@@ -37,11 +39,22 @@ No se borra si tiene documentos referenciados; sus cambios no reescriben las ins
 
 ### Article
 
-Id, Sku único, Name, FamilyId, BaseUnit, AllowsFractional, TracksLot, IsActive, Version.
+Id, Sku único, Name, FamilyId, BaseUnit, AllowsFractional, TracksLot, IsActive,
+IsDefinitionLocked, Version.
 Crear el artículo crea su StockPolicy con mínimo cero, para que GET/PUT tenga versión inicial.
 No se elimina con historial de stock; tampoco con documentos o reservas referenciados.
 La desactivación conserva todos los enlaces y se audita. Reglas de operaciones pendientes
 en R-05; el backend comprueba el estado bajo el bloqueo compartido de artículo.
+
+Concreción de diseño HU-08: IsDefinitionLocked parte de false y se fija a true junto con
+la primera referencia documental, reserva o movimiento, incluso en borrador. Es monotónica:
+retirar una línea no restablece false. La edición de unidad/lotes/fracciones exige marca
+false y ausencia de referencias reales; la marca sola no impide el borrado si ya no hay
+referencias ni historial. Todos los escritores de referencias participan bajo el mismo
+bloqueo y transacción. Esta columna se añadió a la misma Article en el corte HU-08 H1
+del 2026-11-17, junto con familia obligatoria y política cero. La integración de los
+escritores documentales/stock futuros sigue pendiente; evidencia en
+[US2](../../../specs/002-gestionar-datos-maestros/validation/us2.md).
 
 **Base técnica H0 A → B (2026-11-12)**: implementados `Article` y tabla `Articles` con
 Id, Sku, Name, BaseUnit, AllowsFractional, TracksLot, IsActive y Version. La migración
@@ -62,6 +75,11 @@ foráneas. La revisión cruzada de esta preparación se registra antes de integr
 
 Id, EntityType, EntityId, Action, Before, After, ActorId, RecordedAt, OperationId.
 Registro append-only para altas, modificaciones y desactivaciones. No guarda secretos.
+
+HU-08 concreta acciones Create/Update/Deactivate/Reactivate/Delete; Before/After son JSON,
+nulos según la acción. EntityId no tiene FK al maestro, para conservar evidencia de un
+borrado permitido; ActorId y OperationId tienen referencias restrictivas a Identity y al
+resultado común. El rol SQL de ejecución no puede UPDATE/DELETE sobre la auditoría.
 
 ## Dimensiones y existencias — Persona B / HU-02, HU-05
 
@@ -229,10 +247,17 @@ conserva el histórico reservado reconstruible.
 
 ### OperationResult
 
-OperationId UUID único, ActorId, RequestHash, Method, Resource, ResultStatus,
-ResultBody, SourceDocumentId, RecordedAt. Solo se persiste junto a un commit exitoso.
+OperationId UUID único, ActorId, RequestHash, Method, Resource, RequiredPermission,
+ResultStatus, ResultBody, ResultHeaders, SourceDocumentId, RecordedAt. Solo se persiste junto a un commit exitoso.
 No se purga en la base inicial. La consulta requiere autorización sobre el recurso original.
 La ausencia de fila no prueba por sí sola un fallo: una transacción puede seguir ejecutándose.
+
+OperationId coincide con Idempotency-Key. ResultBody admite null —por ejemplo DELETE 204—;
+ResultHeaders conserva JSON con ETag/Location reproducibles, nunca cookies ni tokens.
+RequiredPermission permite reautorizar la consulta aun cuando el recurso ya se eliminó.
+SourceDocumentId es referencia histórica sin FK que impida ese borrado. Resolver replay
+antes de cargar el recurso o evaluar If-Match, devolviendo el resultado histórico guardado.
+Los resultados confirmados son append-only también para el usuario SQL de ejecución.
 
 ### ContingencyReference
 
@@ -291,3 +316,8 @@ Una cadena de migraciones compartida, con índices/constraints incluidos. No hay
 de esquema automáticos al arrancar producción. Consultas de conciliación comparan diario,
 saldos, reservas, recibidos y expedidos; una diferencia bloquea la aceptación y se resuelve
 con investigación y corrección trazable, nunca mediante UPDATE manual del saldo.
+
+Las migraciones preparan el rol estable `inventory_runtime`; el bootstrap añade al usuario
+de ejecución después de crearlo. DENY UPDATE/DELETE de tabla sobre diario, auditoría y
+resultados confirmados se aplica al rol, sin embeber el nombre configurable de un login.
+Esta extensión de diseño se integra con B; no afirma que el rol ya exista en H0.

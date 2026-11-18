@@ -26,6 +26,12 @@
 Los enlaces anteriores son referencias normativas; esta especificación describe necesidades
 y resultados de negocio. Las decisiones de implementación corresponden al futuro plan de HU-08.
 
+## Clarifications
+
+### Session 2026-11-12
+
+- Q: ¿Desde qué momento deben bloquearse los cambios de unidad de medida, seguimiento por lote y admisión de fracciones de un artículo? → A: Opción A. Los tres campos solo pueden cambiarse si el artículo nunca ha sido referenciado en documentos, reservas ni movimientos, incluidos documentos en borrador. Retirar la última referencia no restablece la edición de la definición.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Organizar los artículos por familias (Priority: P1)
@@ -81,15 +87,23 @@ sin preparar existencias ni compras.
    de cantidades y lotes, y estado, sin permisos de modificación.
 3. **Given** un artículo existente, **When** el gestor cambia su nombre o familia por otra
    activa, **Then** el cambio se conserva sin crear otro artículo ni alterar sus referencias.
-4. **Given** un artículo con movimientos, **When** se intenta cambiar su unidad base o su
-   modalidad de seguimiento por lote, **Then** el cambio se rechaza con una explicación y
-   los movimientos mantienen su interpretación original.
+4. **Given** un artículo referenciado en cualquier documento, incluso en borrador, reserva
+   o movimiento, **When** se intenta cambiar su unidad base, seguimiento por lote o admisión
+   de fracciones, **Then** el cambio se rechaza con una explicación, se conservan los tres
+   campos y las referencias existentes mantienen su interpretación original.
 5. **Given** un alta con código duplicado, nombre vacío, unidad ausente o familia inexistente
    o inactiva, **When** se intenta guardar, **Then** se señalan los campos inválidos y no se
    crea un artículo parcial ni se pierde el resto del formulario.
 6. **Given** artículos de distintas familias y estados, **When** el usuario selecciona una
    familia y un estado para la búsqueda, **Then** solo aparecen las coincidencias, con código,
    nombre y estado textual; si no hay coincidencias, puede ajustar los filtros.
+7. **Given** un artículo que nunca haya sido referenciado en documentos, reservas ni movimientos,
+   **When** el gestor cambia su unidad base, seguimiento por lote o admisión de fracciones con valores válidos,
+   **Then** el cambio se guarda y queda auditado sin generar existencias ni movimientos.
+8. **Given** un artículo cuya primera referencia fue una línea de borrador posteriormente
+   retirada, **When** el gestor intenta cambiar alguno de esos tres campos, **Then** el cambio
+   se rechaza porque el bloqueo de definición permanece. El borrado se evalúa por separado
+   según las referencias e historial existentes, sin usar esa marca como único impedimento.
 
 ---
 
@@ -214,6 +228,13 @@ simular la pérdida de su respuesta.
   al confirmar cada acción; ninguna operación nueva se admite después de la desactivación.
 - Cambiar nombres, códigos o familia no altera las instantáneas históricas de documentos
   ni la unidad registrada en movimientos anteriores.
+- La unidad base, el seguimiento por lote y la admisión de fracciones quedan bloqueados
+  desde la primera referencia en un documento, reserva o movimiento, aunque el documento
+  esté en borrador, el artículo esté inactivo o sus existencias actuales sean cero. Retirar
+  la última referencia de borrador no restablece la posibilidad de editar esos campos.
+- Ante una primera referencia y una edición simultánea de esos tres campos, si la referencia
+  se confirma primero, se rechaza la edición; si la edición se confirma primero, la nueva
+  referencia debe utilizar la definición vigente, sin conservar una interpretación obsoleta.
 - Repetir una intención con contenido distinto se rechaza como conflicto; un tiempo de
   espera agotado se muestra como resultado pendiente de comprobar, no como éxito ni fallo definitivo.
 - Un listado sin resultados explica que no hay coincidencias y permite cambiar la búsqueda;
@@ -247,8 +268,13 @@ simular la pérdida de su respuesta.
 - **FR-008**: Crear un artículo NO DEBE registrar cantidades ni ubicaciones, generar
   movimientos o modificar existencias. El artículo DEBE comenzar sin existencias y con
   mínimo de reposición cero; la configuración del mínimo pertenece a HU-06.
-- **FR-009**: El sistema DEBE impedir el cambio de unidad base o seguimiento por lote de un
-  artículo con historial de movimientos, explicando el motivo y conservando los datos vigentes.
+- **FR-009**: El sistema DEBE permitir cambiar la unidad base, el seguimiento por lote y la
+  admisión de fracciones únicamente si el artículo nunca ha sido referenciado en documentos,
+  reservas ni movimientos. La primera referencia, incluso en un documento en borrador, DEBE
+  bloquear los tres campos; los intentos de cambio posteriores DEBEN rechazarse explicando
+  el motivo y conservando los datos vigentes, con independencia del estado o saldo del artículo
+  y aunque se retire la última referencia de borrador. Esta regla no sustituye las condiciones
+  independientes de borrado de FR-010 y FR-011.
 - **FR-010**: El sistema DEBE impedir eliminar artículos con movimientos, documentos o
   reservas referenciados, independientemente de su estado o existencias actuales, y ofrecer
   la desactivación como forma de retirarlos del uso ordinario.
@@ -276,9 +302,10 @@ simular la pérdida de su respuesta.
 - **FR-018**: Repetir una misma intención de cambio DEBE devolver su resultado sin duplicar
   registros ni auditoría. Ante resultado incierto, el usuario DEBE poder comprobarlo antes
   de emitir una intención diferente; reutilizar la intención con otros datos DEBE rechazarse.
-- **FR-019**: La eliminación y los cambios de estado DEBEN coordinarse con las operaciones
-  que crean referencias o afectan al artículo, sin referencias huérfanas ni aceptación de
-  operaciones nuevas incompatibles con un estado inactivo ya confirmado.
+- **FR-019**: La eliminación, los cambios de estado y los cambios de definición de FR-009
+  DEBEN coordinarse con las operaciones que crean referencias o afectan al artículo, sin
+  referencias huérfanas, cambios de definición posteriores a la primera referencia ni
+  aceptación de operaciones nuevas incompatibles con un estado inactivo ya confirmado.
 - **FR-020**: Los formularios y resultados DEBEN usar español, etiquetas explícitas,
   obligatoriedad visible y estados expresados con texto. Los errores DEBEN explicar cómo
   corregirlos, conservar los datos válidos y permitir completar la tarea mediante teclado.
@@ -352,8 +379,9 @@ Esta especificación define la aceptación; no declara realizadas pruebas ni rev
   desactivar un artículo se conserva el 100 % de sus movimientos y referencias y pueden
   consultarse sin reactivarlo. Los artículos sin referencias sí pueden eliminarse con confirmación.
 - **SC-004**: En el 100 % de los casos de acceso no autorizado, edición simultánea incompatible,
-  reintento y fallo de guardado no hay cambios indebidos, pérdida silenciosa de cambios ajenos,
-  duplicados ni modificaciones sin evidencia de responsabilidad.
+  cambio de definición de un artículo ya referenciado, reintento y fallo de guardado no hay
+  cambios indebidos, pérdida silenciosa de cambios ajenos, duplicados ni modificaciones sin
+  evidencia de responsabilidad.
 - **SC-005**: Con un catálogo de 10.000 artículos y 25 sesiones concurrentes, al menos el
   95 % de las búsquedas paginadas de artículos muestra resultados en 2 segundos o menos,
   conforme a las condiciones de medición de la guía global.

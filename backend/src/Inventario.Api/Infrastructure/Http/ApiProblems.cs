@@ -38,7 +38,11 @@ internal static class ApiProblems
             401 => "Autenticación requerida",
             403 => "Acceso denegado",
             404 => "Recurso no encontrado",
+            409 => "Conflicto de operación",
+            412 => "Versión obsoleta",
+            428 => "Versión requerida",
             422 => "Datos no válidos",
+            503 => "Servicio no disponible",
             _ => "Error al procesar la solicitud"
         }, detail: detail, extensions: extensions);
     }
@@ -49,9 +53,26 @@ internal sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) :
     public async ValueTask<bool> TryHandleAsync(HttpContext context, Exception error,
         CancellationToken cancellationToken)
     {
+        if (error is BadHttpRequestException requestError)
+        {
+            await ApiProblems.Status(requestError.StatusCode).ExecuteAsync(context);
+            return true;
+        }
+
         if (error is UnauthenticatedActorException)
         {
             await ApiProblems.Status(401).ExecuteAsync(context);
+            return true;
+        }
+
+        if (MasterDataProblemMapper.Map(error, context.Request.Method) is { } problem)
+        {
+            var extensions = new Dictionary<string, object?>();
+            if (problem.Errors is not null) extensions["errors"] = problem.Errors;
+            if (Guid.TryParse(context.Request.Headers["Idempotency-Key"], out var operation))
+                extensions["operationId"] = operation;
+            if (problem.Status == 503) context.Response.Headers.RetryAfter = "1";
+            await ApiProblems.Create(problem.Status, problem.Code, problem.Message, extensions).ExecuteAsync(context);
             return true;
         }
 

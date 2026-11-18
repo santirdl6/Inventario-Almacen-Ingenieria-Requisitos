@@ -10,6 +10,14 @@
 **/coverage/
 **/playwright-report/
 **/test-results/
+**/out-tsc/
+**/build/
+**/packages/
+*.log
+*.log.*
+*.tmp
+*.swp
+Thumbs.db
 *.user
 *.suo
 *.pfx

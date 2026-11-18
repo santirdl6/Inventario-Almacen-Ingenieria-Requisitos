@@ -228,6 +228,43 @@ familia obligatoria, proveedores, auditoría y política inicial se completan en
 No se crean artículos ni existencias de negocio al arrancar. Las referencias de B deben
 usar este Article y restringir el borrado, sin crear otra entidad paralela.
 
+La aclaración de HU-08 del 2026-11-12 fija que unidad base, seguimiento por lote y admisión
+de fracciones solo pueden cambiarse sin documentos, reservas ni movimientos asociados,
+incluidos borradores. La regla se recoge en R-05, modelo y contratos comunes; su revisión
+con B queda pendiente antes de integrar los cambios de las historias consumidoras.
+
+El diseño de HU-08 concreta esa regla con una marca monotónica IsDefinitionLocked, cobertura
+de referencias reales, auditoría que sobrevive al borrado y OperationResult reproducible
+con ETag/Location y permiso original. El rol SQL inventory_runtime coordina las restricciones
+append-only sin depender del nombre de login configurado. Estas concreciones están
+implementadas en el corte H1 descrito abajo, con revisión de B pendiente, y registradas
+en el modelo y contratos comunes.
+El [plan HU-08](../../specs/002-gestionar-datos-maestros/plan.md) detalla migración de familia,
+dependencias H0 y validación; no se crea un segundo ejecutor ni otra cadena de migraciones.
+
+El 2026-11-16 el usuario autorizó a A a adelantar el resultado/ejecutor/bloqueos comunes
+ante la ausencia de entrega B. Es el mismo componente que consumirá H0_StockCore, con
+pruebas SQL reales y revisión de B pendiente antes de integrar; no reasigna las operaciones
+ni las cuatro historias de B. Las migraciones de B deben partir de la cadena que incluya
+esta base común, evitando crear OperationResult por segunda vez.
+
+Estado verificado 2026-11-17: esa base, auditoría/rol SQL, familias y catálogo Article H1
+están implementados y pasan 64 pruebas backend, 22 unitarias frontend y 7 E2E, cuatro de
+ellas en Chromium. También hay sesión/layout frontend mínimos. Cadena añadida:
+H0OperationProtocol → HU08AuditInfrastructure → HU08Families → HU08MasterDataExpand →
+HU08RequireArticleFamily, sin modificar migraciones H0 previas. La marca de definición,
+familia obligatoria y política inicial cero están implementadas; evidencia en
+[US2](../../specs/002-gestionar-datos-maestros/validation/us2.md). Este estado no acredita
+referencias/stock integrados, revisión de B ni aceptación humana.
+
+La preparación de FamilyId se diseña como mantenimiento HTTP autenticado: actor real de
+Identity, MasterData.Manage, antiforgery y ejecutor común, con la conexión de ejecución sin
+DDL. El modo explícito de transición no habilita escritores ordinarios; las migraciones
+siguen siendo externas. Antes de admitir cambios de definición se verifica lector y enlace
+de primera referencia de cada consumidor presente; las features futuras completan esa
+integración antes de habilitarse. Mantenimiento/gate H1 verificados en ese corte; los
+consumidores futuros y la revisión cruzada siguen pendientes, sin despliegue productivo.
+
 `Domain/Identity/ICurrentActor.GetRequiredActorIdAsync` es el contrato de actor de los
 comandos. Su implementación scoped usa el principal autenticado de Identity y comprueba
 que el usuario existe en el mismo contexto; sin actor válido rechaza la escritura, con

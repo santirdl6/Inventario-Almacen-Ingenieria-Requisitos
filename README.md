@@ -1,9 +1,10 @@
 # Inventario y almacén
 
 Base del proyecto con Angular + PrimeNG, ASP.NET Core 10 y SQL Server 2025.
-El repositorio incluye la infraestructura ejecutable y una pantalla de estado que consulta
-la API y comprueba SQL Server. Las ocho historias del almacén se desarrollarán en sus specs;
-el arranque de esta base no implica que ya estén implementadas.
+El repositorio incluye la infraestructura ejecutable, sesión y los catálogos de artículos,
+familias y proveedores de HU-08, con auditoría y recuperación de operaciones. El diario de
+stock y las demás historias se integrarán en sus specs; la aceptación completa de HU-08
+mantiene pendientes sus pruebas cruzadas y validación operativa.
 
 ## Arranque con un comando
 
@@ -130,7 +131,7 @@ las excepciones anónimas deben declararse explícitamente.
 Los errores usan `application/problem+json`, `code` y `traceId`, sin redirecciones HTML
 ni detalles de SQL. El OpenAPI expone los endpoints implementados de H0; el borrador
 de los futuros recursos está en [contracts/api.md](.specify/memory/project/contracts/api.md).
-Esta entrega proporciona la API de sesión; la pantalla de login pertenece al trabajo de interfaz.
+La sesión incluye ahora pantalla de login y navegación por permisos para el MVP de familias.
 
 ## Comandos habituales
 
@@ -170,6 +171,30 @@ al finalizar. No se borran ni se reinician los datos de `InventoryDev`. Para eje
 fuera de Docker, definir `Testing__SqlConnection` con una conexión administrativa de un
 SQL Server de desarrollo/pruebas y ejecutar `dotnet test backend/Inventario.slnx`.
 
+La preparación HU-08 incorpora pruebas de la pantalla H0 y un smoke E2E de API/sesión.
+Desde `frontend/`, con Node 24 LTS ≥24.15.0 y Docker iniciado:
+
+```bash
+npm ci
+npm test
+npm run test:e2e:types
+npm run test:e2e -- e2e/environment.spec.ts
+```
+
+Para validar los tres catálogos, retirada y recuperación en navegador, instalar Chromium y ejecutar
+`npx --no-install playwright install chromium` y `npm run test:e2e` desde frontend.
+El login común y /maestros/familias, /maestros/articulos y /maestros/proveedores están
+implementados. /maestros redirige a artículos. El borrado de artículos sin uso conserva
+auditoría y resultado; movimientos explica la integración pendiente del diario de stock.
+
+E2E arranca el proyecto dedicado `inventario-hu08-e2e` en 8082/8026 y prepara sus cuentas
+en InventoryHu08E2E mediante Identity, sin API pública de usuarios. Las retira al terminar
+sin borrar actores y detiene ese proyecto conservando volúmenes. Los casos actuales son
+HTTP reales y recorridos Chromium de catálogos, retirada y fiabilidad.
+La suite SC-005 prepara además 10.000 artículos auditados y 25 sesiones; para ejecutar solo
+regresión funcional, usar `npm run test:e2e -- --grep-invert SC-005`.
+Preparación, opciones y alcance en el [quickstart HU-08](specs/002-gestionar-datos-maestros/quickstart.md).
+
 ## Persistencia
 
 | Volumen | Contenido |
@@ -192,16 +217,36 @@ docker compose up --build
 
 La API sirve Angular desde `wwwroot`; las peticiones del navegador usan `/api/v1` relativo,
 sin una URL de backend compilada ni CORS adicional. GET `/api/v1/health` devuelve 200
-solo si la conexión SQL funciona y no hay migraciones pendientes; si no, devuelve 503.
+solo si la conexión SQL funciona, no hay migraciones pendientes y no está activo el modo
+de preparación HU-08; si no, devuelve 503.
 Las rutas `/api` desconocidas devuelven 404 y no el HTML de Angular.
 
-El esquema contiene el historial de migraciones, Identity y la referencia mínima `Articles`
-para el núcleo H0. Article incluye ID, código, nombre, unidad, fracciones, lotes, estado y
-versión; la familia y el mantenimiento completo llegan en HU-08. La migración
-`20261112105657_H0ArticleReference` se añade después de `H0Identity` sin sustituirla.
+El esquema contiene el historial de migraciones, Identity, familias y la misma entidad `Articles`
+compartida con H0. Article incluye ID, código, nombre, familia obligatoria, unidad, fracciones,
+lotes, estado, marca de definición y versión; cada alta crea su StockPolicy a cero sin stock.
+La migración `20261112105657_H0ArticleReference` se conserva después de `H0Identity`.
 Los comandos pueden consumir `ICurrentActor` para obtener el usuario de la sesión validado
 contra Identity. El [handoff H0](specs/002-gestionar-datos-maestros/h0-handoff.md) contiene
 el contrato que utiliza B y los resultados de validación.
+
+La base común añade OperationResult/ejecutor/applocks y auditoría append-only compartidos.
+La cadena incorpora H0OperationProtocol → HU08AuditInfrastructure → HU08Families →
+HU08MasterDataExpand → HU08RequireArticleFamily → HU08Suppliers, conservando las anteriores.
+B debe consumir esta base y generar su migración sobre el snapshot integrado.
+El endpoint GET /api/v1/operations/{id} permite comprobar resultados autorizados aunque el
+recurso ya no exista; los tres catálogos usan ETag/If-Match e Idempotency-Key con guardado atómico.
+El detalle propio de Article lleva ETag; su contexto auxiliar contiene familia, mínimo y
+capacidades con una revisión comprobable. Las referencias futuras deben integrar lector y
+marca de primer uso antes de habilitar escritores. Evidencia H1: 64 pruebas backend,
+22 unitarias frontend y 7 E2E en [US2](specs/002-gestionar-datos-maestros/validation/us2.md).
+La continuación del 2026-11-18 y sus comprobaciones están en
+[aceptación técnica](specs/002-gestionar-datos-maestros/validation/acceptance.md).
+
+**Si la base contiene artículos H0**, preparar explícitamente su mapa de familias entre
+expansión y cierre: no ejecutar el inicializador completo esperando una familia automática.
+El [procedimiento HU-08](specs/002-gestionar-datos-maestros/quickstart.md#1-preparación-y-estado-esperado)
+usa mantenimiento HTTP con sesión gestora y conexión sin DDL; las migraciones son externas.
+Una base nueva vacía conserva el arranque normal de un comando.
 
 La autenticación por cookie,
 antiforgery, la sesión y el catálogo inicial de roles se incluyen en H0; los endpoints y

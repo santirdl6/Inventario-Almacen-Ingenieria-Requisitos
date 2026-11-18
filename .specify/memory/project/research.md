@@ -31,7 +31,8 @@ un proyecto nuevo por su próximo fin de soporte. No se necesita adoptar otro mo
 ## R-02. CQRS ligero y estructura
 
 **Decisión**: una SPA, una API y una base. Un proyecto productivo ASP.NET Core,
-organizado por funcionalidades, con Commands y Queries separados. Controllers delgados
+organizado por funcionalidades, con Commands y Queries separados. Endpoints HTTP delgados
+—Minimal APIs en la base H0—
 llaman handlers directamente mediante inyección de dependencias. Un InventoryDbContext
 por comando y consultas EF Core proyectadas a DTO con AsNoTracking.
 
@@ -97,6 +98,7 @@ detallarlos; cambiarlos requiere actualizar los contratos y las specs afectadas.
 | Tema | Regla inicial |
 |------|---------------|
 | Cantidades | Unidad base por artículo; decimal(18,3), sin float; un artículo de unidades enteras rechaza fracciones. |
+| Edición de la definición del artículo | Unidad base, seguimiento por lote y admisión de fracciones solo cambian sin documentos, reservas ni movimientos asociados. La primera referencia, incluso en un documento en borrador, bloquea los tres campos. |
 | Reservas | Asignación explícita por pedido, artículo, ubicación y lote; creación y liberación mínimas pertenecen a HU-03/HU-05, sin módulo comercial completo. |
 | Salidas | Consumen primero la reserva del propio pedido en el saldo indicado; el resto solo consume disponible. Nunca toman reservas ajenas. |
 | Lotes | Artículo con seguimiento exige lote en recepción y movimientos; sin seguimiento usa un bucket no nulo SIN-LOTE propio del artículo. No se introduce gestión por serie o caducidad en esta entrega. |
@@ -107,6 +109,12 @@ detallarlos; cambiarlos requiere actualizar los contratos y las specs afectadas.
 | Sugerencia | max(0, mínimo − disponible), en unidad base; no descuenta compras pendientes ni crea pedidos automáticamente. |
 | Aviso | Bandeja dentro de la aplicación; un episodio activo por artículo, actualizado hasta recuperar el mínimo. Sin correo ni SMS en la base inicial. |
 | Envío de compra | Correo al proveedor con documento del pedido; entrega mediante outbox persistente. En desarrollo se usa un servidor SMTP de pruebas. |
+
+**Aclaración HU-08, 2026-11-12**: A elige bloquear los tres campos desde la primera
+referencia, incluidos borradores, en lugar de esperar al primer movimiento. La regla
+afecta al mantenimiento de HU-08 y a las referencias creadas por HU-01/HU-03/HU-04/HU-05/
+HU-07; debe revisarse con B antes de integrar el cambio compartido. No modifica los
+efectos ni los estados de las operaciones de stock.
 
 **Motivo**: son defaults conservadores suficientes para definir los intercambios y evitar
 que cada persona implemente reglas distintas. Las incidencias rechazadas en recepción
@@ -256,3 +264,48 @@ La spec consumidora HU-08 mantiene sus requisitos y registra esta preparación e
 [handoff H0](../../../specs/002-gestionar-datos-maestros/h0-handoff.md). HU-02/HU-03/HU-04/
 HU-05/HU-07 aún deben consumir estos acuerdos al preparar sus specs. No se modifican
 obligaciones constitucionales ni se acredita una revisión A+B no realizada.
+
+## R-11. Concreciones de integración del diseño HU-08
+
+**Fecha**: 2026-11-12. **Estado**: diseño propuesto; revisión A+B pendiente antes de integrar.
+
+Actualización de implementación 2026-11-17: el usuario autorizó adelantar la base común
+desde A. Resultado/ejecutor/bloqueos, auditoría append-only y familias están implementados,
+con pruebas descritas en la evidencia local de HU-08. La huella común ordena propiedades
+JSON ordinalmente tras normalizar el DTO; los arrays conservan su orden contractual.
+Las partes restantes de esta decisión siguen pendientes y la revisión de B no está realizada.
+
+**Decisión**: conservar la marca monotónica IsDefinitionLocked en Article, fijada por la
+primera referencia bajo el bloqueo/transacción comunes. Retirar una línea de borrador no
+elimina ese hecho; la comprobación para borrar sigue basada en referencias e historial,
+no únicamente en la marca. Los lectores de uso deben cubrir los consumidores integrados.
+
+OperationId es la clave idempotente; OperationResult común añade cabeceras reproducibles
+ETag/Location y permiso original, para autorizar y reproducir un resultado incluso después
+de borrar el maestro. MasterDataAudit conserva EntityId histórico sin FK al maestro y
+acciones de eliminación. El rol SQL inventory_runtime permite aplicar DENY sobre evidencias
+antes de que el bootstrap cree el usuario de ejecución.
+
+Family y Supplier se coordinan en la fase documental con recursos canónicos propios,
+manteniendo el orden global. B entrega ejecutor/resultados H0 y A los consume en HU-08;
+las contribuciones de A al componente común se revisan con B sin duplicar implementaciones.
+
+Remediación aprobada del análisis HU-08: la preparación de familia se realiza mediante
+handler HTTP de mantenimiento autenticado, ICurrentActor y ejecutor común, en un modo
+explícito sobre esquema expandido y sin DDL en la API. No se acepta un ActorId manual.
+El gate de cambios de definición comprueba lectores y enlaces de primera referencia de
+los consumidores presentes antes de habilitar el endpoint para esos cambios; las nuevas
+features completan esa integración antes de habilitar sus escritores. No exige esperar
+historias futuras cuando H1 acredita ausencia de esos consumidores.
+
+**Motivo**: evitar desbloqueo por pérdida de referencias actuales, evidencia que impida
+borrar o se borre en cascada, replay que falle con 404 tras un DELETE y permisos SQL
+dependientes de un login configurable. No cambia estados ni aritmética de inventario.
+
+**Alternativas**: solo consultas Any, auditoría con FK/cascada a Article, caché idempotente
+en memoria, recurso vivo obligatorio para recuperar resultado y protocolos privados por feature.
+
+**Impacto**: HU-08 y escritores de HU-01/HU-03/HU-04/HU-05/HU-07; HU-06 consume la misma
+StockPolicy y participa en cambios de estado cuando esté integrada. La incorporación exige
+revisión cruzada de entidades, contratos y migraciones. El diseño particular, fuentes y
+validación están en el [plan HU-08](../../../specs/002-gestionar-datos-maestros/plan.md).

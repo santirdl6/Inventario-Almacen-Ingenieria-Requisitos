@@ -61,6 +61,9 @@ internal static class DatabaseBootstrapper
                     ALTER ROLE db_datareader ADD MEMBER [{user}];
                 IF IS_ROLEMEMBER(N'db_datawriter', N'{user}') <> 1
                     ALTER ROLE db_datawriter ADD MEMBER [{user}];
+                IF DATABASE_PRINCIPAL_ID(N'inventory_runtime') IS NOT NULL
+                    AND IS_ROLEMEMBER(N'inventory_runtime', N'{user}') <> 1
+                    ALTER ROLE inventory_runtime ADD MEMBER [{user}];
                 """;
             await permissions.ExecuteNonQueryAsync();
         }
