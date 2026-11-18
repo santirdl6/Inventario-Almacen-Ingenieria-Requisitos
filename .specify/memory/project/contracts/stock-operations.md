@@ -87,6 +87,43 @@ no adquirir familia/proveedor después de bloquear un artículo.
 - Un comando de modificación del pedido de cliente declara primero las reservas que va
   a liberar y sus ubicaciones, conservando la jerarquía documento → ubicación → artículo.
 
+## Implementación H0 (B, 2026-11-18)
+
+`Inventario.Api.Features.Stock.Core.StockCore` es un paso de dominio que se ejecuta **dentro**
+de `InventoryOperationExecutor` de A; no abre transacción, no guarda resultados ni toma el
+bloqueo de operación. El consumidor (HU-01/03/04/05):
+
+1. Valida y normaliza con `StockCore.Prepare(operación, contexto, asignaciones)` o
+   `PrepareShipment(...)`. Obtiene un `StockCommand` cuyo `NormalizedBody` (cantidades con
+   tres decimales, lote en mayúsculas, tipo de documento canónico) va en la `OperationRequest`.
+2. Llama al ejecutor con la ruta y el `RequiredPermission` de su operación. El ejecutor
+   autentica, autoriza, resuelve el replay con el único `OperationResult` y confirma todo.
+3. Dentro de `change`, invoca `StockCore.ApplyAsync(context, command)` y devuelve
+   `StockCore.Response(outcome)`.
+
+`ApplyAsync` sigue los pasos 4–8 con `context.Locks` (`InventoryLocks`): documento
+`document:{tipo}:{id}` → ubicaciones → artículos. Después lee el estado, marca la primera
+referencia del artículo con `ArticleReferenceTracker` (IsDefinitionLocked, mismo bloqueo y
+transacción) y escribe diario, lotes y saldos. `StockMovement.OperationId` tiene FK
+restrictiva al resultado común, como `MasterDataAudit`; por eso no se llama a
+`SaveChanges` dentro de `change` antes de que el ejecutor añada el resultado.
+
+Los rechazos son `InventoryProblemException` (patrón de A) con los códigos del
+[contrato HTTP](api.md): ValidationFailed, InsufficientStock, ReservedStockConflict,
+ArticleInactive y DocumentAlreadyConfirmed; IdempotencyConflict, Forbidden y LockTimeout
+los aporta el ejecutor. Cada hecho documental es único por (SourceDocumentType,
+SourceDocumentId, Kind); una reserva o liberación usa su propio identificador como
+documento. El tipo de documento es canónico (`^[a-z][a-z0-9-]{0,31}$`), el mismo que exige
+`InventoryLocks`. En Ship, el consumidor indica `OwnReservedToConsume` = min(Q, Rpropia)
+a partir de sus reservas (HU-03); el núcleo comprueba que no excede el reservado del bucket.
+
+`StockArticleUsageContributor` es a la vez `IArticleUsageContributor` e
+`IArticleFirstReferenceContributor` para Lot, StockBalance y StockEntry. Con saldo, lote o
+entrada ⇒ HasHistory. Si `H0_StockCore` aún no está aplicada (ventana HU-08 Expand), no hay
+tablas y devuelve sin uso. Pendiente para las historias: el lector `IArticleMovementReader`
+del historial de artículo, CustomerOrder/Reservation (HU-03/HU-05), congelación de conteos
+y ajustes (HU-04), alertas (HU-06) y correcciones.
+
 ## Cálculo de salida
 
 Para cada bucket se usa Q = cantidad a servir, Rpropia = reserva remanente del pedido,

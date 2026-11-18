@@ -90,6 +90,16 @@ Pasillo/estantería/nivel obligatorios incluso para una ubicación temporal iden
 No se desactiva con stock, reservas o un conteo abierto. No se borra con historial.
 Un artículo puede aparecer en cualquier número de ubicaciones.
 
+**Base técnica H0 B (2026-11-18)**: `Domain.Locations.Location` y tabla `Locations` con
+todos los campos anteriores; Code (32) único sin distinguir mayúsculas, partes de 16
+caracteres normalizadas a mayúsculas. Sin endpoints ni reglas de desactivación: HU-02.
+Lot, StockBalance y StockMovement/StockEntry se crean en `20261118194940_H0_StockCore`,
+después de `HU08Suppliers` y sobre la base común de A: no hay otra tabla de resultados.
+`StockMovements.OperationId` tiene FK restrictiva a `OperationResults` y ActorId a
+AspNetUsers. El rol `inventory_runtime` no tiene UPDATE/DELETE sobre StockMovements y
+StockEntries, ni DELETE sobre StockBalances (aprobado por A): un saldo nunca se borra, de
+modo que tener saldo equivale a tener historial.
+
 ### Lot
 
 Id, ArticleId, Code, IsUntracked. Unicidad (ArticleId, Code).

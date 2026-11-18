@@ -22,6 +22,65 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("Inventario.Api.Domain.Locations.Location", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Aisle")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .UseCollation("Latin1_General_100_CI_AS");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("Rack")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Locations", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Locations_Aisle_NotBlank", "LEN(LTRIM(RTRIM([Aisle]))) > 0");
+
+                            t.HasCheckConstraint("CK_Locations_Code_NotBlank", "LEN(LTRIM(RTRIM([Code]))) > 0");
+
+                            t.HasCheckConstraint("CK_Locations_Kind", "[Kind] IN ('Storage', 'Receiving')");
+
+                            t.HasCheckConstraint("CK_Locations_Level_NotBlank", "LEN(LTRIM(RTRIM([Level]))) > 0");
+
+                            t.HasCheckConstraint("CK_Locations_Rack_NotBlank", "LEN(LTRIM(RTRIM([Rack]))) > 0");
+                        });
+                });
+
             modelBuilder.Entity("Inventario.Api.Domain.MasterData.Article", b =>
                 {
                     b.Property<Guid>("Id")
@@ -216,6 +275,196 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_Suppliers_Code_NotBlank", "LEN(LTRIM(RTRIM([Code]))) > 0");
 
                             t.HasCheckConstraint("CK_Suppliers_Name_NotBlank", "LEN(LTRIM(RTRIM([Name]))) > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.Lot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .UseCollation("Latin1_General_100_CI_AS");
+
+                    b.Property<bool>("IsUntracked")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticleId", "Code")
+                        .IsUnique();
+
+                    b.ToTable("Lots", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Lots_Code_NotBlank", "LEN(LTRIM(RTRIM([Code]))) > 0");
+
+                            t.HasCheckConstraint("CK_Lots_Untracked_Code", "([IsUntracked] = 1 AND [Code] = 'SIN-LOTE') OR ([IsUntracked] = 0 AND [Code] <> 'SIN-LOTE')");
+                        });
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.StockBalance", b =>
+                {
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("LotId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Physical")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("Reserved")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("ArticleId", "LocationId", "LotId");
+
+                    b.HasIndex("ArticleId", "LotId");
+
+                    b.HasIndex("LocationId", "ArticleId");
+
+                    b.ToTable("StockBalances", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_StockBalances_Physical", "[Physical] >= 0");
+
+                            t.HasCheckConstraint("CK_StockBalances_Reserved", "[Reserved] >= 0 AND [Reserved] <= [Physical]");
+                        });
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.StockEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("BaseUnitSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("Effect")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("LotId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("MovementId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("PhysicalDelta")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("ReservedDelta")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LocationId");
+
+                    b.HasIndex("MovementId");
+
+                    b.HasIndex("ArticleId", "LotId");
+
+                    b.HasIndex("ArticleId", "LocationId", "LotId");
+
+                    b.ToTable("StockEntries", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_StockEntries_Effect", "([Effect] IN ('Receive', 'AdjustUp') AND [PhysicalDelta] = [Quantity] AND [ReservedDelta] = 0)\nOR ([Effect] IN ('ShipAvailable', 'AdjustDown') AND [PhysicalDelta] = -[Quantity] AND [ReservedDelta] = 0)\nOR ([Effect] = 'Reserve' AND [PhysicalDelta] = 0 AND [ReservedDelta] = [Quantity])\nOR ([Effect] = 'Release' AND [PhysicalDelta] = 0 AND [ReservedDelta] = -[Quantity])\nOR ([Effect] = 'ShipReserved' AND [PhysicalDelta] = -[Quantity] AND [ReservedDelta] = -[Quantity])");
+
+                            t.HasCheckConstraint("CK_StockEntries_Quantity", "[Quantity] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.StockMovement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CounterpartyReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("OriginalMovementId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("SourceDocumentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SourceDocumentType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("SupportNotApplicableReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("SupportReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorId");
+
+                    b.HasIndex("OperationId");
+
+                    b.HasIndex("OriginalMovementId");
+
+                    b.HasIndex("SourceDocumentType", "SourceDocumentId", "Kind")
+                        .IsUnique();
+
+                    b.ToTable("StockMovements", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_StockMovements_Reason_NotBlank", "LEN(LTRIM(RTRIM([Reason]))) > 0");
+
+                            t.HasCheckConstraint("CK_StockMovements_Support", "[SupportReference] IS NOT NULL OR [SupportNotApplicableReason] IS NOT NULL");
                         });
                 });
 
@@ -522,6 +771,85 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.Lot", b =>
+                {
+                    b.HasOne("Inventario.Api.Domain.MasterData.Article", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.StockBalance", b =>
+                {
+                    b.HasOne("Inventario.Api.Domain.MasterData.Article", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Locations.Location", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Stock.Lot", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId", "LotId")
+                        .HasPrincipalKey("ArticleId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.StockEntry", b =>
+                {
+                    b.HasOne("Inventario.Api.Domain.MasterData.Article", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Locations.Location", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Stock.StockMovement", null)
+                        .WithMany("Entries")
+                        .HasForeignKey("MovementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Stock.Lot", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId", "LotId")
+                        .HasPrincipalKey("ArticleId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.StockMovement", b =>
+                {
+                    b.HasOne("Inventario.Api.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ActorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Infrastructure.Persistence.Operations.OperationResult", null)
+                        .WithMany()
+                        .HasForeignKey("OperationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Stock.StockMovement", null)
+                        .WithMany()
+                        .HasForeignKey("OriginalMovementId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("Inventario.Api.Domain.Stock.StockPolicy", b =>
                 {
                     b.HasOne("Inventario.Api.Domain.MasterData.Article", null)
@@ -595,6 +923,11 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                 {
                     b.Navigation("Policy")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.StockMovement", b =>
+                {
+                    b.Navigation("Entries");
                 });
 #pragma warning restore 612, 618
         }
