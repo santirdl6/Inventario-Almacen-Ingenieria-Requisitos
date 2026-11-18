@@ -40,8 +40,11 @@ implementación, pruebas ejecutadas ni aceptación operativa.
 - Cobertura de la HU original: código único con pasillo/estantería/nivel (US1, FR-002/003);
   artículo en varias ubicaciones y cantidad por artículo y ubicación (US2, US3, FR-006);
   consulta de todas las ubicaciones de un artículo (US2, FR-007).
-- Decisiones tomadas por defecto, documentadas en Assumptions y pendientes de validar con A y
-  con el responsable de almacén: combinación física única (FR-003), identificación inmutable
-  con historial (FR-011), sin borrado de ubicaciones (FR-014) y almacén único sin zonas.
-- FR-003 añade una restricción al modelo común (combinación única de pasillo/estantería/nivel):
-  requiere actualizar `data-model.md` con revisión de A al planificar, según AGENTS.md.
+- Revisión 2 (2026-11-18, `/speckit-clarify`): las cuatro decisiones tomadas por defecto quedan
+  resueltas en la sección Clarifications: combinación física única incluso entre inactivas (FR-003),
+  identificación inmutable desde el primer movimiento confirmado (FR-011), sin borrado de
+  ubicaciones (FR-014) y almacén único sin zonas. Se añade FR-021 (aviso al retirar la última zona
+  de recepción activa). Los 16 criterios siguen satisfechos.
+- Pendiente de validación de A en el PR: FR-003 añade una restricción al modelo común y FR-014
+  endurece "no se borra con historial" a "no se borra nunca"; ambos requieren actualizar
+  `data-model.md` y `contracts/api.md` con revisión de A al planificar, según AGENTS.md.

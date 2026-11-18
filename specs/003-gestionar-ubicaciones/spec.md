@@ -26,6 +26,16 @@
 Los enlaces anteriores son referencias normativas; esta especificación describe necesidades
 y resultados de negocio. Las decisiones de implementación corresponden al futuro plan de HU-02.
 
+## Clarifications
+
+### Session 2026-11-18
+
+- Q: ¿Debe ser única la combinación pasillo+estantería+nivel entre todas las ubicaciones, incluidas las inactivas? → A: Sí, única entre todas, incluidas las inactivas (normalizada sin mayúsculas ni espacios extremos). **Confirmada por B, pendiente de validación de A en el PR**, porque añade una restricción al modelo común.
+- Q: ¿Qué datos de una ubicación quedan bloqueados una vez que algún movimiento confirmado la ha usado? → A: Código, pasillo, estantería y nivel no cambian desde el primer movimiento confirmado que la referencie, aunque esté vacía o el movimiento se revirtiera; el tipo puede cambiar si está vacía, sin reservas ni conteo abierto.
+- Q: ¿Se puede borrar una ubicación que nunca ha tenido movimientos, o solo se desactivan? → A: Ninguna ubicación se borra, tenga o no historial; las creadas por error se corrigen (si no tienen movimientos) o se desactivan.
+- Q: ¿La descripción física se limita a pasillo+estantería+nivel en un único almacén, sin almacén, zona ni posición? → A: Sí: un único almacén, sin zonas ni posiciones; es la organización física existente que exige el principio II. Zonas o varios almacenes requerirían un cambio del modelo común.
+- Q: ¿Debe impedirse desactivar (o cambiar a almacenamiento) la última zona temporal de recepción activa? → A: Se permite, pero antes de confirmar se avisa con texto de que no quedará ninguna zona de recepción activa.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Registrar las ubicaciones físicas del almacén (Priority: P1)
@@ -145,7 +155,12 @@ operaciones del inventario y desactivarla después. Reactivarla y comprobar su h
 5. **Given** una ubicación inactiva, **When** el operario revisa y confirma su reactivación,
    **Then** vuelve a ofrecerse para nuevas operaciones sin cambiar su historial.
 6. **Given** una solicitud de borrado de una ubicación, **When** se busca la acción,
-   **Then** el sistema no ofrece eliminar ubicaciones: la retirada se realiza mediante desactivación.
+   **Then** el sistema no ofrece eliminar ubicaciones, tampoco las que no tienen movimientos:
+   la retirada se realiza mediante desactivación.
+7. **Given** la única zona temporal de recepción activa, vacía y sin reservas ni conteo abierto,
+   **When** el operario solicita desactivarla o cambiar su tipo a almacenamiento, **Then** se le
+   advierte con texto de que no quedará ninguna zona de recepción activa y la operación solo se
+   realiza si la confirma.
 
 ---
 
@@ -186,8 +201,12 @@ simular la pérdida de su respuesta.
   existencias con ubicación desconocida ni ubicaciones genéricas sin descripción física.
 - Una ubicación con existencias a cero pero reservas pendientes de liberar no está vacía a
   efectos de desactivación.
-- Una ubicación con historial pero vacía puede desactivarse; no puede borrarse ni cambiar su
+- Una ubicación con historial pero vacía puede desactivarse; no puede cambiar su
   identificación física, para que los movimientos antiguos sigan señalando el mismo lugar.
+  Ninguna ubicación puede borrarse, tampoco una creada por error sin movimientos.
+- Retirar la última zona de recepción activa (desactivándola o cambiando su tipo) está
+  permitido, pero se advierte antes de confirmar; las recepciones pueden seguir usando
+  ubicaciones de almacenamiento activas.
 - Una ubicación inactiva sigue apareciendo en consultas por artículo e historial; las listas
   para elegir destino u origen de nuevas operaciones no la ofrecen.
 - Una consulta de artículo con muchas ubicaciones muestra el total de todo el artículo,
@@ -201,11 +220,14 @@ simular la pérdida de su respuesta.
 
 - **FR-001**: El sistema DEBE permitir a usuarios autorizados crear, consultar y modificar
   ubicaciones con código, pasillo, estantería, nivel, tipo (almacenamiento o zona temporal
-  de recepción) y estado activo/inactivo, conservando una identidad estable.
+  de recepción) y estado activo/inactivo, conservando una identidad estable. Todas las
+  ubicaciones pertenecen al único almacén; no se registran almacén, zona ni posición.
 - **FR-002**: El código DEBE ser obligatorio y único entre todas las ubicaciones, incluidas
   las inactivas, sin distinguir mayúsculas ni espacios extremos.
 - **FR-003**: Pasillo, estantería y nivel DEBEN ser obligatorios para todo tipo de ubicación,
-  y su combinación DEBE ser única entre todas las ubicaciones.
+  y su combinación, normalizada sin distinguir mayúsculas ni espacios extremos, DEBE ser única
+  entre todas las ubicaciones, incluidas las inactivas (confirmada por B; pendiente de
+  validación de A en el PR por afectar al modelo común).
 - **FR-004**: Una ubicación nueva DEBE crearse activa y sin existencias; crearla NO DEBE
   generar movimientos ni cantidades.
 - **FR-005**: Los usuarios con permiso de consulta de inventario DEBEN poder listar y buscar
@@ -223,14 +245,17 @@ simular la pérdida de su respuesta.
   confirmados del inventario. Esta historia NO DEBE ofrecer la edición directa de cantidades.
 - **FR-010**: Solo los usuarios con permiso de gestión de ubicaciones DEBEN poder crear,
   modificar, desactivar o reactivar ubicaciones.
-- **FR-011**: El código, pasillo, estantería y nivel de una ubicación con movimientos NO DEBEN
-  modificarse; el sistema DEBE explicar el motivo y la alternativa de crear otra ubicación.
+- **FR-011**: El código, pasillo, estantería y nivel de una ubicación NO DEBEN modificarse
+  desde que algún movimiento confirmado la referencie, aunque esté vacía o ese movimiento se
+  haya revertido; el sistema DEBE explicar el motivo y la alternativa de crear otra ubicación.
+  El tipo sigue la regla de FR-012.
 - **FR-012**: El sistema DEBE impedir desactivar o cambiar el tipo de una ubicación con
   existencias, reservas pendientes o un conteo abierto, explicando la circunstancia.
 - **FR-013**: Una ubicación inactiva NO DEBE aceptarse como destino u origen de nuevas
   recepciones, salidas o reservas, y DEBE seguir siendo consultable con su historial.
-- **FR-014**: El sistema NO DEBE permitir eliminar ubicaciones; la retirada se realiza
-  mediante desactivación reversible.
+- **FR-014**: El sistema NO DEBE permitir eliminar ubicaciones, tengan o no historial; la
+  retirada se realiza mediante desactivación reversible y los errores de alta se corrigen
+  según FR-011 o se desactivan.
 - **FR-015**: Cada alta, modificación y cambio de estado DEBE conservar evidencia de valores
   anteriores y posteriores, acción, usuario responsable autenticado y fecha y hora de registro,
   completándose junto con el cambio o no realizándose.
@@ -247,6 +272,9 @@ simular la pérdida de su respuesta.
 - **FR-020**: La interfaz DEBE comunicar éxito solo cuando el cambio esté conservado y sea
   consultable, y permitir revisar la ubicación afectada y la consecuencia antes de confirmar
   una desactivación o reactivación.
+- **FR-021**: Si desactivar una zona temporal de recepción o cambiar su tipo a almacenamiento
+  deja el almacén sin ninguna zona de recepción activa, el sistema DEBE advertirlo con texto
+  antes de confirmar; la operación se permite si el usuario la confirma y cumple FR-012.
 
 ### Alcance y dependencias
 
@@ -259,7 +287,8 @@ simular la pérdida de su respuesta.
   consulta de todas las ubicaciones de un artículo (US2).
 - La ubicación mínima y el núcleo de stock de H0 ya permiten registrar cantidades por
   artículo, ubicación y lote. HU-02 completa su mantenimiento y consultas sin redefinir el
-  modelo común; la regla de combinación física única se incorpora al modelo con revisión de A.
+  modelo común; la regla de combinación física única (FR-003), confirmada por B, se incorpora
+  al modelo común solo tras su validación por A en el PR.
 - **HU-08 (A)** aporta la identidad, unidad y estado del artículo. **HU-01 (A)** utiliza las
   ubicaciones activas como destino, incluidas las zonas temporales de recepción.
   **HU-03/HU-05 (B)** aportan reservas y la consulta de disponibilidad. **HU-04 (B)** aporta
@@ -275,8 +304,8 @@ simular la pérdida de su respuesta.
 |-----------|-------------------|-------------------|
 | I. Correspondencia almacén/sistema | Las cantidades por ubicación solo cambian por movimientos confirmados; mantener ubicaciones no las altera. | US2.5, US4.3 y FR-009; comparación de cantidades antes/después de editar o desactivar. |
 | II. Ubicación física precisa | Código único, descripción física completa y cantidad por ubicación y lote; sin stock en ubicaciones desconocidas o inactivas. | US1.1–US1.4, US2.1–US2.2, US4.3 y US5.4; V-01 y V-03. |
-| III. Uso intuitivo | Vocabulario del almacén, estados con texto, errores corregibles y revisión antes de retirar. | US1.2, US1.5, FR-019–FR-020; recorrido con operarios representativos. |
-| IV. Trazabilidad | La identificación física de ubicaciones con historial no cambia; la historia se conserva al desactivar. | US4.2, US4.4–US4.6 y FR-015. |
+| III. Uso intuitivo | Vocabulario del almacén, estados con texto, errores corregibles y revisión antes de retirar. | US1.2, US1.5, US4.7, FR-019–FR-021; recorrido con operarios representativos. |
+| IV. Trazabilidad | La identificación física de ubicaciones con historial no cambia; la historia se conserva al desactivar. | US4.2, US4.4–US4.6, FR-011, FR-014 y FR-015. |
 | V. Integridad y recuperación | Permisos, unicidad, cambios completos, conflictos, reintentos y coordinación con movimientos. | US5.1–US5.4 y Edge Cases; V-08 y V-12 según la guía global. |
 
 La evidencia de implementación conservará fecha, entorno, escenario, resultado e incidencias.
@@ -302,14 +331,18 @@ Esta especificación define la aceptación; no declara realizadas pruebas ni rev
 - **SC-001**: Un operario autorizado completa el 100 % de los recorridos de alta, consulta,
   corrección, desactivación y reactivación de ubicaciones con datos válidos, y los resultados
   siguen visibles al volver a abrir cada ubicación.
-- **SC-002**: En el 100 % de los casos definidos de código o combinación física repetidos,
-  campos obligatorios vacíos y cambios no permitidos se impide el guardado sin crear ni
-  modificar registros, con indicación del dato que debe corregirse.
+- **SC-002**: En el 100 % de los casos definidos de código o combinación física repetidos
+  (también frente a ubicaciones inactivas), campos obligatorios vacíos y cambios de código,
+  pasillo, estantería o nivel en ubicaciones con algún movimiento confirmado (incluidos los
+  revertidos) se impide el guardado sin crear ni modificar registros, con indicación del dato
+  que debe corregirse.
 - **SC-003**: Para el 100 % de los artículos de prueba, la suma de las cantidades mostradas por
   ubicación y lote coincide con el total del artículo y con los movimientos confirmados.
 - **SC-004**: En el 100 % de los intentos de desactivar ubicaciones con existencias, reservas o
   conteo abierto, y en los casos simultáneos de desactivación y movimiento, no queda ninguna
-  existencia en una ubicación inactiva.
+  existencia en una ubicación inactiva. Ninguna ubicación, con o sin historial, puede
+  eliminarse, y el 100 % de las retiradas de la última zona de recepción activa muestran la
+  advertencia antes de confirmarse.
 - **SC-005**: Un trabajador localiza todas las ubicaciones de un artículo en menos de
   30 segundos desde la pantalla de inicio, y con 2.000 ubicaciones y 25 sesiones concurrentes
   al menos el 95 % de las consultas muestran resultados en 2 segundos o menos.
@@ -324,14 +357,13 @@ Esta especificación define la aceptación; no declara realizadas pruebas ni rev
 
 - Se reutilizan la sesión y los permisos de H0: la consulta usa el permiso de lectura de
   inventario y el mantenimiento, el de gestión de ubicaciones asignado a operarios.
-- El almacén es único: la descripción física se compone de pasillo, estantería y nivel,
-  sin zonas, almacenes múltiples ni posiciones dentro del nivel en esta entrega.
+- El almacén es único (confirmado en Clarifications): la descripción física se compone de
+  pasillo, estantería y nivel, sin zonas, almacenes múltiples ni posiciones dentro del nivel,
+  porque esa es la organización física existente a la que se refiere el principio II.
 - El código lo introduce el usuario; la interfaz puede proponerlo a partir de pasillo,
   estantería y nivel (por ejemplo P01-E01-N01), pero no se impone un formato del sector.
 - Las zonas temporales de devolución o cuarentena se representarían como ubicaciones con
   descripción física; no se añaden tipos adicionales mientras no exista su historia.
 - Las búsquedas muestran por defecto ubicaciones activas y permiten incluir inactivas.
-- La regla de identificación inmutable con historial es un valor inicial conservador para
-  preservar la trazabilidad; puede revisarse con el responsable de almacén sin alterar movimientos.
 - Los objetivos de rendimiento y la muestra de operarios son criterios a medir, no resultados
   obtenidos. Respaldo, restauración y aprobación operativa siguen la guía global.
