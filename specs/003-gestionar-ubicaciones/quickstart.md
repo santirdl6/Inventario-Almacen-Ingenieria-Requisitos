@@ -24,8 +24,10 @@ docker run --rm --network inventario_default -v "$PWD/backend:/src" -w /src \
   mcr.microsoft.com/dotnet/sdk:10.0 sh -c 'dotnet tool restore && dotnet test Inventario.slnx --nologo'
 ```
 
-Resultado esperado: las pruebas previas siguen pasando y `LocationsTests` cubre la matriz
-siguiente. Repetir tres veces las de concurrencia, como en `StockCoreTests`.
+Resultado esperado: las 26 pruebas previas siguen pasando sin cambios (incluidas las 8 de
+`StockCoreTests`, ahora con `StockCore` delegando en `AppLocks`) y las pruebas de ubicaciones
+(`Locations*Tests`, `ArticleLocationsTests`, `LocationStockTests`) cubren la matriz siguiente.
+Repetir tres veces las de concurrencia, como en `StockCoreTests`.
 
 | Caso | Preparación y acción | Resultado esperado | Spec |
 |------|----------------------|--------------------|------|
@@ -42,7 +44,8 @@ siguiente. Repetir tres veces las de concurrencia, como en `StockCoreTests`.
 | L-11 | Desactivar la única Receiving sin y con reconocimiento; dos Receiving desactivadas a la vez. | 409 `NoActiveReceivingLeft`, luego 200; en paralelo, como mucho una pasa sin aviso. | US4.7, FR-021 |
 | L-12 | Cuenta GestorMaestros (solo lectura) intenta POST/PUT; sin sesión; sin antiforgery; DELETE. | 403, 401, 400, 405; consulta permitida. | US5.1, FR-010, FR-014 |
 | L-13 | Equivalencia D-03: tras cada operación del núcleo, «tiene saldo» ⇔ «tiene entradas». | Coinciden para todas las ubicaciones de la prueba. | FR-011 |
-| L-14 | Usuario de ejecución intenta UPDATE/DELETE en MasterDataAudit. | Error SQL 229. | FR-015 |
+| L-14 | Usuario de ejecución intenta UPDATE/DELETE en MasterDataAudit y DELETE en StockBalances. | Error SQL 229 en los tres casos. | FR-011, FR-015 |
+| L-15 | Fallo inducido después de guardar y antes del commit en un alta y en una desactivación; después, repetir con la misma clave. | Ni ubicación ni cambio, ni auditoría, ni `OperationResult`; el reintento confirma un solo efecto con una sola auditoría. | FR-015, FR-018, SC-007 |
 
 ## Pruebas frontend
 
@@ -56,7 +59,8 @@ npx --no-install ng build --configuration production
 Vitest/TestBed: validación de formulario y conservación de datos tras 422/409, mensaje
 de 412 con «Ver datos vigentes», reutilización de la clave tras error de red, diálogo de
 desactivación con advertencia de última zona de recepción, textos de estado sin depender
-del color. Playwright (L-01, L-05, L-08 por la UI) queda pendiente del login de la interfaz.
+del color. Playwright (L-01, L-05, L-08 por la UI) queda pendiente del login de la interfaz,
+igual que SC-001 por la interfaz y la revisión manual de accesibilidad.
 
 ## Rendimiento (SC-005)
 
@@ -69,9 +73,15 @@ Objetivo: p95 ≤ 2 s. Registrar fecha, entorno y resultados; sin descartar erro
 Al menos tres operarios: alta de una ubicación, corrección de un campo inválido,
 localizar un artículo repartido (< 30 s desde inicio) y desactivar una ubicación vacía.
 Documentar participantes, resultado, incidencias y correcciones (constitución III).
+Requiere el login en la interfaz. La localización de un artículo y el tiempo de 30 s
+requieren además la búsqueda de artículos de HU-08; no se miden con el acceso provisional
+(desde el contenido de una ubicación o por identificador), que es solo para desarrollo.
 
 ## Pendiente por dependencias
 
-- Conteo abierto (FR-012) con HU-04; reservas reales de pedidos con HU-03/HU-05.
-- Búsqueda de artículo por código o nombre (US2.1) con `GET /articles` de HU-08.
+- Conteo abierto (FR-012, US3.3, US4.3, SC-004) con HU-04; reservas reales de pedidos con HU-03/HU-05.
+- Búsqueda de artículo por código o nombre (US2.1), tiempo de SC-005 y tarea 3 de SC-006
+  con `GET /articles` de HU-08.
+- Login en la interfaz: E2E con Playwright, SC-001 por la interfaz, partes de interfaz de
+  FR-019 y FR-020, revisión de accesibilidad y validación con operarios (SC-006).
 - Integración con recepciones reales (V-03) en H3.

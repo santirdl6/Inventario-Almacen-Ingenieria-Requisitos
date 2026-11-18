@@ -177,7 +177,8 @@ trabajo común aún no entregado; las pruebas E2E de HU-02 dependen de él.
 
 ## D-12. Pruebas
 
-**Decisión**: `LocationsTests` en `Inventario.IntegrationTests` con el patrón de
+**Decisión**: pruebas en `Inventario.IntegrationTests`, un archivo por historia más uno de
+infraestructura (véase la estructura de `plan.md`), con el patrón de
 `StockCoreTests`: `IClassFixture<IdentityFixture>`, base y login aleatorios, contextos
 de aplicación con la conexión restringida, existencias preparadas solo con `StockCore`
 y `TestActor`, concurrencia con `Task.WhenAll` sobre contextos independientes. Las

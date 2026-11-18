@@ -29,7 +29,8 @@ desactivación y reactivación; consultas de lista, detalle, contenido y ubicaci
 artículo) y una migración aditiva `HU02_Locations` con la unicidad física y la tabla común
 de auditoría. Los comandos siguen el orden de bloqueos del núcleo (`operation` →
 `location` → `locations:receiving`), lo que coordina los cambios de estado con
-recepciones y reservas sin modificar `StockCore`. Las cantidades se leen exclusivamente
+recepciones y reservas; `StockCore` solo pasa a delegar en el helper común `AppLocks`, sin
+cambiar su semántica. Las cantidades se leen exclusivamente
 de `StockBalances`. El frontend sustituye el placeholder de `/ubicaciones` por cinco
 pantallas standalone con PrimeNG.
 
@@ -58,8 +59,8 @@ artículo con 2.000 ubicaciones y 25 sesiones; localizar un artículo en < 30 s.
 lecturas de stock desde `StockBalances`; ningún borrado; If-Match + Idempotency-Key en
 mutaciones; bloqueo de 5 s y 3 reintentos como el núcleo.
 
-**Scale/Scope**: un almacén, ~2.000 ubicaciones, 6 endpoints, 5 pantallas, 14 casos de
-integración (L-01…L-14). Sin incógnitas abiertas: ver [research.md](research.md).
+**Scale/Scope**: un almacén, ~2.000 ubicaciones, 6 endpoints, 5 pantallas, 15 casos de
+integración (L-01…L-15). Sin incógnitas abiertas: ver [research.md](research.md).
 
 ## Constitution Check
 
@@ -72,7 +73,7 @@ de implementación.*
 | II. Ubicación precisa | Código y lugar físico únicos en SQL (D-02); pasillo/estantería/nivel obligatorios también en recepción; ningún stock en inactiva gracias al bloqueo común (D-04); cantidades por ubicación y lote. | PASS | PASS |
 | III. Uso intuitivo | Contrato UI de la feature: textos en español, estados con texto, revisión antes de desactivar, aviso de última zona de recepción, errores por campo conservando datos; validación con operarios (SC-006). | PASS | PASS |
 | IV. Trazabilidad | Identificación inmutable desde el primer movimiento (D-03); nunca se borra; auditoría append-only con actor de sesión (D-07). | PASS | PASS |
-| V. Integridad | Permisos por endpoint; transacción única con auditoría y OperationResult; idempotencia (D-06); If-Match; applocks compartidos con el núcleo; pruebas de concurrencia en SQL real. | PASS | PASS |
+| V. Integridad | Permisos por endpoint; transacción única con auditoría y OperationResult, con atomicidad ante fallo comprobada (L-15); idempotencia (D-06); If-Match; applocks compartidos con el núcleo; pruebas de concurrencia en SQL real. | PASS | PASS |
 | Revisión y gobernanza | Cambios al modelo común identificados y no aplicados unilateralmente (sección siguiente); evidencia en quickstart. | PASS | PASS |
 
 Sin violaciones; Complexity Tracking vacío.
@@ -87,7 +88,7 @@ specs/003-gestionar-ubicaciones/
 ├── plan.md                     # este documento
 ├── research.md                 # D-01…D-12
 ├── data-model.md               # Location ampliada, MasterDataAudit, proyecciones
-├── quickstart.md               # L-01…L-14, rendimiento y operarios
+├── quickstart.md               # L-01…L-15, rendimiento y operarios
 ├── contracts/
 │   ├── locations-api.md
 │   └── locations-ui.md
@@ -107,27 +108,33 @@ backend/src/Inventario.Api/
 │   ├── LocationEndpoints.cs                    # MapLocationEndpoints + RequireAuthorization
 │   ├── Commands/CreateLocation.cs
 │   ├── Commands/UpdateLocation.cs              # corrección, tipo y estado (D-08)
-│   ├── Commands/LocationCommandRunner.cs       # transacción, applocks, idempotencia, auditoría
+│   ├── Commands/LocationCommandRunner.cs       # transacción, applocks, idempotencia, auditoría, BeforeCommit (L-15)
 │   ├── Queries/ListLocations.cs
 │   ├── Queries/GetLocation.cs
 │   ├── Queries/GetLocationStock.cs
 │   ├── Queries/GetArticleLocations.cs
 │   ├── ILocationUsage.cs                       # existencias/reservas; HU-04 añade conteos
 │   └── LocationDtos.cs
-├── Features/Stock/Core/StockCore.cs            # solo usa AppLocks extraído (sin cambio de semántica)
+├── Features/Stock/Core/StockCore.cs            # delega en AppLocks (sin cambio de semántica; 26 pruebas previas intactas)
 ├── Infrastructure/
 │   ├── Http/ApiProblems.cs                     # + BusinessRuleException en ApiExceptionHandler
 │   ├── Http/HttpPreconditions.cs               # ETag/If-Match, Idempotency-Key
 │   ├── Persistence/AppLocks.cs                 # sp_getapplock compartido (D-04)
 │   ├── Persistence/Configurations/LocationConfiguration.cs        # + collation + índice único
 │   ├── Persistence/Configurations/MasterDataAuditConfiguration.cs # nueva
-│   ├── Persistence/DatabaseBootstrapper.cs     # + DENY UPDATE/DELETE en MasterDataAudit
+│   ├── Persistence/DatabaseBootstrapper.cs     # + DENY UPDATE/DELETE en MasterDataAudit, DENY DELETE en StockBalances
 │   └── Persistence/Migrations/<ts>_HU02_Locations.cs              # aditiva
 └── Program.cs                                  # api.MapLocationEndpoints(); AddLocations()
 
 backend/tests/Inventario.IntegrationTests/
-├── LocationsTests.cs                           # dominio + SQL + concurrencia (L-01…L-11, L-13, L-14)
-└── LocationsHttpTests.cs                       # permisos, ETag, Idempotency-Key, ProblemDetails (L-10, L-12)
+├── LocationsTestSupport.cs                     # utilidades comunes (patrón de StockCoreTests)
+├── LocationsInfrastructureTests.cs             # L-13, L-14, DENY, índice único, AppLocks ↔ StockCore
+├── LocationsCreateTests.cs                     # US1: L-01…L-04
+├── ArticleLocationsTests.cs                    # US2: L-05 (artículo), L-06
+├── LocationStockTests.cs                       # US3: L-05 (ubicación)
+├── LocationsUpdateTests.cs                     # US4: L-07, L-08, L-11, DELETE 405
+├── LocationsConcurrencyTests.cs                # US5: L-09
+└── LocationsHttpTests.cs                       # US5: L-10, L-12, L-15
 
 frontend/src/app/features/locations/
 ├── locations.routes.ts                         # sustituye el placeholder
@@ -169,8 +176,8 @@ y frontend). Se tocan tres archivos transversales —`Program.cs`, `ApiProblems.
 |-------------|--------|------------|
 | Validación de A de FR-003/FR-014 y `MasterDataAudit` | Bloquea la fusión de `HU02_Locations`. | Sección siguiente; si A rechaza, se retira el índice y se reabre la clarificación 1. |
 | `b/h0-frontend-base` no está en esta rama | Frontend no puede empezar. | Integrar esa rama antes de las tareas de UI. |
-| `GET /articles` (HU-08, A) | Búsqueda de artículo de US2.1. | Pantalla accesible por id; prueba pendiente registrada. |
-| Login en la UI (común) | Playwright de HU-02. | Pruebas HTTP con sesión real en backend entretanto. |
+| `GET /articles` (HU-08, A) | US2.1, tiempo de SC-005 y tarea 3 de SC-006. | Acceso provisional (desde el contenido de una ubicación o por id) solo para desarrollo y pruebas; criterios registrados como pendientes. |
+| Login en la UI (común) | Playwright de HU-02, SC-001 por la interfaz, revisión de accesibilidad y validación con operarios (SC-006). | Pruebas HTTP con sesión real y Vitest entretanto; criterios de interfaz registrados como pendientes. |
 | HU-04 conteos, HU-03/05 reservas de pedidos | Parte de FR-012. | `ILocationUsage`; reservas ya comprobables con `StockCore.ReserveAsync`. |
 | Otra migración integrada antes | Snapshot obsoleto. | Regenerar `HU02_Locations` local (plan global §5). |
 
@@ -205,7 +212,42 @@ Ninguno de estos archivos se edita en esta rama hasta la revisión de A en el PR
 +sin distinguir mayúsculas en Aisle/Rack/Level e índice único `UX_Locations_Aisle_Rack_Level`.
 +Crea `MasterDataAudit` (sección Datos maestros) si aún no existe, append-only para el
 +usuario de ejecución. Los cambios de estado adquieren `location:{id}` como el núcleo.
++El usuario de ejecución no tiene DELETE sobre `StockBalances`: un saldo nunca se borra,
++de modo que «la ubicación tiene saldo» equivale a «la ubicación tiene movimientos».
 ```
+
+### `.specify/memory/project/contracts/stock-operations.md` — secciones `## Alcance y disciplina de escritura` e `## Implementación H0`
+
+```diff
+ - Desactivar un artículo o cambiar su mínimo adquiere el mismo bloqueo de artículo.
+   Cambiar el estado de una ubicación adquiere el de ubicación. Nunca se adquiere
+   ubicación después de artículo. Editar varios maestros sigue orden de IDs consistente.
++- Desactivar una ubicación Receiving o cambiar su tipo a Storage adquiere además el
++  recurso global `locations:receiving`, siempre después de `location:{id}` y nunca
++  después de un `article:{id}`. El núcleo de stock no lo adquiere (HU-02 FR-021).
+```
+
+```diff
+ ## Implementación H0 (B, 2026-11-16)
+
++Desde HU-02, la adquisición de applocks vive en `Infrastructure/Persistence/AppLocks`,
++compartida por `StockCore` y los comandos de ubicaciones, con la misma semántica
++(Exclusive, propietario Transaction, 5 s, rollback explícito y LockTimeout).
++
+ `Inventario.Api.Features.Stock.Core.StockCore` (scoped) expone ReceiveAsync, ReserveAsync,
+```
+
+### `.specify/memory/project/quickstart.md` — sección `### Núcleo de stock H0 (B)`
+
+```diff
+ El inicializador deniega UPDATE/DELETE al usuario de ejecución sobre StockMovements,
+-StockEntries y OperationResults. Servicio scoped `Features/Stock/Core/StockCore` con
++StockEntries y OperationResults; desde HU-02, también UPDATE/DELETE sobre MasterDataAudit
++y DELETE sobre StockBalances. Servicio scoped `Features/Stock/Core/StockCore` con
+```
+
+Y añadir al final de esa sección la evidencia de HU-02 (fecha, entorno, número de pruebas
+y resultado) que se registre en la sección «Evidencia» del quickstart de la feature.
 
 ### `.specify/memory/project/contracts/api.md` — sección `### HU-02 — B: ubicaciones`
 
@@ -235,12 +277,18 @@ Y en la tabla de errores comunes del mismo archivo (fila 409), añadir los códi
 +| 409 | InsufficientStock, ReservedStockConflict, CountScopeFrozen, DocumentAlreadyConfirmed, OverReceipt, ArticleInactive, HistoryPreventsDeletion, IdempotencyConflict, DuplicateLocationCode, DuplicateLocationPlace, LocationIdentityLocked, LocationNotEmpty, NoActiveReceivingLeft. |
 ```
 
-### Otros puntos para la revisión de A (sin diff documental)
+### Lista de puntos a validar con A (T001)
+
+Incluye los cambios de los diffs anteriores que afectan a código transversal y los que no
+tienen diff documental.
 
 - `MasterDataAudit` se implementa por primera vez en HU-02 (D-07); A debe confirmar que
   su HU-08 la reutilizará tal cual.
-- Extracción de `AppLocks` desde `StockCore` y nueva rama `BusinessRuleException` en
-  `ApiExceptionHandler` (archivos transversales).
+- Extracción de `AppLocks` desde `StockCore`, que pasa a delegar en él sin cambiar su
+  semántica (las 26 pruebas existentes siguen sin cambios), y nueva rama
+  `BusinessRuleException` en `ApiExceptionHandler` (archivos transversales).
+- `DENY DELETE` sobre `StockBalances` para el usuario de ejecución (refuerzo de D-03).
+- Recurso global `locations:receiving` y su posición en el orden de bloqueos (D-05).
 - Alternativa D-08 (rutas de desactivación/reactivación separadas) si A la prefiere.
 
 ## Complexity Tracking
