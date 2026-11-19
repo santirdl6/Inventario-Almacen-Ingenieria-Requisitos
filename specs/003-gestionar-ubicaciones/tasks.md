@@ -169,10 +169,10 @@ traen ni `AppLocks`, ni `BusinessRuleException`, ni `HttpPreconditions`, ni los 
 
 **Independent Test**: buscar ART-01 por código o nombre y ver 2 + 4 = 6 UD con `asOf` y total separado de la página.
 
-- [ ] T048 [P] [US2] Portar `frontend/src/app/features/locations/article/article-locations.page.ts` desde `8377a12`, leyendo `articleId` con `ActivatedRoute`: total encima de la tabla y separado de la página; filas por ubicación y lote («Sin lote»); «Inactiva»/«Inactivo»; vacío → «Este artículo no está almacenado en ninguna ubicación» sin tratarlo como error; «Actualizar» y `asOf`; sin el aviso del acceso provisional (US2.2–US2.5; FR-007, FR-019).
-- [ ] T055 [P] [US2] Crear `frontend/src/app/features/locations/article/article-search.ts` (desbloqueada: `GET /articles` de A existe): búsqueda por SKU o nombre con `GET /api/v1/articles?q=&state=all&page=1&pageSize=25`, resultados con código, nombre y estado en texto, y enlace a `/ubicaciones/articulo/:articleId` (US2.1; FR-007).
-- [ ] T049 [US2] Añadir en `frontend/src/app/features/locations/locations.routes.ts` las rutas `articulo` (búsqueda) y `articulo/:articleId` (depende de T046, T048 y T055).
-- [ ] T050 [P] [US2] Portar y adaptar `article/article-locations.page.spec.ts` y crear `article/article-search.spec.ts`: **habitual** (búsqueda → enlace; total desde `totals` y no de sumar la página); **error** (artículo inexistente → mensaje en la página); estado vacío y textos de estado (US2.1–US2.4).
+- [X] T048 [P] [US2] Portar `frontend/src/app/features/locations/article/article-locations.page.ts` desde `8377a12`, leyendo `articleId` con `ActivatedRoute`: total encima de la tabla y separado de la página; filas por ubicación y lote («Sin lote»); «Inactiva»/«Inactivo»; vacío → «Este artículo no está almacenado en ninguna ubicación» sin tratarlo como error; «Actualizar» y `asOf`; sin el aviso del acceso provisional (US2.2–US2.5; FR-007, FR-019).
+- [X] T055 [P] [US2] Crear `frontend/src/app/features/locations/article/article-search.ts` (desbloqueada: `GET /articles` de A existe): búsqueda por SKU o nombre con `GET /api/v1/articles?q=&state=all&page=1&pageSize=25`, resultados con código, nombre y estado en texto, y enlace a `/ubicaciones/articulo/:articleId` (US2.1; FR-007).
+- [X] T049 [US2] Añadir en `frontend/src/app/features/locations/locations.routes.ts` las rutas `articulo` (búsqueda) y `articulo/:articleId` (depende de T046, T048 y T055).
+- [X] T050 [P] [US2] Portar y adaptar `article/article-locations.page.spec.ts` y crear `article/article-search.spec.ts`: **habitual** (búsqueda → enlace; total desde `totals` y no de sumar la página); **error** (artículo inexistente → mensaje en la página); estado vacío y textos de estado (US2.1–US2.4).
 
 ---
 

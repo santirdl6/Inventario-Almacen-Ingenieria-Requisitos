@@ -17,9 +17,12 @@ import { LocationsApi } from '../data/locations-api.service';
   template: `
     <div class="page-header">
       <h1>Ubicaciones</h1>
-      @if (session.has(manage)) {
-        <a class="p-button" routerLink="/ubicaciones/nueva">Nueva ubicación</a>
-      }
+      <div class="actions">
+        <a routerLink="/ubicaciones/articulo">Localizar un artículo</a>
+        @if (session.has(manage)) {
+          <a class="p-button" routerLink="/ubicaciones/nueva">Nueva ubicación</a>
+        }
+      </div>
     </div>
 
     <form class="filters" [formGroup]="filters" (ngSubmit)="search()" role="search" aria-label="Buscar ubicaciones">

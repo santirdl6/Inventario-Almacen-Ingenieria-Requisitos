@@ -18,5 +18,15 @@ export const LOCATIONS_ROUTES: Routes = [
     canActivate: [permissionGuard],
     data: { permission: 'Locations.Manage' },
     loadComponent: () => import('./form/location-form.page').then(m => m.LocationFormPage)
+  },
+  {
+    path: 'articulo',
+    title: 'Localizar un artículo',
+    loadComponent: () => import('./article/article-search').then(m => m.ArticleSearch)
+  },
+  {
+    path: 'articulo/:articleId',
+    title: 'Ubicaciones del artículo',
+    loadComponent: () => import('./article/article-locations.page').then(m => m.ArticleLocationsPage)
   }
 ];
