@@ -180,9 +180,9 @@ traen ni `AppLocks`, ni `BusinessRuleException`, ni `HttpPreconditions`, ni los 
 
 **Independent Test**: abrir P01-E01-N02 y ver ART-01, L-001, 4 UD; abrir una vacía y ver «Esta ubicación está vacía».
 
-- [ ] T052 [US3] Portar `frontend/src/app/features/locations/detail/location-detail.page.ts` desde `8377a12`, leyendo `id` con `ActivatedRoute` y sin `MessageService`: datos físicos, tipo y estado; contenido con lote, cantidad y unidad, reservado con texto y «Inactivo»; «Esta ubicación está vacía»; aviso de reservas; espacio para «En conteo» (T034); botones Editar, Desactivar y Reactivar solo con `Locations.Manage` (US3.1–US3.3; FR-008, FR-019).
-- [ ] T053 [US3] En `location-detail.page.ts`, enlace «Ver todas sus ubicaciones» → `/ubicaciones/articulo/:articleId` en cada fila, y ruta `:id` en `locations.routes.ts` (depende de T049 y T052).
-- [ ] T054 [P] [US3] Portar y adaptar `detail/location-detail.page.spec.ts`: **habitual** (contenido y vacía); **error** (404 → mensaje en la página); **permisos** (sin `Locations.Manage`, sin botones de gestión; nunca «Eliminar») (US3.1–US3.3; FR-014).
+- [X] T052 [US3] Portar `frontend/src/app/features/locations/detail/location-detail.page.ts` desde `8377a12`, leyendo `id` con `ActivatedRoute` y sin `MessageService`: datos físicos, tipo y estado; contenido con lote, cantidad y unidad, reservado con texto y «Inactivo»; «Esta ubicación está vacía»; aviso de reservas; espacio para «En conteo» (T034); botones Editar, Desactivar y Reactivar solo con `Locations.Manage` (US3.1–US3.3; FR-008, FR-019).
+- [X] T053 [US3] En `location-detail.page.ts`, enlace «Ver todas sus ubicaciones» → `/ubicaciones/articulo/:articleId` en cada fila, y ruta `:id` en `locations.routes.ts` (depende de T049 y T052).
+- [X] T054 [P] [US3] Portar y adaptar `detail/location-detail.page.spec.ts`: **habitual** (contenido y vacía); **error** (404 → mensaje en la página); **permisos** (sin `Locations.Manage`, sin botones de gestión; nunca «Eliminar») (US3.1–US3.3; FR-014).
 
 ---
 

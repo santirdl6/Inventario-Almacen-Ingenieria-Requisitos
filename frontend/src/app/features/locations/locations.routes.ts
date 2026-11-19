@@ -28,5 +28,10 @@ export const LOCATIONS_ROUTES: Routes = [
     path: 'articulo/:articleId',
     title: 'Ubicaciones del artículo',
     loadComponent: () => import('./article/article-locations.page').then(m => m.ArticleLocationsPage)
+  },
+  {
+    path: ':id',
+    title: 'Ubicación',
+    loadComponent: () => import('./detail/location-detail.page').then(m => m.LocationDetailPage)
   }
 ];
