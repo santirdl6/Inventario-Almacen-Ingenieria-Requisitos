@@ -194,7 +194,7 @@ solo se desactiva y conserva historia/unidades/ubicaciones. Consultar también s
 
 - [X] T067 [US4] Implementar `backend/src/Inventario.Api/Features/MasterData/Commands/DeleteArticleHandler.cs` con replay antes de existencia/If-Match, bloqueo de artículo y referencias reales, 409 HistoryPreventsDeletion o eliminación atómica de Article/política propia+auditoría Delete+resultado 204; no borrar documentos/diario y conservar evidencia sin FK que impida el borrado.
 - [X] T068 [US4] Completar `backend/src/Inventario.Api/Features/MasterData/Commands/ArticleLifecycleCoordinator.cs` y `backend/src/Inventario.Api/Features/MasterData/Commands/ArticleCommands.cs` con transición «activo ↔ inactivo, con auditoría y permisos» y sin cambios de cantidades; invocar el evaluador real de HU-06 en la misma transacción cuando esté integrado, o rechazar la dependencia ausente, sin cerrar compromisos existentes.
-- [ ] T069 [US4] Implementar `backend/src/Inventario.Api/Features/MasterData/Queries/ArticleMovementQueries.cs` sobre StockMovement/StockEntry comunes: from/to ISO con zona e intervalo [from,to), actorId/locationId/lotId, página y orden recordedAt descendente/Id; cantidades como cadenas decimales y unidad histórica, actor/motivo/documento/soporte/contraparte/origen/destino/lote, sin filtrar por IsActive y sin historial alternativo.
+- [X] T069 [US4] Conectar `ArticleMovementQueries` a `backend/src/Inventario.Api/Features/Stock/Core/StockArticleMovementReader.cs` sobre StockMovement/StockEntry comunes: from/to ISO con zona e intervalo [from,to), actorId/locationId/lotId, página y orden recordedAt descendente/Id; cantidades como cadenas decimales y unidad histórica, actor/motivo/documento/soporte/contraparte/origen/destino/lote, sin filtrar por IsActive y sin historial alternativo.
 - [ ] T070 [US4] Completar borrado/capacidades en `backend/src/Inventario.Api/Infrastructure/Persistence/ArticleUsageReader.cs` y `backend/src/Inventario.Api/Features/MasterData/Queries/ArticleQueries.cs`: diferenciar historial, referencias y propiedades internas; coordinar limpieza segura de dimensiones vacías si B las crea antes del primer uso, sin convertirlas en prohibición permanente ni tocar dimensiones utilizadas.
 - [X] T071 [US4] Ampliar `backend/src/Inventario.Api/Features/MasterData/ArticleEndpoints.cs` con DELETE /articles/{id} y GET /articles/{id}/movements, permisos/ETag/idempotencia y respuestas: 404 artículo ausente, página vacía solo con proveedor real y 503 DependencyUnavailable cuando falte diario/lector, preservando el comportamiento de PUT estado.
 - [X] T072 [P] [US4] Añadir DTO y consulta de movimientos en `frontend/src/app/features/master-data/articles/article-history-api.service.ts` y `frontend/src/app/features/master-data/articles/article-history.models.ts`; conservar decimales exactos como cadenas y distinguir sus tres estados: datos/vacío confirmado/dependencia ausente.
@@ -259,6 +259,14 @@ T053–T063 y fiabilidad T079–T088 verificadas para maestros H1; detalle en
 las carreras con escritores reales, validación humana, restauración y revisión A+B
 siguen pendientes. T064/T069/T070/T077 mantienen sus partes integradas abiertas;
 la ejecución H1 no las convierte en historias completas.
+
+## Estado de continuación, 2026-11-19
+
+T069 implementada y verificada en `work/hu08-stock-history`, sobre la base
+de la PR #4 fusionada y el stock de la PR #3 en revisión. La
+[verificación de US4](validation/us4.md#validación-con-el-stock-h0-2026-11-19)
+amplía la evidencia de T035, T064, T066, T070, T075, T077 y T078 con stock real.
+El cierre de esas tareas requiere los escritores y escenarios restantes.
 
 ## Dependencies & Execution Order
 
