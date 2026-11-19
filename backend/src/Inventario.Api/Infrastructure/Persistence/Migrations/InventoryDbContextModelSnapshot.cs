@@ -30,7 +30,8 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                     b.Property<string>("Aisle")
                         .IsRequired()
                         .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)");
+                        .HasColumnType("nvarchar(16)")
+                        .UseCollation("Latin1_General_100_CI_AS");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -49,12 +50,14 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                     b.Property<string>("Level")
                         .IsRequired()
                         .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)");
+                        .HasColumnType("nvarchar(16)")
+                        .UseCollation("Latin1_General_100_CI_AS");
 
                     b.Property<string>("Rack")
                         .IsRequired()
                         .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)");
+                        .HasColumnType("nvarchar(16)")
+                        .UseCollation("Latin1_General_100_CI_AS");
 
                     b.Property<byte[]>("Version")
                         .IsConcurrencyToken()
@@ -67,15 +70,27 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
+                    b.HasIndex("Aisle", "Rack", "Level")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Locations_Aisle_Rack_Level");
+
                     b.ToTable("Locations", null, t =>
                         {
+                            t.HasCheckConstraint("CK_Locations_Aisle_Chars", "[Aisle] COLLATE Latin1_General_BIN2 NOT LIKE N'%[^-0-9A-Z]%'");
+
                             t.HasCheckConstraint("CK_Locations_Aisle_NotBlank", "LEN(LTRIM(RTRIM([Aisle]))) > 0");
+
+                            t.HasCheckConstraint("CK_Locations_Code_Chars", "[Code] COLLATE Latin1_General_BIN2 NOT LIKE N'%[^-0-9A-Z]%'");
 
                             t.HasCheckConstraint("CK_Locations_Code_NotBlank", "LEN(LTRIM(RTRIM([Code]))) > 0");
 
                             t.HasCheckConstraint("CK_Locations_Kind", "[Kind] IN ('Storage', 'Receiving')");
 
+                            t.HasCheckConstraint("CK_Locations_Level_Chars", "[Level] COLLATE Latin1_General_BIN2 NOT LIKE N'%[^-0-9A-Z]%'");
+
                             t.HasCheckConstraint("CK_Locations_Level_NotBlank", "LEN(LTRIM(RTRIM([Level]))) > 0");
+
+                            t.HasCheckConstraint("CK_Locations_Rack_Chars", "[Rack] COLLATE Latin1_General_BIN2 NOT LIKE N'%[^-0-9A-Z]%'");
 
                             t.HasCheckConstraint("CK_Locations_Rack_NotBlank", "LEN(LTRIM(RTRIM([Rack]))) > 0");
                         });
@@ -228,7 +243,7 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_MasterDataAudit_Before", "[Before] IS NULL OR ISJSON([Before], VALUE) = 1");
 
-                            t.HasCheckConstraint("CK_MasterDataAudit_Entity", "[EntityType] IN ('Family','Supplier','Article')");
+                            t.HasCheckConstraint("CK_MasterDataAudit_Entity", "[EntityType] IN ('Family','Supplier','Article','Location')");
                         });
                 });
 

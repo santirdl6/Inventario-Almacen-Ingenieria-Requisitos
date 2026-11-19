@@ -28,6 +28,12 @@ public sealed partial class InventoryLocks(InventoryDbContext database)
     public Task LocationsAsync(IEnumerable<Guid> locations, CancellationToken cancellation = default) =>
         AcquireAsync(2, locations.Select(id => $"location:{Id(id)}"), cancellation);
 
+    // HU-02 (FR-021): retirar una zona de recepción serializa el recuento de las que quedan
+    // activas. Va en la fase de ubicaciones y después de location:{id}, porque "location:"
+    // precede a "locations:" en orden ordinal. StockCore nunca lo adquiere.
+    public Task ReceivingZonesAsync(CancellationToken cancellation = default) =>
+        AcquireAsync(2, ["locations:receiving"], cancellation);
+
     public Task ArticlesAsync(IEnumerable<Guid> articles, CancellationToken cancellation = default) =>
         AcquireAsync(3, articles.Select(id => $"article:{Id(id)}"), cancellation);
 

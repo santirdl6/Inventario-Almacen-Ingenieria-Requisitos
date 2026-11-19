@@ -1,5 +1,6 @@
 using Inventario.Api.Infrastructure.Http;
 using Inventario.Api.Features.MasterData;
+using Inventario.Api.Features.Locations;
 using Inventario.Api.Features.MasterData.Maintenance;
 using Inventario.Api.Features.Stock.Core;
 using Inventario.Api.Infrastructure.Identity;
@@ -21,6 +22,7 @@ builder.Services.AddInventoryIdentity(builder.Environment);
 builder.Services.AddInventoryOperations();
 builder.Services.AddMasterData();
 builder.Services.AddStockCore();
+builder.Services.AddLocations();
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
 {
     context.ProblemDetails.Extensions.TryAdd("traceId", context.HttpContext.TraceIdentifier);
@@ -94,7 +96,11 @@ if (maintenance)
     if (await ArticleSchema.IsExpandedAsync(scope.ServiceProvider.GetRequiredService<InventoryDbContext>()))
         api.MapHu08Maintenance();
 }
-else api.MapMasterDataEndpoints();
+else
+{
+    api.MapMasterDataEndpoints();
+    api.MapLocationEndpoints();
+}
 
 if (app.Environment.IsDevelopment())
     app.MapOpenApi().AllowAnonymous();

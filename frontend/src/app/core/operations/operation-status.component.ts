@@ -1,7 +1,7 @@
 import { Component, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MasterDataMutationsService } from '../http/master-data-mutations.service';
-import { PendingOperation, PendingOperationStore } from './pending-operation.store';
+import { PendingOperation, PendingOperationStore, mutationPermission } from './pending-operation.store';
 import { SessionService } from '../session/session.service';
 import { apiProblem } from '../http/api-problem';
 
@@ -31,9 +31,10 @@ export class OperationStatusComponent {
   readonly busy = signal(false); readonly message = signal('');
   readonly checked = signal<string[]>([]);
   hasOriginal(operation: PendingOperation): boolean { return 'payload' in operation; }
-  canRetry(operation: PendingOperation): boolean { return this.hasOriginal(operation) && this.session.has('MasterData.Manage') && this.checked().includes(operation.operationId); }
+  canRetry(operation: PendingOperation): boolean { const permission = mutationPermission(operation.resource); return this.hasOriginal(operation) && !!permission && this.session.has(permission) && this.checked().includes(operation.operationId); }
   route(operation: PendingOperation): string {
     const parts = operation.resource.split('/');
+    if (parts[3] === 'locations') return parts[4] ? `/ubicaciones/${parts[4]}/editar` : '/ubicaciones/nueva';
     const catalogue = ({ families: 'familias', articles: 'articulos', suppliers: 'proveedores' } as Record<string, string>)[parts[3]];
     return `/maestros/${catalogue}/${parts[4] ?? 'nuevo'}`;
   }
