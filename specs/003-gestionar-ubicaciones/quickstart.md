@@ -81,6 +81,45 @@ Registrar aquí fecha, entorno, número de pruebas y resultado de cada ejecució
 | Fecha (UTC) | Entorno | Ejecución | Resultado |
 |-------------|---------|-----------|-----------|
 | 2026-11-19 10:42 | `mcr.microsoft.com/dotnet/sdk:10.0` en la red `inventario_default`, SQL Server 2025 de Compose; rama `b/hu-02-ubicaciones-v2` | Suite backend completa, 3 veces seguidas (compilación con avisos como errores: 0 avisos) | 110/110 las tres veces: 88 previas + 22 de `Locations/` (L-01–L-12 y L-15) |
+| 2026-11-19 11:07 | Igual; frontend con Node 26 y la configuración de pruebas de A (Vitest 5.1.0, jsdom 31.0.0) | Verificación final (T067): suite backend, `has-pending-model-changes`, `npm test`, `npm run build` | Backend 110/110; sin cambios de modelo pendientes; frontend 92/92; build de producción sin avisos |
+| 2026-11-19 11:05 | Proyecto Compose dedicado `inventario-hu08-e2e` (8082), Chromium de Playwright 1.65.0 | `e2e/locations.spec.ts` (T063) y `e2e/environment.spec.ts` de A | 2/2 y 3/3 |
+
+## Prueba manual
+
+El arranque normal (`docker compose up`, http://localhost:8081) solo crea el administrador,
+que no tiene `Inventory.Read`, y no hay API de usuarios. Para probar HU-02 a mano con una
+cuenta Operario se puede reutilizar el entorno dedicado de E2E de A sin que se detenga:
+
+```bash
+cd frontend
+HU08_E2E_KEEP_RUNNING=1 npm run test:e2e -- e2e/environment.spec.ts
+```
+
+y preparar después tres cuentas propias con el auxiliar de A (formato obligatorio
+`<guid sin guiones>.<rol en minúsculas>@hu08.e2e.test`, las tres a la vez), desde la raíz:
+
+```bash
+RUN=$(python -c "import uuid; print(uuid.uuid4().hex)"); PASS='Manual_2026!aA9'
+USERS="[{\"email\":\"$RUN.operario@hu08.e2e.test\",\"password\":\"$PASS\",\"role\":\"Operario\"},
+{\"email\":\"$RUN.gestormaestros@hu08.e2e.test\",\"password\":\"$PASS\",\"role\":\"GestorMaestros\"},
+{\"email\":\"$RUN.administrador@hu08.e2e.test\",\"password\":\"$PASS\",\"role\":\"Administrador\"}]"
+DB_NAME=InventoryHu08E2E APP_PORT=8082 MAILPIT_PORT=8026 HU08_E2E_PROVISION=1 \
+HU08_E2E_DATABASE=InventoryHu08E2E HU08_E2E_USERS_JSON="$USERS" \
+docker compose --project-name inventario-hu08-e2e --profile test run --no-deps --rm \
+  --volume "$PWD:/workspace" --workdir /workspace \
+  --env HU08_E2E_PROVISION --env HU08_E2E_DATABASE --env HU08_E2E_USERS_JSON \
+  --entrypoint sh tests -c 'dotnet restore backend/Inventario.slnx --force && dotnet run --file scripts/provision-e2e-users.cs -- provision'
+echo "$RUN.operario@hu08.e2e.test / $PASS"
+```
+
+En Git Bash de Windows, anteponer `MSYS_NO_PATHCONV=1` al `docker compose` y montar
+`"$(cygpath -w $PWD):/workspace"`. Receta comprobada el 2026-11-19: «Tres cuentas E2E
+preparadas», login de Operario 200 y `GET /api/v1/locations` 200.
+
+Abrir http://localhost:8082/ubicaciones e iniciar sesión con la cuenta Operario (alta,
+búsqueda, detalle, corrección, desactivar/reactivar y «Localizar un artículo»). La cuenta
+GestorMaestros sirve para comprobar la consulta sin gestión. Para detener el entorno:
+`docker compose --project-name inventario-hu08-e2e stop`.
 
 ## Fuera de alcance de esta entrega
 
@@ -96,6 +135,8 @@ HU-02 no se da por aceptada hasta aportar:
 
 ## Pendiente por dependencias
 
-- Conteo abierto (FR-012, US3.3, US4.3, SC-004) con HU-04 (T034).
+- Conteo abierto (FR-012, US3.3, US4.3, SC-004) con HU-04 (T034, bloqueada; `inOpenCount`
+  es `false` y la regla de conteo abierto no se ha demostrado).
+- Revisión de A (T001) y cierre documental en la base común (T068), pendientes.
 - Reservas reales de pedidos con HU-03/HU-05; mientras, reservas con el núcleo.
 - Integración con recepciones reales (V-03) en H3.

@@ -209,13 +209,13 @@ traen ni `AppLocks`, ni `BusinessRuleException`, ni `HttpPreconditions`, ni los 
 
 ## Phase 14: E2E (recorrido principal)
 
-- [ ] T063 Crear `frontend/e2e/locations.spec.ts` (desbloqueada: login de A) con `./fixtures/master-data.fixture`: con la cuenta `lector` (Operario), iniciar sesión → `/ubicaciones` → crear REC-01 y P01-E01-N01 → intentar un código repetido y comprobar que se conserva lo escrito → buscar → abrir el detalle vacío → desactivar con revisión → reactivar, todo con teclado; con `gestor` (GestorMaestros), la lista se ve y no hay botones de gestión y `/ubicaciones/nueva` lleva a `/sin-permiso`. Ejecutar con `npm run test:e2e -- e2e/locations.spec.ts` (SC-001 por la interfaz; FR-010, FR-019, FR-020).
+- [X] T063 Crear `frontend/e2e/locations.spec.ts` (desbloqueada: login de A) con `./fixtures/master-data.fixture`: con la cuenta `lector` (Operario), iniciar sesión → `/ubicaciones` → crear REC-01 y P01-E01-N01 → intentar un código repetido y comprobar que se conserva lo escrito → buscar → abrir el detalle vacío → desactivar con revisión → reactivar, todo con teclado; con `gestor` (GestorMaestros), la lista se ve y no hay botones de gestión y `/ubicaciones/nueva` lleva a `/sin-permiso`. Ejecutar con `npm run test:e2e -- e2e/locations.spec.ts` (SC-001 por la interfaz; FR-010, FR-019, FR-020).
 
 ---
 
 ## Phase 15: Polish y cierre
 
-- [ ] T067 Verificación final: suite backend completa, `has-pending-model-changes`, `npm test`, `npm run build` y T063; actualizar en `specs/003-gestionar-ubicaciones/quickstart.md` § «Evidencia» y § «Pendiente por dependencias» el estado de T034 (todos los FR).
+- [X] T067 Verificación final: suite backend completa, `has-pending-model-changes`, `npm test`, `npm run build` y T063; actualizar en `specs/003-gestionar-ubicaciones/quickstart.md` § «Evidencia» y § «Pendiente por dependencias» el estado de T034 (todos los FR).
 - [ ] T068 Cierre de coordinación con A, **cuando T001 esté aprobado y el PR revisado**: aplicar los diffs de `plan.md` § «Cambios al modelo común pendientes de A» a `.specify/memory/project/data-model.md`, `.specify/memory/project/contracts/api.md` (incluida la paginación con 422 y la fila 409), `.specify/memory/project/contracts/stock-operations.md` (`locations:receiving`) y `.specify/memory/project/quickstart.md` (evidencia de HU-02), ajustados a lo implementado; marcar resuelta la sección de pendientes de `plan.md` con la referencia a la revisión (FR-003, FR-021; AGENTS.md, «Cambios compartidos»).
 
 ---

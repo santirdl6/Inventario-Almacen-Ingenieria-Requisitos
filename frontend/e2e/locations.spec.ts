@@ -1,0 +1,86 @@
+import type { Page } from '@playwright/test';
+import { test, expect } from './fixtures/master-data.fixture';
+
+// HU-02 · Recorrido principal por la interfaz (T063): login de A, alta, duplicado, búsqueda,
+// detalle, desactivar y reactivar, todo con teclado. Las existencias se prueban por API
+// (L-05), porque HU-01 aún no ofrece recepciones por HTTP.
+
+async function login(page: Page, email: string, password: string, target: string): Promise<void> {
+  await page.goto(target);
+  await expect(page).toHaveURL(/\/login\?returnUrl=/);
+  await page.getByLabel('Correo electrónico (obligatorio)').fill(email);
+  await page.getByLabel('Contraseña (obligatoria)').fill(password);
+  await page.getByLabel('Contraseña (obligatoria)').press('Enter');
+  await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
+}
+
+async function createLocation(page: Page, code: string, aisle: string, kind: 'Almacenamiento' | 'Zona de recepción'): Promise<void> {
+  await page.getByRole('link', { name: 'Nueva ubicación' }).press('Enter');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Nueva ubicación');
+  await page.getByLabel(/^Pasillo/).fill(aisle);
+  await page.getByLabel(/^Estantería/).fill('E01');
+  await page.getByLabel(/^Nivel/).fill('N01');
+  await page.getByLabel(/^Código/).fill(code);
+  await page.getByLabel(/^Tipo/).selectOption({ label: kind });
+  await page.getByRole('button', { name: 'Crear ubicación' }).press('Enter');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(`Ubicación ${code}`);
+  await expect(page.getByRole('status').filter({ hasText: `Ubicación ${code} guardada.` })).toBeVisible();
+}
+
+test('un operario da de alta, busca, revisa y retira ubicaciones con el teclado', async ({ page, environment }) => {
+  const run = Date.now().toString(36).toUpperCase().slice(-6);
+  const receiving = `REC-${run}`;
+  const storage = `E2E-${run}-N01`;
+  const account = environment.accounts.lector;
+  await login(page, account.email, account.password, '/ubicaciones');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ubicaciones');
+
+  await createLocation(page, receiving, `R${run}`, 'Zona de recepción');
+  await expect(page.getByText('Esta ubicación está vacía.')).toBeVisible();
+  await page.goto('/ubicaciones');
+  await createLocation(page, storage, `E2E${run}`, 'Almacenamiento');
+
+  // Duplicado: se rechaza sin perder lo escrito.
+  await page.goto('/ubicaciones');
+  await page.getByRole('link', { name: 'Nueva ubicación' }).press('Enter');
+  await page.getByLabel(/^Código/).fill(storage.toLowerCase());
+  await page.getByLabel(/^Pasillo/).fill(`OTRO${run}`);
+  await page.getByLabel(/^Estantería/).fill('E01');
+  await page.getByLabel(/^Nivel/).fill('N01');
+  await page.getByRole('button', { name: 'Crear ubicación' }).press('Enter');
+  await expect(page.locator('#code-error')).toBeVisible();
+  await expect(page.getByLabel(/^Pasillo/)).toHaveValue(`OTRO${run}`);
+  await expect(page.locator('#code')).toBeFocused();
+
+  // Búsqueda por código o pasillo.
+  await page.goto('/ubicaciones');
+  await page.getByLabel('Código o pasillo').fill(`e2e${run}`.toLowerCase());
+  await page.getByLabel('Código o pasillo').press('Enter');
+  const row = page.getByRole('row').filter({ hasText: storage });
+  await expect(row).toContainText('Almacenamiento');
+  await expect(row).toContainText('Activa');
+  await row.getByRole('link', { name: storage }).press('Enter');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(`Ubicación ${storage}`);
+
+  // Desactivar y reactivar tras revisar; nunca hay acción de borrado.
+  await expect(page.getByRole('button', { name: /eliminar|borrar/i })).toHaveCount(0);
+  await page.getByTestId('state-button').getByRole('button', { name: 'Desactivar' }).press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'Desactivar ubicación' });
+  await expect(dialog).toContainText('Dejará de ofrecerse para nuevas recepciones');
+  await dialog.getByRole('button', { name: 'Desactivar' }).press('Enter');
+  await expect(page.getByRole('status').filter({ hasText: `Ubicación ${storage} desactivada.` })).toBeVisible();
+  await expect(page.locator('dl.facts').first()).toContainText('Inactiva');
+  await page.getByTestId('state-button').getByRole('button', { name: 'Reactivar' }).press('Enter');
+  await page.getByRole('dialog', { name: 'Reactivar ubicación' }).getByRole('button', { name: 'Reactivar' }).press('Enter');
+  await expect(page.getByRole('status').filter({ hasText: `Ubicación ${storage} reactivada.` })).toBeVisible();
+  await expect(page.locator('dl.facts').first()).toContainText('Activa');
+});
+
+test('una cuenta de solo lectura consulta ubicaciones pero no puede gestionarlas', async ({ page, environment }) => {
+  const account = environment.accounts.gestor;
+  await login(page, account.email, account.password, '/ubicaciones');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ubicaciones');
+  await expect(page.getByRole('link', { name: 'Nueva ubicación' })).toHaveCount(0);
+  await page.goto('/ubicaciones/nueva');
+  await expect(page).toHaveURL('/sin-permiso');
+});
