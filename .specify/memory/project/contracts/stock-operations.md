@@ -101,6 +101,48 @@ bloqueo de operación. El consumidor (HU-01/03/04/05):
 3. Dentro de `change`, invoca `StockCore.ApplyAsync(context, command)` y devuelve
    `StockCore.Response(outcome)`.
 
+### Ejemplo de integración: bloqueos del consumidor en la recepción (HU-01)
+
+Si el consumidor tiene que leer y validar su propio documento antes de aplicar el stock,
+declara **todos** sus bloqueos dentro de `change` y antes de `ApplyAsync`, una llamada por
+fase y en el orden del protocolo: documentos → ubicaciones → artículos. La recepción
+bloquea la compra y la recepción en la fase documental (sección «Recepción y compra»):
+
+```csharp
+// Dentro de executor.ExecuteAsync(request, async (context, token) => { ... })
+var allocations = /* las mismas StockAllocation con las que se preparó el command */;
+await context.Locks.DocumentsAsync(
+    [new DocumentLock("purchase-order", purchaseOrderId), new DocumentLock("receipt", receiptId)], token);
+await context.Locks.LocationsAsync(allocations.Select(line => line.LocationId), token);
+await context.Locks.ArticlesAsync(allocations.Select(line => line.ArticleId), token);
+
+// Revalidar la compra bajo los bloqueos: pendiente, estado, destinos activos…
+// (dos recepciones parciales de 6 no pueden consumir un pendiente de 10).
+
+var outcome = await context.Services.GetRequiredService<StockCore>().ApplyAsync(context, command, token);
+return StockCore.Response(outcome);
+```
+
+Reglas, tal como las aplica `InventoryLocks`:
+
+- Cada llamada ordena sus recursos por comparación ordinal: `document:purchase-order:{id}`
+  precede a `document:receipt:{id}`, y ubicaciones y artículos se ordenan por UUID en
+  minúsculas. Lo más simple es pedir los dos documentos en la misma llamada; en llamadas
+  separadas, `purchase-order` debe ir antes que `receipt`, porque el orden inverso se rechaza.
+- Las fases son operación (0, la toma el ejecutor) → documentos (1) → ubicaciones (2) →
+  artículos (3). Pedir una fase anterior a la última adquirida lanza
+  `InvalidOperationException` («Los bloqueos requieren replanificar…»).
+- Un recurso ya retenido no se vuelve a adquirir ni comprueba el orden. Por eso
+  `ApplyAsync`, que pide `document:receipt:{SourceId}`, las ubicaciones y los artículos de
+  sus líneas (y `ArticleReferenceTracker`, que vuelve a pedir los artículos), los encuentra
+  ya retenidos y los reutiliza sin adquirirlos de nuevo.
+- Para que eso funcione, el consumidor bloquea **al menos** el documento de origen del
+  comando (`SourceType`/`SourceId`, aquí `receipt`/`receiptId`) y todas las ubicaciones y
+  artículos de sus asignaciones. Si falta alguno, `ApplyAsync` intentaría adquirirlo
+  después de la fase de artículos y fallaría por orden.
+- Así, la revalidación del consumidor y la aplicación del núcleo ven el mismo estado: nada
+  puede cambiar la compra, la recepción, las ubicaciones o los artículos entre ambas.
+
 `ApplyAsync` sigue los pasos 4–8 con `context.Locks` (`InventoryLocks`): documento
 `document:{tipo}:{id}` → ubicaciones → artículos. Después lee el estado, marca la primera
 referencia del artículo con `ArticleReferenceTracker` (IsDefinitionLocked, mismo bloqueo y
