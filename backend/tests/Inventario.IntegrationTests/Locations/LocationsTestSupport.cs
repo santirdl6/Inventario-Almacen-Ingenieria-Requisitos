@@ -76,6 +76,13 @@ internal sealed class LocationsTestSupport(IdentityFixture fixture, ApiFactory f
             && (action == null || audit.Action == action));
     }
 
+    /// <summary>Solo para preparar datos de historias anteriores a US4 (sin auditoría).</summary>
+    public async Task DeactivateDirectlyAsync(Guid locationId)
+    {
+        await using var database = fixture.ApplicationDatabase();
+        await database.Database.ExecuteSqlInterpolatedAsync($"UPDATE dbo.Locations SET IsActive = 0 WHERE Id = {locationId}");
+    }
+
     /// <summary>Artículo con existencias preparado con el núcleo (nunca con escrituras directas).</summary>
     public async Task<Guid> ArticleAsync(bool tracksLot = false)
     {

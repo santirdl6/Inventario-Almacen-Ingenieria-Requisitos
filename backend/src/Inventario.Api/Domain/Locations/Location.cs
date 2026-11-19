@@ -6,7 +6,10 @@ public enum LocationKind
     Receiving
 }
 
-// Referencia mínima H0 para el núcleo de stock. El mantenimiento completo se implementa en HU-02.
+/// <summary>Valores auditados de una ubicación (MasterDataAudit Before/After, HU-02 FR-015).</summary>
+public sealed record LocationSnapshot(string Code, string Aisle, string Rack, string Level, string Kind, bool IsActive);
+
+// Referencia H0 para el núcleo de stock, ampliada por HU-02 (mantenimiento de ubicaciones).
 public sealed class Location
 {
     public const int CodeMaxLength = 32;
@@ -22,6 +25,27 @@ public sealed class Location
         Level = RequiredText(level, PartMaxLength, nameof(level)).ToUpperInvariant();
         Kind = kind;
     }
+
+    // HU-02: alta con identidad decidida por el comando (estable en reintentos del ejecutor).
+    public Location(Guid id, string code, string aisle, string rack, string level, LocationKind kind)
+        : this(code, aisle, rack, level, kind)
+    {
+        if (id == Guid.Empty) throw new ArgumentException("La ubicación requiere un identificador.", nameof(id));
+        Id = id;
+    }
+
+    /// <summary>
+    /// Normaliza como el constructor (recortar, mayúsculas, longitud máxima) y devuelve el
+    /// mensaje de error del campo, o null si es válido. Code: máx. 32; Aisle/Rack/Level: máx. 16.
+    /// </summary>
+    public static string? Normalize(string? value, int maximumLength, out string normalized)
+    {
+        normalized = value?.Trim().ToUpperInvariant() ?? "";
+        if (normalized.Length == 0) return "Este dato es obligatorio y no puede quedar en blanco.";
+        return normalized.Length > maximumLength ? $"No puede superar {maximumLength} caracteres." : null;
+    }
+
+    public LocationSnapshot AuditSnapshot() => new(Code, Aisle, Rack, Level, Kind.ToString(), IsActive);
 
     public Guid Id { get; private set; } = Guid.NewGuid();
     public string Code { get; private set; } = "";
