@@ -78,6 +78,10 @@ L-05 se demuestra por API.
 
 Registrar aquí fecha, entorno, número de pruebas y resultado de cada ejecución completa.
 
+| Fecha (UTC) | Entorno | Ejecución | Resultado |
+|-------------|---------|-----------|-----------|
+| 2026-11-19 10:42 | `mcr.microsoft.com/dotnet/sdk:10.0` en la red `inventario_default`, SQL Server 2025 de Compose; rama `b/hu-02-ubicaciones-v2` | Suite backend completa, 3 veces seguidas (compilación con avisos como errores: 0 avisos) | 110/110 las tres veces: 88 previas + 22 de `Locations/` (L-01–L-12 y L-15) |
+
 ## Fuera de alcance de esta entrega
 
 Desviación registrada en [plan.md § Complexity Tracking](plan.md#complexity-tracking).
