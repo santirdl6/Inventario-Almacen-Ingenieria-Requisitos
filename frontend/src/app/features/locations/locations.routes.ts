@@ -1,14 +1,22 @@
 import { Routes } from '@angular/router';
+import { permissionGuard } from '../../core/session/permission.guard';
 
-/** HU-02 · Persona B. Sustituir el placeholder por las pantallas reales en su spec. */
+/**
+ * HU-02 · Persona B. Pantallas de specs/003-gestionar-ubicaciones/contracts/locations-ui.md.
+ * El área ya exige Inventory.Read (operation-areas.ts); alta y edición exigen además
+ * Locations.Manage con el permissionGuard de A. El servidor sigue decidiendo (FR-010).
+ */
 export const LOCATIONS_ROUTES: Routes = [
   {
     path: '',
-    loadComponent: () => import('../../shared/placeholder-page.component').then(module => module.PlaceholderPageComponent),
-    data: {
-      title: 'Ubicaciones',
-      story: 'HU-02 · Gestionar las ubicaciones de los artículos',
-      description: 'Código único con pasillo, estantería y nivel; cantidades por artículo y ubicación.'
-    }
+    title: 'Ubicaciones',
+    loadComponent: () => import('./list/location-list.page').then(m => m.LocationListPage)
+  },
+  {
+    path: 'nueva',
+    title: 'Nueva ubicación',
+    canActivate: [permissionGuard],
+    data: { permission: 'Locations.Manage' },
+    loadComponent: () => import('./form/location-form.page').then(m => m.LocationFormPage)
   }
 ];
