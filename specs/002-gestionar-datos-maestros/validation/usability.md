@@ -2,8 +2,9 @@
 
 T091 · [SC-006](../spec.md#success-criteria-mandatory) · [guía de validación](../quickstart.md#5-rendimiento-y-validación-con-trabajadores)
 
-**Estado**: convocatoria pendiente. La evidencia se completa durante las sesiones
-con tres gestores representativos.
+**Estado**: excluida de la entrega académica por decisión del usuario el 2026-11-19.
+El proyecto de clase carece de tres gestores representativos. SC-006 queda sin
+evidencia de sesiones, y se conserva este guion para una posible validación operativa.
 
 ## Preparación de la sesión
 

@@ -95,3 +95,21 @@ tras desactivarlo.
 El [ensayo técnico V-14](recovery.md) recuperó maestros, auditoría, resultados y
 diario a un punto en el tiempo en una segunda instancia. La
 [prueba con tres gestores](usability.md) está preparada para convocar.
+
+## Cierre de la entrega académica, 2026-11-19
+
+El usuario aprobó expresamente la entrega de clase de HU-08. El alcance verificado
+incluye los catálogos, el historial compartido, las pruebas con el núcleo de stock
+y HU-02, y el ensayo técnico de restauración. Las PR [#3](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/pull/3)
+y [#4](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/pull/4)
+quedaron fusionadas en `a/h0-identity-article`.
+
+Las verificaciones pendientes con consumidores documentales se cierran en esta
+entrega por traslado a HU-01, HU-03, HU-04, HU-05, HU-06 y HU-07. Cada módulo
+comprobará sus referencias y escritores reales al integrarse. SC-006 y T091
+quedan fuera de la entrega de clase porque no hay tres gestores disponibles.
+
+La aceptación operativa y sus criterios siguen regidos por la
+[constitución](../../../.specify/memory/constitution.md). El ensayo V-14 de clase
+sirve de evidencia técnica para esa revisión posterior. Los estados de las tareas
+constan en el [cierre académico](../tasks.md#cierre-de-la-entrega-académica-2026-11-19).

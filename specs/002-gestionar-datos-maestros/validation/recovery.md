@@ -17,11 +17,11 @@ hasta el punto elegido en el segundo log. `DBCC CHECKDB` terminó sin errores.
 | Hecho posterior | El albarán sintético de 4 unidades quedó fuera del punto recuperado. Su registro y repetición con la misma clave en la instancia restaurada dejaron una entrada y un resultado nuevos, con físico 16 y reservado 3. |
 
 El ejercicio usa el núcleo de stock para conciliar un comprobante sintético.
-T092 continúa abierta para la restauración conjunta con documentos de negocio,
-reservas documentales, el circuito de contingencia y la revisión operativa de
-reapertura. Falta registrar la aprobación de los objetivos por los responsables.
-Los tiempos miden una base pequeña de pruebas y se comparan con los umbrales
-propuestos en la guía común.
+El ensayo técnico queda registrado para el cierre académico de T092. La restauración
+conjunta con documentos de negocio y reservas documentales, la conciliación con el
+circuito de contingencia, la revisión de reapertura y la aprobación de los objetivos
+por los responsables quedan para una puesta en servicio. Los tiempos miden una base
+pequeña de pruebas y se comparan con los umbrales propuestos en la guía común.
 
 ## Reproducción
 
