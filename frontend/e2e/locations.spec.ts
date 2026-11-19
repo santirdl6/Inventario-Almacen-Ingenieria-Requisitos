@@ -35,6 +35,16 @@ test('un operario da de alta, busca, revisa y retira ubicaciones con el teclado'
   await login(page, account.email, account.password, '/ubicaciones');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ubicaciones');
 
+  // US2.1 (T055): «Localizar un artículo» abre la búsqueda por código o nombre, con clic y con teclado.
+  await page.getByRole('link', { name: 'Localizar un artículo' }).click();
+  await expect(page).toHaveURL('/ubicaciones/articulo');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Localizar un artículo');
+  await expect(page.getByLabel('Código o nombre del artículo')).toBeVisible();
+  await page.goto('/ubicaciones');
+  await page.getByRole('link', { name: 'Localizar un artículo' }).press('Enter');
+  await expect(page).toHaveURL('/ubicaciones/articulo');
+  await page.goto('/ubicaciones');
+
   await createLocation(page, receiving, `R${run}`, 'Zona de recepción');
   await expect(page.getByText('Esta ubicación está vacía.')).toBeVisible();
   await page.goto('/ubicaciones');
