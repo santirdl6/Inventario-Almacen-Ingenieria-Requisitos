@@ -20,7 +20,7 @@ Los cambios que afectan al modelo común están en
 | — | — | Collation `Latin1_General_100_CI_AS` e **índice único `UX_Locations_Aisle_Rack_Level`** (FR-003). | **HU-02, validado por A** |
 | Kind | nvarchar(16) | `Storage` o `Receiving`. | H0 |
 | IsActive | bit | Nace `true` (FR-004). | H0 |
-| Version | rowversion | ETag para If-Match (FR-017), con `EntityTags` de A. | H0 |
+| Version | rowversion | Componente del ETag fuerte de detalle/capacidades para If-Match (FR-017), con `EntityTags` de A. | H0 |
 
 No se añaden columnas. Almacén único sin zona ni posición (Clarifications, Q4 y sesión
 2026-11-19).

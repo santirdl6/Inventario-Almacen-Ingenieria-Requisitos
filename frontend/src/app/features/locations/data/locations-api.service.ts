@@ -1,6 +1,8 @@
-import { HttpClient, HttpHeaders, HttpParams, HttpResponse } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Injectable, Injector, inject } from '@angular/core';
+import { pendingUntilEvent } from '@angular/core/rxjs-interop';
+import { Observable, defer, from, map } from 'rxjs';
+import { MasterDataMutationsService, MutationResult } from '../../../core/http/master-data-mutations.service';
 import {
   ArticleLocations,
   CreateLocationRequest,
@@ -25,6 +27,8 @@ const BASE = '/api/v1';
 @Injectable({ providedIn: 'root' })
 export class LocationsApi {
   private readonly http = inject(HttpClient);
+  private readonly mutations = inject(MasterDataMutationsService);
+  private readonly injector = inject(Injector);
 
   list(query: LocationQuery = {}): Observable<Page<LocationSummary>> {
     let params = new HttpParams();
@@ -42,22 +46,12 @@ export class LocationsApi {
       .pipe(map(response => ({ value: response.body as LocationDetail, etag: response.headers.get('ETag') ?? '' })));
   }
 
-  create(body: CreateLocationRequest, idempotencyKey: string): Observable<Versioned<LocationDetail>> {
-    return this.http
-      .post<LocationMutation>(`${BASE}/locations`, body, {
-        observe: 'response',
-        headers: new HttpHeaders({ 'Idempotency-Key': idempotencyKey })
-      })
-      .pipe(map(mutated));
+  create(body: CreateLocationRequest): Observable<Versioned<LocationDetail>> {
+    return defer(() => from(this.mutations.mutate<LocationMutation>('POST', `${BASE}/locations`, body))).pipe(map(mutated), pendingUntilEvent(this.injector));
   }
 
-  update(id: string, body: UpdateLocationRequest, etag: string, idempotencyKey: string): Observable<Versioned<LocationDetail>> {
-    return this.http
-      .put<LocationMutation>(`${BASE}/locations/${encodeURIComponent(id)}`, body, {
-        observe: 'response',
-        headers: new HttpHeaders({ 'If-Match': etag, 'Idempotency-Key': idempotencyKey })
-      })
-      .pipe(map(mutated));
+  update(id: string, body: UpdateLocationRequest, etag: string): Observable<Versioned<LocationDetail>> {
+    return defer(() => from(this.mutations.mutate<LocationMutation>('PUT', `${BASE}/locations/${encodeURIComponent(id)}`, body, etag))).pipe(map(mutated), pendingUntilEvent(this.injector));
   }
 
   stock(id: string, page = 1): Observable<LocationStock> {
@@ -73,6 +67,6 @@ export class LocationsApi {
   }
 }
 
-function mutated(response: HttpResponse<LocationMutation>): Versioned<LocationDetail> {
-  return { value: (response.body as LocationMutation).resource, etag: response.headers.get('ETag') ?? '' };
+function mutated(response: MutationResult<LocationMutation>): Versioned<LocationDetail> {
+  return { value: (response.body as LocationMutation).resource, etag: response.etag ?? '' };
 }

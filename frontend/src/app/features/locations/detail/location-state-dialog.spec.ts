@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { LocationDetail, Versioned } from '../data/location.models';
-import { detail, flushNetworkError, flushProblem, httpMock, locationsTestProviders, mutation, settle, text } from '../testing/locations-testing';
+import { detail, flushNetworkError, flushProblem, httpMock, locationsTestProviders, mutation, settle, signIn, text } from '../testing/locations-testing';
 import { LocationStateDialog } from './location-state-dialog';
 
 @Component({
@@ -23,6 +23,7 @@ describe('LocationStateDialog', () => {
   beforeEach(() => {
     sessionStorage.clear();
     TestBed.configureTestingModule({ imports: [Host], providers: locationsTestProviders() });
+    signIn(['Inventory.Read', 'Locations.Manage']);
   });
 
   async function render(location: LocationDetail) {
@@ -96,9 +97,13 @@ describe('LocationStateDialog', () => {
     expect(document.querySelector('[data-testid="pending"]')).not.toBeNull();
     expect(button('Reactivar')!.disabled).toBe(true);
     button('Comprobar')!.click();
+    const check = httpMock().expectOne(request => request.url.startsWith('/api/v1/operations/'));
+    flushProblem(check, 404, 'NotFound', 'Sin resultado observado'); await settle(fixture);
+    button('Repetir petición original')!.click();
     const retry = httpMock().expectOne(`/api/v1/locations/${detail().id}`);
     expect(retry.request.headers.get('Idempotency-Key')).toBe(first.request.headers.get('Idempotency-Key'));
     expect(retry.request.body.isActive).toBe(true);
+    retry.flush(mutation(detail()), { headers: { ETag: '"V2"' } }); await settle(fixture);
   });
 
   it('sin permiso lo explica y no permite reintentar', async () => {

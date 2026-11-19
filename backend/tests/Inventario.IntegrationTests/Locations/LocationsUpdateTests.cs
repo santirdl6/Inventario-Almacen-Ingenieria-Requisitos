@@ -163,8 +163,15 @@ public sealed class LastReceivingZoneTests(IdentityFixture fixture) : IClassFixt
                 UpdateAsync(api, only.Id, first, firstTag, isActive: false),
                 UpdateAsync(api, second.Id, second.Resource, second.ETag, isActive: false));
             Assert.Single(responses, response => response.StatusCode == HttpStatusCode.OK);
-            var rejected = Assert.Single(responses, response => response.StatusCode == HttpStatusCode.Conflict);
-            Assert.Equal("NoActiveReceivingLeft", await ProblemCodeAsync(rejected));
+            var rejected = Assert.Single(responses, response => response.StatusCode == HttpStatusCode.PreconditionFailed);
+            Assert.Equal("VersionConflict", await ProblemCodeAsync(rejected));
+            // La representación incluye isLastActiveReceiving: tras la primera retirada,
+            // el ETag revisado ya no coincide. Con la revisión vigente sigue rigiendo FR-021.
+            var remainingId = responses[0].StatusCode == HttpStatusCode.OK ? second.Id : only.Id;
+            var (remaining, remainingTag) = await GetAsync(api, remainingId);
+            var cannotRetire = await UpdateAsync(api, remainingId, remaining, remainingTag, isActive: false);
+            Assert.Equal(HttpStatusCode.Conflict, cannotRetire.StatusCode);
+            Assert.Equal("NoActiveReceivingLeft", await ProblemCodeAsync(cannotRetire));
             // Deja «only» como única zona activa para la siguiente ronda.
             if (responses[0].StatusCode == HttpStatusCode.OK)
             {

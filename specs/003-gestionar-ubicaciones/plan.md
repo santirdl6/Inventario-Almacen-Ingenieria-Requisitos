@@ -179,7 +179,7 @@ con cambios aditivos de pocas líneas y señalados para su revisión en el PR:
 5. **Frontend**: servicio tipado; errores con `apiProblem()`; permisos con
    `SessionService.has('Locations.Manage')` y `permissionGuard` en `nueva` y `:id/editar`;
    parámetros con `ActivatedRoute`; mensajes de éxito y error en la propia página;
-   `idempotent-intent.ts` como excepción documentada (D-11).
+    transporte común de intenciones con Locations.Manage (D-11 revisada tras PR #6).
 
 ## Dependencias y riesgos
 
@@ -192,6 +192,10 @@ con cambios aditivos de pocas líneas y señalados para su revisión en el PR:
 | Otra migración integrada antes | Snapshot obsoleto. | Regenerar `HU02_Locations` local (plan global §5). |
 
 ## Cambios al modelo común pendientes de A
+
+Estado actualizado tras revisión del PR #6: los acuerdos siguientes se han aplicado
+en la base común y T001/T068 están resueltas; se conservan los diffs como trazabilidad
+del diseño. El estado técnico y sus pruebas se detallan al final de esta sección.
 
 Ninguno de estos documentos se edita en esta rama hasta la revisión de A en el PR (T068).
 FR-003 (unicidad física) y el `DENY DELETE` sobre `StockBalances` están **validados por A**
@@ -286,8 +290,27 @@ Y en la tabla de errores comunes del mismo archivo (fila 409), añadir los códi
 
 ### Estado de la revisión de A
 
-**PARCIAL** (2026-11-19). Validados los puntos anteriores. Pendiente `ReceivingZonesAsync`
-y los cambios menores, que se revisan en el PR; no bloquean la implementación.
+**FAVORABLE técnicamente** (2026-11-19). A revisa ReceivingZonesAsync, auditoría,
+duplicados, unicidad/caracteres y corrige los cuatro hallazgos R1–R4 de la revisión
+inicial antes de publicar la aprobación del PR. Evidencia en
+[validación de revisión](validation/pr-review-2026-11-19.md). Los contratos comunes se
+actualizan con lo implementado; la aceptación operativa conserva las desviaciones indicadas.
+
+### Decisiones de la revisión R1–R4
+
+La recuperación de ubicaciones usa PendingOperationStore/MasterDataMutationsService,
+con política por recurso, actor e intención inmutable. Se elimina su uso de las claves
+privadas sin restauración/identidad; los métodos heredados quedan sin llamadas de la UI.
+El puente Promise/Observable y las comprobaciones/replays notifican PendingTasks para
+que Angular zoneless espere su conclusión y renderice correctamente el resultado.
+
+Se conserva la forma LocationDetail de la API, pero su ETag fuerte SHA-256 cubre todos
+sus campos y la rowversion. GET compuesto se lee en SNAPSHOT y PUT revalida bajo los
+bloqueos; EntityTags valida la longitud del token esperado (8 bytes para rowversion en
+maestros, 32 para este digest), manteniendo formato fuerte y rechazo de versiones obsoletas.
+L-11 verifica 412 cuando cambia isLastActiveReceiving, seguido del 409 de última zona
+con el token vigente; nunca se retiran ambas. Si una página desaparece por movimientos,
+ambas pantallas de existencias vuelven a una página válida sin afirmar vacío global.
 
 ## Complexity Tracking
 

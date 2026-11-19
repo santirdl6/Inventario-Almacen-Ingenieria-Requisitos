@@ -42,11 +42,16 @@ public sealed class LocationQueries(InventoryDbContext database, ILocationUsage 
         return new(items.Select(LocationSummary.From).ToList(), paging.Page, paging.PageSize, total);
     }
 
-    public async Task<(LocationDetail Detail, byte[] Version)?> DetailAsync(Guid id, CancellationToken cancellation)
-    {
-        var location = await database.Set<Location>().AsNoTracking().SingleOrDefaultAsync(value => value.Id == id, cancellation);
-        return location is null ? null : (await DetailAsync(database, usage, location, cancellation), location.Version);
-    }
+    public Task<(LocationDetail Detail, byte[] Version)?> DetailAsync(Guid id, CancellationToken cancellation) =>
+        database.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+        {
+            await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Snapshot, cancellation);
+            var location = await database.Set<Location>().AsNoTracking().SingleOrDefaultAsync(value => value.Id == id, cancellation);
+            if (location is null) return ((LocationDetail Detail, byte[] Version)?)null;
+            var detail = await DetailAsync(database, usage, location, cancellation);
+            await transaction.CommitAsync(cancellation);
+            return (detail, LocationEntityTags.Token(detail, location.Version));
+        });
 
     /// <summary>Detalle con el uso de la ubicación; los comandos lo llaman con su propio contexto.</summary>
     public static async Task<LocationDetail> DetailAsync(InventoryDbContext database, ILocationUsage usage,

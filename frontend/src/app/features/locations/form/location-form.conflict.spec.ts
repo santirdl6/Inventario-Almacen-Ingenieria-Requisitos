@@ -75,9 +75,17 @@ describe('LocationFormPage (conflictos y resultado incierto, US5)', () => {
     await settle(fixture);
     expect(text(root.querySelector('[data-testid="pending"]'))).toContain('Resultado pendiente de comprobar');
     expect(TestBed.inject(Router).navigate).not.toHaveBeenCalled();
+    fixture.componentInstance.form.controls.level.setValue('N99');
+    fixture.componentInstance.loaded.set({ value: detail(), etag: '"V9"' });
     button(root, 'Comprobar').click();
+    const check = httpMock().expectOne(request => request.url.startsWith('/api/v1/operations/'));
+    flushProblem(check, 404, 'NotFound', 'Sin resultado observado'); await settle(fixture);
+    button(root, 'Repetir petición original').click();
     const retry = httpMock().expectOne(`/api/v1/locations/${ID}`);
     expect(retry.request.headers.get('Idempotency-Key')).toBe(first.request.headers.get('Idempotency-Key'));
+    expect(retry.request.headers.get('If-Match')).toBe('"V1"');
+    expect(retry.request.body.level).toBe('N02');
+    retry.flush({ operationId: first.request.headers.get('Idempotency-Key'), resource: detail() }, { headers: { ETag: '"V2"' } }); await settle(fixture);
   });
 
   it('un 5xx también deja el resultado pendiente, nunca un éxito', async () => {

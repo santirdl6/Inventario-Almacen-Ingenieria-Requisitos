@@ -53,6 +53,13 @@ LocationSummary más `hasMovements`, `isEmpty`, `hasReservations`, `inOpenCount`
 (siempre `false` hasta HU-04) e `isLastActiveReceiving`. Cabecera `ETag` con el formato de
 `EntityTags` de A.
 
+El ETag fuerte cubre la representación completa y la rowversion: SHA-256 de sus valores
+serializados, Base64 entre comillas. No es la rowversion aislada: una recepción/reserva
+o un cambio de la última zona activa puede cambiar las capacidades sin editar Location.
+Detalle y capacidades se leen en SNAPSHOT. PUT revalida el token bajo los bloqueos;
+si cambió una capacidad desde la revisión, responde 412. Con el token vigente, retirar
+la última zona sigue dando 409 NoActiveReceivingLeft. El replay precede a esa validación.
+
 ## POST /locations
 
 Cabeceras: `Idempotency-Key` (UUID obligatorio; si falta o no es válido, 400

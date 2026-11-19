@@ -65,6 +65,9 @@ no adquirir familia/proveedor después de bloquear un artículo.
 - Desactivar un artículo o cambiar su mínimo adquiere el mismo bloqueo de artículo.
   Cambiar el estado de una ubicación adquiere el de ubicación. Nunca se adquiere
   ubicación después de artículo. Editar varios maestros sigue orden de IDs consistente.
+- Retirar una Receiving adquiere además `locations:receiving` en la fase de ubicaciones,
+  después de todos los `location:{id}` necesarios (orden ordinal). Serializa el recuento
+  de zonas activas y evita retirar las dos últimas simultáneamente. StockCore no lo toma.
 - Editar unidad base, seguimiento por lote o admisión de fracciones y crear referencias
   documentales al artículo se coordinan con el mismo bloqueo de artículo. Tras adquirirlo,
   la edición comprueba marca de primer uso false y ausencia de documentos, reservas o

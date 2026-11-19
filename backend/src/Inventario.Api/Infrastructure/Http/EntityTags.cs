@@ -16,7 +16,7 @@ public static class EntityTags
             if (header.Length < 3 || header[0] != '"' || header[^1] != '"')
                 throw new FormatException();
             supplied = Convert.FromBase64String(header[1..^1]);
-            if (supplied.Length != 8 || Format(supplied) != header)
+            if (supplied.Length != currentVersion.Length || Format(supplied) != header)
                 throw new FormatException();
         }
         catch (FormatException)

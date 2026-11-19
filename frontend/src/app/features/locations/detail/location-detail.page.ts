@@ -58,7 +58,7 @@ import { LocationStateDialog } from './location-state-dialog';
 
       <h2 id="contenido-ubicacion" tabindex="-1">Contenido</h2>
       @if (stock(); as content) {
-        @if (content.items.length === 0) {
+        @if (content.totalCount === 0) {
           <p class="empty" data-testid="empty">Esta ubicación está vacía.</p>
         } @else {
           <p-table [value]="mutable(content.items)" ariaLabel="Contenido de la ubicación">
@@ -173,7 +173,13 @@ export class LocationDetailPage implements OnInit {
   protected loadStock(page: number): void {
     this.stockError.set(null);
     this.api.stock(this.id(), page).subscribe({
-      next: result => this.stock.set(result),
+      next: result => {
+        if (result.totalCount > 0 && result.items.length === 0 && result.page > 1) {
+          this.loadStock(Math.max(1, Math.ceil(result.totalCount / result.pageSize)));
+          return;
+        }
+        this.stock.set(result);
+      },
       error: (error: unknown) => this.stockError.set(asProblem(error).detail)
     });
   }
