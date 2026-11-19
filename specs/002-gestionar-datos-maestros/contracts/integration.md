@@ -175,5 +175,7 @@ La unidad procede de `BaseUnitSnapshot`. La ubicación se presenta como origen e
 salidas, reservas y liberaciones, y como destino en recepciones. Las entradas de
 ajuste usan origen o destino según su efecto. El lote técnico de artículos sin
 seguimiento se presenta como ausencia de lote. Se expone la contraparte si el
-diario la registró. El lector conserva la respuesta 503 si falta la migración, y
+diario la registró. El esquema H0 solo guarda la referencia de contraparte. El
+motivo de no aplicabilidad de la contraparte queda pendiente en el modelo común.
+El lector conserva la respuesta 503 si falta la migración, y
 devuelve una página vacía cuando el diario existe y el filtro no encuentra entradas.

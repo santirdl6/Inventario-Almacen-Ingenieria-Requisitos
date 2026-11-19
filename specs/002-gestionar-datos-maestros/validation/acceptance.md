@@ -76,7 +76,7 @@ límites hasta tener evidencia real.
 FR-014 queda implementado y verificado sobre el diario de la PR #3 en una rama
 local de integración. El recorrido Chromium comprueba desactivación, consulta
 del historial vacío, reactivación y borrado. La build de producción pasó con
-Node 24 en Docker, Vitest pasó 40/40 y la suite SQL pasó 94/94. EF 10.0.13
+Node 24 en Docker, Vitest pasó 40/40 y la suite SQL pasó 95/95. EF 10.0.13
 confirmó que el modelo coincide con el snapshot. Los resultados y el alcance de US4 se
 detallan en [su validación](us4.md#validación-con-el-stock-h0-2026-11-19).
 

@@ -60,7 +60,13 @@ internal sealed class StockTestHarness(IdentityFixture fixture, IServiceProvider
     };
 
     /// <summary>Ejecuta un comando de stock dentro del protocolo común de A.</summary>
-    public async Task<StockOperationOutcome> RunAsync(ClaimsPrincipal principal, Guid operationId, StockCommand command)
+    public Task<StockOperationOutcome> RunAsync(ClaimsPrincipal principal, Guid operationId, StockCommand command) =>
+        RunAsync(principal, operationId, command, null);
+
+    /// <summary>Como un consumidor: <paramref name="before"/> declara sus bloqueos y revalida
+    /// dentro de change, antes de StockCore.ApplyAsync (stock-operations.md, ejemplo HU-01).</summary>
+    public async Task<StockOperationOutcome> RunAsync(ClaimsPrincipal principal, Guid operationId, StockCommand command,
+        Func<OperationContext, CancellationToken, Task>? before)
     {
         var accessor = services.GetRequiredService<IHttpContextAccessor>();
         accessor.HttpContext = new DefaultHttpContext { User = principal };
@@ -71,8 +77,12 @@ internal sealed class StockTestHarness(IdentityFixture fixture, IServiceProvider
                 $"/api/v1/stock-probes/{command.SourceType}/{command.SourceId:D}/{command.Operation.ToString().ToLowerInvariant()}",
                 Permission(command.Operation), command.NormalizedBody);
             var response = await scope.ServiceProvider.GetRequiredService<InventoryOperationExecutor>().ExecuteAsync(request,
-                async (context, token) => StockCore.Response(
-                    await context.Services.GetRequiredService<StockCore>().ApplyAsync(context, command, token)));
+                async (context, token) =>
+                {
+                    if (before is not null) await before(context, token);
+                    return StockCore.Response(
+                        await context.Services.GetRequiredService<StockCore>().ApplyAsync(context, command, token));
+                });
             return StockCore.Outcome(response);
         }
         finally { accessor.HttpContext = null; }

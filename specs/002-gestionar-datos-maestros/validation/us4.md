@@ -30,16 +30,17 @@ dobles ni se declara completa US4.
 ## Validación con el stock H0, 2026-11-19
 
 La rama local `work/hu08-stock-history` combina la base con la PR #4 ya fusionada y
-el commit `b30adbe` de la PR #3. El historial lee el diario real y mantiene las
+el commit `25d6df6` de la PR #3. El historial lee el diario real y mantiene las
 cantidades decimales, la unidad histórica, el responsable, documento, soporte,
 contraparte registrada, ubicación y lote. La consulta de un artículo inactivo
 respeta filtros, paginación y permisos. El detalle de la proyección está en el
 [contrato de integración](../contracts/integration.md#historial-con-el-núcleo-h0-de-stock).
 
-La suite completa pasó 94/94 sobre SQL Server. Comprueba el 412 con el ETag
+La suite completa pasó 95/95 sobre SQL Server. Comprueba el 412 con el ETag
 anterior al primer movimiento y el 409 con el vigente, el bloqueo de borrado con
 historial, y ambos órdenes de commit entre recepción y borrado o desactivación,
-observando la espera del applock. El núcleo también rechaza nuevas recepciones y
+observando la espera del applock. También comprueba que el núcleo reutiliza los
+bloqueos adquiridos por el consumidor de recepción. El núcleo rechaza nuevas recepciones y
 reservas tras desactivar, permite liberar y expedir la reserva existente y
 conserva la conciliación con el diario. EF no detectó cambios de modelo pendientes.
 
