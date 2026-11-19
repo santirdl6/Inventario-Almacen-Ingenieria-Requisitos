@@ -112,6 +112,38 @@ Este comando de verificación necesita `sqlserver` saludable e imagen `inventari
 existente; el comando ordinario con `--build` sigue siendo el arranque reproducible del README.
 La verificación aplica las migraciones solo en bases aisladas de pruebas, no en InventoryDev.
 
+### Núcleo de stock H0 (B) sobre la base común de A
+
+La cadena añade `20261118194940_H0_StockCore` después de `HU08Suppliers`, sin modificar
+migraciones previas: Locations (referencia mínima de HU-02), Lots, StockBalances,
+StockMovements y StockEntries, con las FK, CHECK e índices del [modelo](data-model.md).
+La migración deniega a `inventory_runtime` UPDATE/DELETE sobre StockMovements y
+StockEntries y DELETE sobre StockBalances, como hace A con OperationResults y la auditoría.
+`StockCore` se ejecuta dentro de `InventoryOperationExecutor` y usa `InventoryLocks`
+y el único `OperationResult` de A según el [protocolo](contracts/stock-operations.md).
+
+Verificación realizada el 2026-11-18 con SQL Server real de Compose: **88 pruebas aprobadas**,
+compilación con 0 avisos y `has-pending-model-changes` sin cambios. Son 76 de A (una
+actualizada: el modelo ya tiene consumidores de Article) y 12 de B. Las 8 de
+`Stock/StockCoreTests` son las de H0 adaptadas al ejecutor: ejemplo de salida mixta del
+contrato, replay con 6 y 6.000, clave reutilizada con otro cuerpo o actor, otro OperationId
+sobre el mismo hecho, ocho reintentos simultáneos, fallo inducido tras escribir y antes del
+commit, reservas y salidas solapadas, reglas de lote/unidades/actividad, permiso 403,
+DENY 229 y CHECK 547. Las 4 de `Stock/StockArticleIntegrationTests` cubren cobertura de FK,
+borrado con saldo rechazado (HistoryPreventsDeletion), borrado sin referencias correcto con
+DENY DELETE en StockBalances y bloqueo de definición tras el primer movimiento.
+Las pruebas de stock y las de A afectadas se repitieron tres veces (20/20 cada vez).
+La cadena completa se aplicó en una base vacía y `H0_StockCore` se revirtió y reaplicó.
+
+Sin SDK local, desde la raíz:
+
+```bash
+docker compose up -d sqlserver
+docker run --rm --network inventario_default -v "$PWD/backend:/src" -w /src \
+  -e Testing__SqlHost=sqlserver -e 'Testing__SqlAdminPassword=LocalSqlAdmin_2026!' \
+  mcr.microsoft.com/dotnet/sdk:10.0 sh -c 'dotnet tool restore && dotnet test Inventario.slnx --nologo'
+```
+
 ## 1. Requisitos para desarrollo y pruebas fuera de contenedores
 
 - Node 24 LTS compatible con Angular 22 y .NET SDK 10 estable.

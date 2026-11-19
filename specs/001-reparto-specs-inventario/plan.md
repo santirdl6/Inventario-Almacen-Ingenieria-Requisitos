@@ -114,6 +114,17 @@ idempotencia, rollback y concurrencia en SQL real; las reglas completas quedan e
 historias. B concreta CustomerOrder mínimo en HU-03 como soporte de HU-03/HU-05.
 La revisión cruzada A+B de esta ampliación sigue pendiente de registrarse.
 
+Entrega B / H0 (2026-11-18): A adelantó la base común (OperationResult, InventoryOperationExecutor,
+InventoryLocks, MasterDataAuditWriter, rol `inventory_runtime`) y B la reutiliza; A confirmó
+también el reuso de su layout con login. El núcleo de stock se integra en `b/h0-stock-service-v2`,
+creada desde `a/h0-identity-article`: migración `H0_StockCore` regenerada después de las de A,
+`StockCore` dentro del ejecutor común, contribución de stock a los controles de Article y
+12 pruebas SQL, además de las de A (evidencia en la [guía común](../../.specify/memory/project/quickstart.md#núcleo-de-stock-h0-b-sobre-la-base-común-de-a)).
+Sustituye a `b/h0-stock-service` (PR #2), que creaba su propio resultado y chocaba con esta base.
+B registra su revisión de la base de A en el
+[handoff de HU-08](../002-gestionar-datos-maestros/h0-handoff.md#revisión-de-b-de-la-base-común-2026-11-18);
+queda pendiente que A revise la integración para cerrar H0.
+
 Flujo propuesto por el equipo: ramas cortas desde main, PR revisado por la otra persona
 y rebase antes de fusionar. B utiliza `b/h0-stock-service` y `b/hu-0X-...`. Si dos migraciones
 se generaron en paralelo, se regenera la local no compartida sobre el snapshot integrado;
