@@ -15,6 +15,15 @@ internal static class MasterDataProblemMapper
             return new(503, "ServiceUnavailable", "La base no pudo confirmar la operación. Comprueba su resultado antes de repetir.");
         if (error is DbUpdateException { InnerException: SqlException sql })
         {
+            // HU-02: carrera entre dos altas del mismo lugar físico (el caso habitual lo
+            // resuelve antes el comando, nombrando la ubicación existente).
+            if (sql.Number is 2601 or 2627 && sql.Message.Contains("UX_Locations_Aisle_Rack_Level", StringComparison.Ordinal))
+            {
+                const string place = "Ese pasillo, estantería y nivel ya están registrados.";
+                return new(409, "DuplicateLocationPlace",
+                    "Ya existe una ubicación con ese pasillo, estantería y nivel, también puede estar inactiva.",
+                    new Dictionary<string, string[]> { ["aisle"] = [place], ["rack"] = [place], ["level"] = [place] });
+            }
             if (sql.Number is 2601 or 2627 && (sql.Message.Contains("_Code", StringComparison.Ordinal)
                 || sql.Message.Contains("_Sku", StringComparison.Ordinal)))
             {

@@ -15,7 +15,7 @@ internal sealed class MasterDataAuditConfiguration : IEntityTypeConfiguration<Ma
             table.HasCheckConstraint("CK_MasterDataAudit_Before", "[Before] IS NULL OR ISJSON([Before], VALUE) = 1");
             table.HasCheckConstraint("CK_MasterDataAudit_After", "[After] IS NULL OR ISJSON([After], VALUE) = 1");
             table.HasCheckConstraint("CK_MasterDataAudit_Action", "[Action] IN ('Create','Update','Deactivate','Reactivate','Delete')");
-            table.HasCheckConstraint("CK_MasterDataAudit_Entity", "[EntityType] IN ('Family','Supplier','Article')");
+            table.HasCheckConstraint("CK_MasterDataAudit_Entity", "[EntityType] IN ('Family','Supplier','Article','Location')");
         });
         builder.HasKey(value => value.Id);
         builder.Property(value => value.Id).ValueGeneratedNever();
