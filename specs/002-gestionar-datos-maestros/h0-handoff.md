@@ -152,3 +152,33 @@ reservas aplicables y OperationResult se confirman conjuntamente.
 Estas pruebas de protocolo aún corresponden a B: las pruebas de Article no demuestran
 idempotencia ni concurrencia del stock. B concreta CustomerOrder mínimo en HU-03; las
 reglas completas de operaciones y conteos permanecen en las historias correspondientes.
+
+## Revisión de B de la base común (2026-11-18)
+
+B revisó Article, ICurrentActor, OperationResult, InventoryOperationExecutor, InventoryLocks,
+ArticleReferenceTracker, ArticleUsageReader/ArticleDefinitionReadiness, MasterDataProblemMapper
+y la cadena hasta `HU08Suppliers`. **Resultado: aceptada** como base del núcleo de stock en
+`b/h0-stock-service-v2`; las 76 pruebas de A siguen aprobadas junto a las 12 de B.
+
+Reutilizado de A sin cambios: OperationResult y su tabla, el ejecutor (autenticación,
+autorización, replay e idempotencia), InventoryLocks y su orden, ArticleReferenceTracker,
+InventoryProblemException con su mapeo y el rol `inventory_runtime`. Eliminado de B:
+`Domain/Stock/OperationResult`, su configuración, el helper de applock, la transacción
+propia de `StockCore`, `StockOperationException` y los DENY en `DatabaseBootstrapper`.
+
+Decisiones de B pendientes de revisión de A:
+
+- `StockCore` es un paso dentro de `change`; cada consumidor construye la `OperationRequest`
+  con `StockCommand.NormalizedBody` y el permiso de su operación.
+- FK restrictiva `StockMovements.OperationId → OperationResults`, igual que la auditoría:
+  no se puede llamar a `SaveChanges` dentro de `change` antes de que el ejecutor añada el
+  resultado. La prueba de fallo antes del commit usa un interceptor de EF tras ese guardado.
+- `StockArticleUsageContributor` devuelve «sin uso» únicamente si `H0_StockCore` no está
+  aplicada (ventana de preparación HU-08 Expand), lo que mantiene válida
+  `MasterDataMigrationTests`.
+- Cada movimiento marca IsDefinitionLocked mediante el tracker de A; la primera vez cambia
+  la rowversion del artículo, de modo que un PUT de A con un ETag anterior recibe 412.
+- Se actualizó `MasterDataFirstReferenceTests`: ya no hay cero consumidores, sino Lot,
+  StockBalance y StockEntry enlazados.
+- `IArticleMovementReader` sigue sin implementar: `/articles/{id}/movements` mantiene
+  503 DependencyUnavailable, como espera la prueba de A, hasta que B aporte el lector.

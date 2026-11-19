@@ -1,6 +1,7 @@
 using Inventario.Api.Infrastructure.Http;
 using Inventario.Api.Features.MasterData;
 using Inventario.Api.Features.MasterData.Maintenance;
+using Inventario.Api.Features.Stock.Core;
 using Inventario.Api.Infrastructure.Identity;
 using Inventario.Api.Infrastructure.Persistence;
 using Inventario.Api.Infrastructure.Persistence.Operations;
@@ -19,6 +20,7 @@ builder.Services.AddDbContext<InventoryDbContext>((services, options) =>
 builder.Services.AddInventoryIdentity(builder.Environment);
 builder.Services.AddInventoryOperations();
 builder.Services.AddMasterData();
+builder.Services.AddStockCore();
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
 {
     context.ProblemDetails.Extensions.TryAdd("traceId", context.HttpContext.TraceIdentifier);
