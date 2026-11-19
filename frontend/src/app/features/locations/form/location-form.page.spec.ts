@@ -48,12 +48,47 @@ describe('LocationFormPage (alta)', () => {
 
   it('muestra las longitudes máximas (32 y 16) y la obligatoriedad con texto', async () => {
     const { root } = await render();
-    expect(text(root.querySelector('#code-help'))).toBe('Máximo 32 caracteres.');
-    for (const field of ['aisle', 'rack', 'level']) expect(text(root.querySelector(`#${field}-help`))).toBe('Máximo 16 caracteres.');
+    expect(text(root.querySelector('#code-help'))).toBe('Máximo 32 caracteres: letras A–Z, dígitos y guion.');
+    for (const field of ['aisle', 'rack', 'level']) expect(text(root.querySelector(`#${field}-help`))).toBe('Máximo 16 caracteres: letras A–Z, dígitos y guion.');
     expect(root.querySelector('#code')!.getAttribute('maxlength')).toBe('32');
     expect(root.querySelector('#aisle')!.getAttribute('maxlength')).toBe('16');
     expect(root.querySelector('#code')!.getAttribute('aria-describedby')).toBe('code-help');
     expect(text(root.querySelector('label[for="code"]'))).toContain('(obligatorio)');
+  });
+
+  it('caracteres no admitidos se señalan en su campo, no se envía y se conserva lo escrito (US1.6)', async () => {
+    const { fixture, root } = await render();
+    // Prueba manual 2026-11-19, caso 2.
+    type(root, 'code', '  nay - a2  ');
+    type(root, 'aisle', 'ÁREA');
+    type(root, 'rack', 'A_B');
+    type(root, 'level', 'Ñ1');
+    submit(root);
+    await settle(fixture);
+    httpMock().expectNone('/api/v1/locations');
+    for (const field of ['code', 'aisle', 'rack', 'level']) {
+      expect(root.querySelector(`#${field}`)!.getAttribute('aria-invalid')).toBe('true');
+      expect(text(root.querySelector(`#${field}-error`))).toBe('Solo letras A–Z sin acentos ni Ñ, dígitos y guion, sin espacios interiores.');
+    }
+    expect((root.querySelector('#code') as HTMLInputElement).value).toBe('  nay - a2  ');
+    expect(document.activeElement?.id).toBe('code');
+  });
+
+  it('minúsculas, dígitos y guion se admiten y se envían recortados', async () => {
+    const { root } = await render();
+    for (const [field, value] of [['code', ' p01-e01-n01 '], ['aisle', 'p01'], ['rack', 'e01'], ['level', 'n-1']]) type(root, field, value);
+    submit(root);
+    expect(httpMock().expectOne('/api/v1/locations').request.body).toEqual({ code: 'p01-e01-n01', aisle: 'p01', rack: 'e01', level: 'n-1', kind: 'Storage' });
+  });
+
+  it('un 422 del servidor por caracteres se muestra en su campo', async () => {
+    const { fixture, root } = await render();
+    fill(root, 'X');
+    submit(root);
+    flushProblem(httpMock().expectOne('/api/v1/locations'), 422, 'ValidationFailed', 'Revisa los datos marcados.',
+      { errors: { code: ['Solo se admiten letras A-Z sin acentos ni Ñ, dígitos y guion, sin espacios interiores.'] } });
+    await settle(fixture);
+    expect(text(root.querySelector('#code-error'))).toContain('Solo se admiten letras A-Z');
   });
 
   it('propone el código a partir de pasillo, estantería y nivel', async () => {

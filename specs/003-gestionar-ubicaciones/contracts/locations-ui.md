@@ -31,6 +31,10 @@ Los parámetros se leen con `ActivatedRoute`.
 - **Lista**: activas por defecto; «Incluir inactivas» visible. Sin resultados: «No hay
   ubicaciones que coincidan con la búsqueda» y botón para limpiar filtros. Tipo y estado
   con texto («Almacenamiento», «Zona de recepción», «Activa», «Inactiva»).
+- **Caracteres**: Código, Pasillo, Estantería y Nivel solo admiten letras A–Z sin acentos ni Ñ,
+  dígitos y guion (la ayuda de cada campo lo dice); otro carácter, también un espacio interior,
+  se marca en el campo con «Solo letras A–Z sin acentos ni Ñ, dígitos y guion, sin espacios
+  interiores.» antes de enviar, conservando lo escrito.
 - **Alta/edición**: campos Código, Pasillo, Estantería, Nivel (obligatorios con «*» y texto
   «obligatorio»), Tipo. Botón «Proponer código» que rellena `P01-E01-N01` a partir de los
   campos físicos, editable. Longitudes máximas visibles (32 y 16).

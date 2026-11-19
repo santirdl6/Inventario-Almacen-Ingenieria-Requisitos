@@ -127,7 +127,7 @@ La búsqueda del artículo por código o nombre (US2.1) usa `GET /articles?q=` d
 | 409 | NoActiveReceivingLeft | La retirada dejaría el almacén sin zonas de recepción activas. | — |
 | 409 | IdempotencyConflict | Clave reutilizada con otro contenido, recurso o actor. | — |
 | 412 / 428 | VersionConflict / PreconditionRequired | If-Match obsoleto / ausente. | — |
-| 422 | ValidationFailed / StateChangeMustBeSeparate | Campos vacíos, longitudes, tipo inválido, campo no admitido; `page` < 1 o `pageSize` fuera de 1–100; estado + datos. | `errors` |
+| 422 | ValidationFailed / StateChangeMustBeSeparate | Campos vacíos, longitudes, caracteres distintos de A–Z, 0–9 y guion en code/aisle/rack/level, tipo inválido, campo no admitido; `page` < 1 o `pageSize` fuera de 1–100; estado + datos. | `errors` |
 | 503 | LockTimeout | Bloqueo no obtenido en 5 s. | `Retry-After` |
 
 Los mensajes `detail` están en español y dicen cómo corregir (FR-019), p. ej.

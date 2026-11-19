@@ -36,6 +36,7 @@ Artefactos de esta feature: [research.md](research.md) · [data-model.md](data-m
 | Frontend con `ApiError`, interceptor, `MessageService`, `location-permissions.ts`, inputs de ruta | `apiProblem()`, `SessionService.has()`, `permissionGuard`, parámetros leídos con `ActivatedRoute`, avisos en la página | Base de A sin duplicados (`b/h0-frontend-v2`). |
 | T055 y E2E bloqueados | Desbloqueados: `GET /articles` y login de A existen | Entregas de A. |
 | Rendimiento (T064) y validación con operarios (T066) en alcance | Fuera de alcance de la entrega del sábado, con desviación registrada | Recorte acordado; véase Complexity Tracking. |
+| Código y partes sin regla de caracteres (solo recorte y mayúsculas) | Solo A–Z, 0–9 y guion en código, pasillo, estantería y nivel; 422 por campo; CHECK con collation binaria; migración `HU02_LocationCharacters` que se detiene si hay valores que incumplen | Prueba manual 2026-11-19 (caso 2) y tercera sesión de clarify; D-14. |
 
 ## Summary
 
@@ -209,6 +210,8 @@ ausencia de DELETE se documenta solo en `contracts/locations-api.md`.
 +exista algún saldo/movimiento en la ubicación; Kind solo cambia si está vacía, sin
 +reservas ni conteo abierto. Almacén único: sin zona, almacén ni posición.
 +No puede retirarse la última ubicación Receiving activa (HU-02 FR-021).
++Code, Aisle, Rack y Level solo admiten A–Z, 0–9 y guion, en mayúsculas (HU-02 FR-002/FR-003),
++comprobado con una lista ASCII explícita y collation binaria, no con la intercalación CI.
  No se desactiva con stock, reservas o un conteo abierto. No se borra con historial.
  Un artículo puede aparecer en cualquier número de ubicaciones.
 ```
@@ -249,6 +252,8 @@ registre en la sección «Evidencia» del quickstart de la feature.
  GET /articles/{id}/locations devuelve todas sus ubicaciones con cantidades y lote,
  paginadas; filtrar isActive no oculta la historia del artículo.
 +Las cantidades de ambas consultas proceden de StockBalances, no del diario.
++Un código, pasillo, estantería o nivel con caracteres distintos de A–Z, 0–9 y guion se rechaza
++con 422 ValidationFailed y el campo en errors.
 +En los GET paginados de HU-02, page < 1 o pageSize fuera de 1–100 se rechazan con 422
 +ValidationFailed (errors.page / errors.pageSize); no se recortan al límite.
 ```
@@ -269,6 +274,9 @@ Y en la tabla de errores comunes del mismo archivo (fila 409), añadir los códi
 
 - `InventoryLocks.ReceivingZonesAsync()`: recurso `locations:receiving` en la fase de
   ubicaciones (2), siempre después de `location:{id}`; nunca lo adquiere `StockCore` (D-05).
+- Regla de caracteres de `Location` (A–Z, 0–9 y guion; D-14), decidida por el equipo tras la
+  prueba manual del 2026-11-19: añade una restricción al modelo común (diff de `data-model.md`
+  y fila 422 de `api.md`) sin contradecirlo.
 
 **Cambios menores en archivos de A, incluidos en el mismo PR para su revisión**:
 

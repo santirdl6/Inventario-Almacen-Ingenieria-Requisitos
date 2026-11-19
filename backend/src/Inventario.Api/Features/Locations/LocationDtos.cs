@@ -38,7 +38,13 @@ public sealed record LocationWrite([property: Required, StringLength(Location.Co
         return new(Upper(value.Code), Upper(value.Aisle), Upper(value.Rack), Upper(value.Level), kind, value.IsActive ?? true);
     }
 
-    private static string? Upper(string? text) => text?.Trim().ToUpperInvariant();
+    // Solo se pasa a mayúsculas un texto que ya cumple la regla ASCII: ToUpperInvariant
+    // convertiría caracteres no admitidos («ı» → «I») antes de que la validación los rechace.
+    private static string? Upper(string? text)
+    {
+        var trimmed = text?.Trim();
+        return trimmed is not null && Location.HasOnlyAllowedCharacters(trimmed) ? trimmed.ToUpperInvariant() : trimmed;
+    }
 }
 
 public sealed record LocationSummary(Guid Id, string Code, string Aisle, string Rack, string Level,

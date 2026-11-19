@@ -42,8 +42,20 @@ function notBlank(control: AbstractControl<string>): ValidationErrors | null {
   return control.value.trim().length === 0 ? { blank: true } : null;
 }
 
+/**
+ * FR-002/FR-003 (clarify 2026-11-19): solo letras A–Z sin acentos ni Ñ, dígitos y guion, sin
+ * espacios interiores. Lista ASCII explícita, igual que el servidor; las minúsculas se admiten
+ * porque se guardan en mayúsculas. Los espacios extremos se recortan al enviar.
+ */
+export const ALLOWED_CHARACTERS = /^[A-Za-z0-9-]*$/;
+export const ALLOWED_CHARACTERS_MESSAGE = 'Solo letras A–Z sin acentos ni Ñ, dígitos y guion, sin espacios interiores.';
+
+function allowedCharacters(control: AbstractControl<string>): ValidationErrors | null {
+  return ALLOWED_CHARACTERS.test(control.value.trim()) ? null : { characters: true };
+}
+
 function textControl(max: number): FormControl<string> {
-  return new FormControl('', { nonNullable: true, validators: [Validators.required, notBlank, Validators.maxLength(max)] });
+  return new FormControl('', { nonNullable: true, validators: [Validators.required, notBlank, Validators.maxLength(max), allowedCharacters] });
 }
 
 /**
@@ -114,7 +126,7 @@ function textControl(max: number): FormControl<string> {
             <input pInputText [id]="field.name" [formControlName]="field.name" [attr.maxlength]="field.max"
               autocomplete="off" [attr.aria-required]="true" [attr.aria-invalid]="errorFor(field.name) ? 'true' : null"
               [attr.aria-describedby]="field.name + '-help' + (errorFor(field.name) ? ' ' + field.name + '-error' : '')" />
-            <small class="field-help" [id]="field.name + '-help'">Máximo {{ field.max }} caracteres.</small>
+            <small class="field-help" [id]="field.name + '-help'">Máximo {{ field.max }} caracteres: letras A–Z, dígitos y guion.</small>
             @if (errorFor(field.name); as message) {
               <small class="field-error" [id]="field.name + '-error'">{{ message }}</small>
             }
@@ -217,6 +229,7 @@ export class LocationFormPage implements OnInit {
     if (!control.touched || control.valid || control.disabled) return null;
     if (control.hasError('required') || control.hasError('blank')) return 'Este campo es obligatorio.';
     if (control.hasError('maxlength')) return `Máximo ${control.getError('maxlength').requiredLength} caracteres.`;
+    if (control.hasError('characters')) return ALLOWED_CHARACTERS_MESSAGE;
     return 'El valor no es válido.';
   }
 

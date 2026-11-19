@@ -34,16 +34,33 @@ public sealed class Location
         Id = id;
     }
 
+    /// <summary>Mensaje del campo cuando aparece un carácter no admitido (HU-02 FR-002, FR-003).</summary>
+    public const string AllowedCharactersMessage =
+        "Solo se admiten letras A-Z sin acentos ni Ñ, dígitos y guion, sin espacios interiores.";
+
     /// <summary>
-    /// Normaliza como el constructor (recortar, mayúsculas, longitud máxima) y devuelve el
-    /// mensaje de error del campo, o null si es válido. Code: máx. 32; Aisle/Rack/Level: máx. 16.
+    /// Normaliza como el constructor (recortar, mayúsculas, longitud máxima, caracteres
+    /// admitidos) y devuelve el mensaje de error del campo, o null si es válido.
+    /// Code: máx. 32; Aisle/Rack/Level: máx. 16.
     /// </summary>
     public static string? Normalize(string? value, int maximumLength, out string normalized)
     {
-        normalized = value?.Trim().ToUpperInvariant() ?? "";
-        if (normalized.Length == 0) return "Este dato es obligatorio y no puede quedar en blanco.";
-        return normalized.Length > maximumLength ? $"No puede superar {maximumLength} caracteres." : null;
+        var trimmed = value?.Trim() ?? "";
+        normalized = trimmed.ToUpperInvariant();
+        if (trimmed.Length == 0) return "Este dato es obligatorio y no puede quedar en blanco.";
+        if (trimmed.Length > maximumLength) return $"No puede superar {maximumLength} caracteres.";
+        return HasOnlyAllowedCharacters(trimmed) ? null : AllowedCharactersMessage;
     }
+
+    /// <summary>
+    /// Regla explícita ASCII sobre el texto recibido (antes de pasar a mayúsculas): a-z, A-Z,
+    /// 0-9 y guion. No usa char.IsLetter ni la intercalación de SQL Server, que tratan «Á» o
+    /// «Ñ» como letras, y comprueba antes de ToUpperInvariant, que convertiría «ı» en «I»
+    /// (tercera sesión de clarify, 2026-11-19).
+    /// </summary>
+    public static bool HasOnlyAllowedCharacters(string value) =>
+        value.Length > 0 && value.All(character =>
+            character is >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9' or '-');
 
     /// <summary>Corrige la identificación física. Las reglas que dependen de saldos (FR-011)
     /// las aplica el comando bajo location:{id}. Devuelve si hubo cambio efectivo.</summary>
@@ -94,6 +111,8 @@ public sealed class Location
         var normalized = value.Trim();
         if (normalized.Length > maximumLength)
             throw new ArgumentException($"El valor no puede superar {maximumLength} caracteres.", parameter);
+        if (!HasOnlyAllowedCharacters(normalized))
+            throw new ArgumentException(AllowedCharactersMessage, parameter);
         return normalized;
     }
 }

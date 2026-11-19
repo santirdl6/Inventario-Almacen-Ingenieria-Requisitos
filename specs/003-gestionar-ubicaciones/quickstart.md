@@ -12,7 +12,9 @@ login de A, solo para el recorrido principal; rendimiento y operarios fuera de e
 ## Prerrequisitos
 
 1. Rama `b/hu-02-ubicaciones-v2` (núcleo de stock y frontend de A integrados).
-2. Migración `HU02_Locations` aplicada; antes, comprobar que no hay combinaciones
+2. Migraciones `HU02_Locations` y `HU02_LocationCharacters` aplicadas. Antes de la segunda,
+   corregir desde la aplicación las ubicaciones con caracteres no admitidos: si quedan, se
+   detiene (50003) nombrándolas y sin modificar datos. Para `HU02_Locations`, antes, comprobar que no hay combinaciones
    pasillo/estantería/nivel repetidas en bases existentes (la migración falla
    explícitamente si las hay).
 3. `dotnet ef migrations has-pending-model-changes` sin cambios pendientes.
@@ -36,6 +38,7 @@ matriz siguiente. Repetir tres veces las de concurrencia.
 | L-01 | Alta REC-01 (Receiving), P01-E01-N01, P01-E01-N02; búsqueda por prefijo y filtros. | 201, activas, vacías, auditoría `Create` con entidad `Location`, sin movimientos; la búsqueda solo devuelve coincidencias. | US1.1, US1.5, FR-001, FR-004, FR-005, FR-015 |
 | L-02 | Alta ` p01-e01-n01 ` frente a un código existente y uno inactivo; otro código con P01/E01/N01. | 409 `DuplicateCode` / `DuplicateLocationPlace` con sus campos; nada creado. | US1.2–1.3, FR-002–003 |
 | L-03 | Alta con pasillo «   » en tipo Receiving; longitudes excesivas; `page=0`. | 422 con `errors.aisle` / longitud / `errors.page`; nada creado. | US1.4, FR-003 |
+| L-16 | Alta y corrección con «  nay - a2  », «ÁREA», «A_B», «Ñ1» o «ı1»; alta con « p01-e01 »; INSERT directo con «NAY - …» o «ÁREA». | 422 con el campo; nada creado ni modificado; «P01-E01» guardado; error SQL 547 de `CK_Locations_*_Chars`. | US1.6, FR-002, FR-003 |
 | L-04 | 8 altas simultáneas con la misma clave. | Una ubicación; respuestas idénticas. | US5.3, FR-018 |
 | L-05 | Recibir con el núcleo 2 y 4 de ART-01/L-001 en N01/N02; consultar el artículo y N02. | Buckets 2 y 4, total 6 desde StockBalances, igual al diario; N02 lista 4 UD. | US2.1, US3.1, SC-003 |
 | L-06 | Dos lotes en la misma ubicación; artículo sin existencias; ubicación inactiva con historial; `pageSize=1`. | Lotes por separado sin duplicar total; vacío sin error; inactiva visible con estado; total de todo el artículo. | US2.2–2.5, FR-007 |
@@ -83,6 +86,7 @@ Registrar aquí fecha, entorno, número de pruebas y resultado de cada ejecució
 | 2026-11-19 10:42 | `mcr.microsoft.com/dotnet/sdk:10.0` en la red `inventario_default`, SQL Server 2025 de Compose; rama `b/hu-02-ubicaciones-v2` | Suite backend completa, 3 veces seguidas (compilación con avisos como errores: 0 avisos) | 110/110 las tres veces: 88 previas + 22 de `Locations/` (L-01–L-12 y L-15) |
 | 2026-11-19 11:07 | Igual; frontend con Node 26 y la configuración de pruebas de A (Vitest 5.1.0, jsdom 31.0.0) | Verificación final (T067): suite backend, `has-pending-model-changes`, `npm test`, `npm run build` | Backend 110/110; sin cambios de modelo pendientes; frontend 92/92; build de producción sin avisos |
 | 2026-11-19 11:05 | Proyecto Compose dedicado `inventario-hu08-e2e` (8082), Chromium de Playwright 1.65.0 | `e2e/locations.spec.ts` (T063) y `e2e/environment.spec.ts` de A | 2/2 y 3/3 |
+| 2026-11-19 16:45 | Contenedor del SDK + base de prueba aparte; proyecto `inventario-hu08-e2e` reconstruido | Regla de caracteres (T078–T082): suites, cadena de migraciones, fallo de `HU02_LocationCharacters` con datos que incumplen, despliegue en 8082 | Backend 114/114; frontend 103/103; build sin avisos; cadena desde cero, revertir y reaplicar correctas; con «NAY - A2» y «ÁREA» la migración se detiene (50003) nombrándolas sin modificar datos; en 8082, tras corregir «NAY - A2» desde la aplicación, se aplica y crea los cuatro CHECK; E2E 5/5 |
 
 ## Prueba manual
 

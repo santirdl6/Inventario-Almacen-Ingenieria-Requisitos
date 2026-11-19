@@ -154,6 +154,66 @@ public sealed class LocationsCreateTests(IdentityFixture fixture) : IClassFixtur
     }
 
     [Fact]
+    public async Task US1_6_only_ascii_letters_digits_and_hyphen_are_accepted_in_every_identifying_field()
+    {
+        using var factory = fixture.Factory();
+        using var support = new LocationsTestSupport(fixture, factory);
+        var api = await support.SessionAsync();
+        var suffix = Unique(6);
+
+        // Prueba manual 2026-11-19, caso 2: los espacios interiores no se eliminan, se rechazan.
+        var cases = new (object Body, string Field)[]
+        {
+            (Body("  nay - a2  ", "P" + suffix), "code"),
+            (Body("ÁREA-" + suffix, "P" + suffix), "code"),
+            (Body("C-" + suffix, "ÁREA"), "aisle"),
+            (Body("C-" + suffix, "P" + suffix, rack: "A_B"), "rack"),
+            (Body("C-" + suffix, "P" + suffix, level: "Ñ1"), "level"),
+            (Body("C-" + suffix, "P" + suffix, level: "ı1"), "level") // ToUpperInvariant daría «I1»
+        };
+        foreach (var (body, field) in cases)
+        {
+            var rejected = await CreateAsync(api, body);
+            Assert.Equal(HttpStatusCode.UnprocessableEntity, rejected.StatusCode);
+            var problem = await rejected.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal("ValidationFailed", problem.GetProperty("code").GetString());
+            Assert.Contains("Solo se admiten letras A-Z", problem.GetProperty("errors").GetProperty(field)[0].GetString());
+        }
+        var none = await api.Client.GetFromJsonAsync<JsonElement>($"/api/v1/locations?search=P{suffix}&status=all");
+        Assert.Equal(0, none.GetProperty("totalCount").GetInt32());
+
+        // Minúsculas y guion válidos se aceptan y se guardan en mayúsculas.
+        var accepted = await CreateAsync(api, Body(" p" + suffix.ToLowerInvariant() + "-e01 ", "p" + suffix.ToLowerInvariant(), "e01", "n-1"));
+        Assert.Equal(HttpStatusCode.Created, accepted.StatusCode);
+        var resource = (await accepted.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("resource");
+        Assert.Equal(("P" + suffix + "-E01", "N-1"), (resource.GetProperty("code").GetString(), resource.GetProperty("level").GetString()));
+
+        // También en la corrección (US1.6 «alta o corrección»), sin modificar la ubicación.
+        var id = resource.GetProperty("id").GetGuid();
+        var etag = accepted.Headers.ETag!.ToString();
+        var update = await UpdateAsync(api, id, resource, etag, code: "P " + suffix);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, update.StatusCode);
+        Assert.True((await update.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors").TryGetProperty("code", out _));
+        Assert.Equal("P" + suffix + "-E01", (await GetAsync(api, id)).Body.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task The_database_rejects_characters_outside_the_rule_even_bypassing_the_application()
+    {
+        await using var database = fixture.ApplicationDatabase();
+        var code = "NAY - " + Unique(4);
+        var error = await Assert.ThrowsAsync<Microsoft.Data.SqlClient.SqlException>(() =>
+            Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlInterpolatedAsync(database.Database,
+                $"INSERT dbo.Locations (Id, Code, Aisle, Rack, Level, Kind, IsActive) VALUES ({Guid.NewGuid()}, {code}, {"P" + Unique(6)}, {"E01"}, {"N01"}, {"Storage"}, {true})"));
+        Assert.Equal(547, error.Number);
+        Assert.Contains("CK_Locations_Code_Chars", error.Message);
+        var accented = await Assert.ThrowsAsync<Microsoft.Data.SqlClient.SqlException>(() =>
+            Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlInterpolatedAsync(database.Database,
+                $"INSERT dbo.Locations (Id, Code, Aisle, Rack, Level, Kind, IsActive) VALUES ({Guid.NewGuid()}, {"OK-" + Unique(4)}, {"ÁREA"}, {"E01"}, {"N01"}, {"Storage"}, {true})"));
+        Assert.Contains("CK_Locations_Aisle_Chars", accented.Message);
+    }
+
+    [Fact]
     public async Task Read_only_accounts_can_search_but_not_create()
     {
         using var factory = fixture.Factory();

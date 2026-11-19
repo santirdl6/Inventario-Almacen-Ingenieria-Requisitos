@@ -322,3 +322,11 @@ Desbloquea a A para elegir destinos activos en HU-01 (`GET /locations?status=act
 
 - [X] T076 Probar en `backend/tests/Inventario.IntegrationTests/Locations/LocationsReliabilityTests.cs` que, con `location:{id}` retenido por otra transacción, `PUT /api/v1/locations/{id}` devuelve 503 `LockTimeout` con cabecera `Retry-After` y la ubicación no cambia per contrato API (503 LockTimeout), FR-016 (partial)
 - [X] T077 Comprobar en `location-form.page.spec.ts` las longitudes máximas visibles (32 y 16) y que cada error de campo queda asociado con `aria-describedby`, y en `article-locations.page.spec.ts` que `asOf` es visible per contrato UI, FR-019 (partial)
+
+## Phase 19: Regla de caracteres (tercera sesión de clarify, 2026-11-19)
+
+- [X] T078 [US1] En `backend/src/Inventario.Api/Domain/Locations/Location.cs`, `HasOnlyAllowedCharacters` (lista ASCII A–Z, a–z, 0–9 y guion, comprobada antes de `ToUpperInvariant`), `Normalize` con el mensaje del campo y el constructor que lo exige; en `Features/Locations/LocationDtos.cs`, `LocationWrite.Read` solo pasa a mayúsculas un texto válido per FR-002, FR-003, US1.6, D-14
+- [X] T079 [US1] CHECK `CK_Locations_{Code,Aisle,Rack,Level}_Chars` con collation binaria en `backend/src/Inventario.Api/Infrastructure/Persistence/Configurations/LocationConfiguration.cs` y migración `20261119163347_HU02_LocationCharacters` que se detiene (50003) nombrando las ubicaciones que incumplen, sin modificar datos per FR-002, FR-003, D-14
+- [X] T080 [US1] Pruebas en `backend/tests/Inventario.IntegrationTests/Locations/LocationsCreateTests.cs`: L-16 (alta y corrección rechazadas por campo con espacios interiores, acentos, Ñ, guion bajo y «ı»; minúsculas válidas guardadas en mayúsculas; CHECK con error 547) per US1.6, SC-002
+- [X] T081 [US1] Validador de caracteres y ayuda de cada campo en `frontend/src/app/features/locations/form/location-form.page.ts`, con pruebas en `location-form.page.spec.ts` (caso 2 de la prueba manual, valores válidos en minúsculas, 422 del servidor) per US1.6, FR-019
+- [X] T082 Corregir «NAY - A2» a «NAY-A2» en la base de E2E desde la aplicación antes de desplegar la regla (auditoría `Update`) y demostrar en una base aparte que `HU02_LocationCharacters` se detiene con mensaje claro si quedan valores que incumplen per D-14

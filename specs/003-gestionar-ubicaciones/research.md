@@ -217,6 +217,33 @@ aunque el saldo vuelva a cero) la comprueba L-07.
 **Alternativas**: InMemory/SQLite descartados (R-08): no verifican índices únicos,
 collation ni applocks.
 
+## D-14. Caracteres admitidos en código, pasillo, estantería y nivel
+
+**Decisión (2026-11-19, tercera sesión de clarify)**: solo A–Z, a–z (se guardan en mayúsculas),
+0–9 y guion. Se comprueba en tres sitios con la misma lista ASCII explícita:
+
+- **Dominio**: `Location.HasOnlyAllowedCharacters` sobre el texto recortado **antes** de pasar a
+  mayúsculas (`ToUpperInvariant` convertiría «ı» en «I» y «ſ» en «S»); `Normalize` devuelve el
+  mensaje del campo (422 `ValidationFailed`) y el constructor lo exige. `LocationWrite.Read` solo
+  pasa a mayúsculas un texto que ya cumple la regla.
+- **Base de datos**: CHECK `CK_Locations_{Code,Aisle,Rack,Level}_Chars` con
+  `COLLATE Latin1_General_BIN2 NOT LIKE N'%[^-0-9A-Z]%'` (el guion al principio de la clase:
+  al final, con `nvarchar` y collation binaria, no se interpretaba como literal).
+- **Interfaz**: validador `^[A-Za-z0-9-]*$` sobre el valor recortado, con el mensaje en el campo.
+
+**Motivo**: la intercalación de las columnas (`Latin1_General_100_CI_AS`) ordena «Á» y «Ñ» dentro de
+A–Z, así que una comprobación con esa intercalación los dejaría pasar.
+
+**Datos existentes**: la migración `HU02_LocationCharacters` comprueba antes de crear los CHECK y, si
+hay valores que incumplen, se detiene (THROW 50003) nombrando hasta 20 ubicaciones, sin modificar
+datos. En la base de E2E, «NAY - A2» (inactiva, sin movimientos) se corrigió a «NAY-A2» desde la
+aplicación antes de desplegar, con auditoría `Update`. Riesgo residual: una ubicación con
+movimientos y caracteres no admitidos no puede corregirse por la aplicación (FR-011); no existe en
+ninguna base actual y requeriría una decisión explícita.
+
+**Alternativas**: eliminar o convertir los espacios interiores (rechazada en clarify: se rechaza,
+no se transforma); `char.IsLetter` o la intercalación de SQL Server (admiten acentos y Ñ).
+
 ## D-13. Recorte para la entrega del sábado
 
 **Decisión (2026-11-19)**: quedan fuera de esta entrega la medición de rendimiento (SC-005,

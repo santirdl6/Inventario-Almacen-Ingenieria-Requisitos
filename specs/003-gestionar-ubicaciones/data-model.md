@@ -34,6 +34,7 @@ No se añaden columnas. Almacén único sin zona ni posición (Clarifications, Q
 | Conteo abierto | Desactivar o cambiar Kind con conteo activo (HU-04, vía `ILocationUsage`). | 409 `CountScopeFrozen` | FR-012 |
 | Cambio de estado aislado | PUT que cambia `isActive` y otro campo. | 422 `StateChangeMustBeSeparate` | FR-020 |
 | Última recepción activa | Desactivar `Receiving` o pasarla a `Storage` dejaría 0 zonas `Receiving` activas; se evalúa con `locations:receiving` ([D-05](research.md#d-05-última-zona-de-recepción-activa-fr-021)). | 409 `NoActiveReceivingLeft`, sin cambios | FR-021 |
+| Caracteres admitidos | Code, Aisle, Rack o Level con caracteres distintos de A–Z, a–z, 0–9 y guion (se guardan en mayúsculas); también CHECK `CK_Locations_*_Chars` con collation binaria ([D-14](research.md#d-14-caracteres-admitidos-en-código-pasillo-estantería-y-nivel)). | 422 `ValidationFailed` (`errors.<campo>`) | FR-002, FR-003 |
 | Código repetido | Violación del índice único de Code. | 409 `DuplicateCode` (A; `errors.code`) | FR-002 |
 | Lugar repetido | Otra ubicación tiene el mismo (Aisle, Rack, Level), comprobado antes de guardar; en carrera, violación de `UX_Locations_Aisle_Rack_Level`. | 409 `DuplicateLocationPlace` (`errors.aisle/rack/level`; el `detail` nombra el código existente, salvo en la carrera) | FR-003, US1.3 |
 | Versión obsoleta | If-Match distinto de la versión vigente. | 412 `VersionConflict` (A); sin If-Match, 428 | FR-017 |
