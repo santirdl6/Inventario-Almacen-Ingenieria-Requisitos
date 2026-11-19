@@ -1,19 +1,21 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, ElementRef, Injector, OnInit, afterNextRender, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
 import { SessionService } from '../../../core/session/session.service';
 import { LocationDetail, LocationStock, Versioned, isZero, lotLabel } from '../data/location.models';
 import { LocationsApi } from '../data/locations-api.service';
 import { LOCATIONS_MANAGE, asProblem, navigationNotice } from '../shared/operation';
+import { LocationStateDialog } from './location-state-dialog';
 
 /**
  * HU-02 US3 · Datos físicos, tipo, estado y contenido de una ubicación (FR-008), con acceso a
- * corregirla (US4). Cada fila del contenido enlaza a todas las ubicaciones de su artículo.
+ * corregirla y a desactivarla o reactivarla tras revisión (US4). Cada fila del contenido enlaza a todas las ubicaciones de su artículo.
  * El identificador se lee de la ruta y los avisos se muestran en la propia página.
  */
 @Component({
   selector: 'app-location-detail-page',
-  imports: [RouterLink, TableModule],
+  imports: [RouterLink, ButtonModule, TableModule, LocationStateDialog],
   styleUrl: '../locations.css',
   template: `
     @if (notice()) {
@@ -29,6 +31,9 @@ import { LOCATIONS_MANAGE, asProblem, navigationNotice } from '../shared/operati
         @if (session.has(manage)) {
           <div class="actions">
             <a class="p-button p-button-outlined" [routerLink]="['/ubicaciones', current.value.id, 'editar']">Editar</a>
+            <span data-testid="state-button">
+              <p-button [label]="current.value.isActive ? 'Desactivar' : 'Reactivar'" [outlined]="true" (onClick)="dialogOpen.set(true)" />
+            </span>
           </div>
         }
       </div>
@@ -88,6 +93,11 @@ import { LOCATIONS_MANAGE, asProblem, navigationNotice } from '../shared/operati
       } @else if (stockError()) {
         <p class="error-text" role="alert">{{ stockError() }}</p>
       }
+
+      @if (session.has(manage)) {
+        <app-location-state-dialog [location]="current.value" [etag]="current.etag" [visible]="dialogOpen()"
+          (changed)="onChanged($event)" (closed)="onClosed()" />
+      }
     }
   `
 })
@@ -96,6 +106,8 @@ export class LocationDetailPage implements OnInit {
   readonly id = signal(inject(ActivatedRoute).snapshot.paramMap.get('id') ?? '');
 
   private readonly api = inject(LocationsApi);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
   protected readonly session = inject(SessionService);
   protected readonly manage = LOCATIONS_MANAGE;
   protected readonly lotLabel = lotLabel;
@@ -107,9 +119,27 @@ export class LocationDetailPage implements OnInit {
   readonly stockError = signal<string | null>(null);
   /** Aviso de éxito de la pantalla anterior o de un cambio de estado. */
   readonly notice = signal<string | null>(navigationNotice());
+  readonly dialogOpen = signal(false);
 
   ngOnInit(): void {
     this.load();
+  }
+
+  onChanged(saved: Versioned<LocationDetail>): void {
+    this.dialogOpen.set(false);
+    this.notice.set(`Ubicación ${saved.value.code} ${saved.value.isActive ? 'reactivada' : 'desactivada'}.`);
+    this.load();
+    this.returnFocus();
+  }
+
+  onClosed(): void {
+    this.dialogOpen.set(false);
+    this.returnFocus();
+  }
+
+  private returnFocus(): void {
+    afterNextRender(() => this.host.nativeElement.querySelector<HTMLElement>('[data-testid="state-button"] button')?.focus(),
+      { injector: this.injector });
   }
 
   protected mutable<T>(items: readonly T[]): T[] {

@@ -59,6 +59,27 @@ describe('LocationDetailPage', () => {
     expect(text(root.querySelector('[data-testid="notice"]'))).toBe('Ubicación P01-E01-N01 guardada.');
   });
 
+  it('abre la revisión desde el detalle, confirma, avisa en la página y recarga datos y contenido', async () => {
+    const root = await render(detail(), [], ['Inventory.Read', 'Locations.Manage']);
+    expect(text(root.querySelector('[data-testid="state-button"]'))).toBe('Desactivar');
+    (root.querySelector('[data-testid="state-button"] button') as HTMLButtonElement).click();
+    await settle(current);
+    const confirm = Array.from(document.querySelectorAll('.p-dialog button')).find(b => text(b) === 'Desactivar') as HTMLButtonElement;
+    confirm.click();
+    httpMock().expectOne(`/api/v1/locations/${detail().id}`).flush(
+      { operationId: 'op', resource: detail({ isActive: false, statusLabel: 'Inactiva' }) }, { headers: { ETag: '"V2"' } });
+    await settle(current);
+    const reload = httpMock().match(r => r.url.startsWith(`/api/v1/locations/${detail().id}`));
+    expect(reload.map(r => r.request.url).sort()).toEqual([`/api/v1/locations/${detail().id}`, `/api/v1/locations/${detail().id}/stock`]);
+    expect(text(root.querySelector('[data-testid="notice"]'))).toBe('Ubicación P01-E01-N01 desactivada.');
+  });
+
+  it('sin permiso de gestión no ofrece desactivar ni reactivar', async () => {
+    const root = await render();
+    expect(root.querySelector('[data-testid="state-button"]')).toBeNull();
+    expect(document.querySelector('app-location-state-dialog')).toBeNull();
+  });
+
   it('una ubicación inexistente se explica en la página', async () => {
     signIn();
     const fixture = TestBed.createComponent(LocationDetailPage);

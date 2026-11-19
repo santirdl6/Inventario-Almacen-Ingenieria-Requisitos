@@ -30,6 +30,13 @@ export const LOCATIONS_ROUTES: Routes = [
     loadComponent: () => import('./article/article-locations.page').then(m => m.ArticleLocationsPage)
   },
   {
+    path: ':id/editar',
+    title: 'Corregir ubicación',
+    canActivate: [permissionGuard],
+    data: { permission: 'Locations.Manage' },
+    loadComponent: () => import('./form/location-form.page').then(m => m.LocationFormPage)
+  },
+  {
     path: ':id',
     title: 'Ubicación',
     loadComponent: () => import('./detail/location-detail.page').then(m => m.LocationDetailPage)
