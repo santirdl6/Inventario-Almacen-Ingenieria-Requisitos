@@ -26,6 +26,16 @@
 Los enlaces anteriores son referencias normativas; esta especificación describe necesidades
 y resultados de negocio. Las decisiones de implementación corresponden al futuro plan de HU-05.
 
+## Clarifications
+
+### Session 2026-11-19
+
+- Q: ¿Puede un mismo artículo aparecer en dos líneas distintas de un pedido de cliente? → A: No: una línea por artículo; el alta rechaza el artículo repetido señalando la línea (FR-011).
+- Q: ¿Qué hace la consulta con las combinaciones de ubicación y lote cuyo físico ha quedado a cero? → A: Se ocultan por defecto, con una opción explícita para mostrarlas; los totales no cambian (FR-002).
+- Q: ¿Incluye esta entrega editar o cancelar un pedido de cliente, dado que el modelo común define el estado cancelado y un comando de modificación? → A: Ni editar ni cancelar: solo alta y consulta; un compromiso innecesario se resuelve liberando reservas. Se documenta la desviación respecto al modelo común (Alcance y dependencias).
+- Q: ¿Cómo se indica el motivo al liberar una reserva: texto libre obligatorio o lista cerrada? → A: Texto libre obligatorio y no vacío, sin catálogo de motivos (FR-018).
+- Q: ¿Se confirman la asignación manual de ubicación y lote al reservar y las liberaciones parciales múltiples? → A: Sí, ambas: el responsable elige ubicación y lote sin propuesta automática (FR-015), y una reserva admite varias liberaciones parciales distintas, cada una aplicada una sola vez y sin superar el remanente (FR-018).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Consultar las existencias de un artículo (Priority: P1)
@@ -62,6 +72,9 @@ filtrar por una ubicación y comprobar que filas y totales corresponden solo a e
 8. **Given** una consulta mostrada, **When** otro usuario confirma un movimiento, **Then** la
    pantalla indica el instante al que corresponden las cifras y el usuario puede actualizarlas
    manualmente para ver el cambio.
+9. **Given** un artículo con una combinación de ubicación y lote que quedó a físico cero,
+   **When** se consulta, **Then** esa fila no aparece por defecto; al activar la opción de mostrar
+   las de físico cero aparece con físico, reservado y disponible 0, y los totales no cambian.
 
 ---
 
@@ -201,8 +214,9 @@ simular la pérdida de la respuesta tras confirmar.
   distinta y el filtro por lote solo muestra el suyo.
 - Artículo sin seguimiento por lote: sus filas se presentan como «sin lote» y el filtro por lote
   no se ofrece para él.
-- Combinaciones de ubicación y lote que tuvieron existencias y ahora tienen físico cero: no se
-  muestran como filas, pero no impiden consultar el historial del artículo.
+- Combinaciones de ubicación y lote que tuvieron existencias y ahora tienen físico cero: se ocultan
+  por defecto y aparecen al activar la opción de mostrarlas; nunca impiden consultar el historial
+  del artículo. Si solo hay combinaciones de físico cero, se indica «sin existencias».
 - Filtro por una ubicación o un lote inexistentes o ajenos al artículo: se explica que no hay
   coincidencias, sin error técnico.
 - Consulta durante la confirmación de otro movimiento: el resultado corresponde a un único
@@ -227,9 +241,10 @@ simular la pérdida de la respuesta tras confirmar.
 - **FR-001**: El sistema DEBE permitir a los usuarios con permiso de consulta de inventario buscar
   un artículo por SKU o nombre, incluidos los inactivos, y consultar sus existencias. La consulta
   DEBE exigir un artículo; NO DEBE ofrecer un listado general de existencias sin artículo.
-- **FR-002**: Cada fila DEBE corresponder a una combinación de ubicación y lote del artículo con
-  físico mayor que cero, e identificar ubicación (código y descripción), lote o «sin lote», físico,
-  reservado, disponible y unidad de medida.
+- **FR-002**: Cada fila DEBE corresponder a una combinación de ubicación y lote del artículo, e
+  identificar ubicación (código y descripción), lote o «sin lote», físico, reservado, disponible y
+  unidad de medida. Por defecto DEBEN mostrarse solo las combinaciones con físico mayor que cero;
+  una opción explícita DEBE permitir mostrar también las de físico cero, sin alterar los totales.
 - **FR-003**: El disponible DEBE ser físico menos reservado, en cada fila y en los totales, según el
   cálculo común del proyecto; esta feature NO DEBE redefinir ese cálculo ni mantener otro contador.
 - **FR-004**: La consulta DEBE admitir como filtros opcionales una ubicación y un lote, y los
@@ -269,9 +284,9 @@ simular la pérdida de la respuesta tras confirmar.
   o si la ubicación está en un conteo abierto.
 - **FR-017**: Reservar DEBE aumentar el reservado y liberar DEBE disminuirlo, sin cambiar en
   ningún caso el físico.
-- **FR-018**: Liberar DEBE indicar el motivo y la cantidad por asignación, NO DEBE superar el
-  remanente de cada asignación y DEBE admitir varias liberaciones parciales distintas sobre la
-  misma reserva. Se DEBE permitir liberar aunque el artículo esté inactivo o la ubicación esté en
+- **FR-018**: Liberar DEBE indicar la cantidad por asignación y un motivo en texto libre no vacío,
+  sin catálogo cerrado de motivos; NO DEBE superar el remanente de cada asignación y DEBE admitir
+  varias liberaciones parciales distintas sobre la misma reserva, cada una aplicada una sola vez. Se DEBE permitir liberar aunque el artículo esté inactivo o la ubicación esté en
   un conteo abierto.
 - **FR-019**: Cada reserva y liberación DEBE quedar en el historial con responsable, instante,
   pedido y línea, asignaciones y, en las liberaciones, motivo; el historial NO DEBE poder
@@ -328,6 +343,13 @@ simular la pérdida de la respuesta tras confirmar.
   (plan.md, línea 114). HU-05 lo incorpora por decisión de B sobre la frontera HU-03/HU-05, porque
   la reserva lo necesita antes; HU-03 lo consumirá. El cambio queda pendiente de revisión de A,
   según AGENTS.md, y el plan de HU-05 deberá reflejarlo en ambos documentos.
+- Desviación respecto al modelo común: el
+  [modelo](../../.specify/memory/project/data-model.md#customerorder-y-customerorderline) define el
+  estado cancelado del pedido y el
+  [contrato de stock](../../.specify/memory/project/contracts/stock-operations.md#alcance-y-disciplina-de-escritura)
+  menciona un comando de modificación del pedido de cliente. HU-05 no implementa ninguno de los dos:
+  en esta entrega el estado cancelado no es alcanzable y el pedido no se modifica tras el alta. Se
+  conservan en los acuerdos comunes para una historia posterior, sin redefinirlos aquí.
 - Mientras no existan recepciones reales (HU-01), las existencias de prueba se preparan mediante
   el núcleo común; la aceptación integrada con recepciones y salidas se completa en H3.
 
@@ -349,7 +371,8 @@ Esta especificación define la aceptación; no declara realizadas pruebas ni rev
 - **Existencia por ubicación y lote — referencia compartida**: cantidad física y reservada de un
   artículo en una ubicación y lote; el disponible se deriva. Solo cambia por operaciones confirmadas.
 - **Pedido de cliente**: compromiso mínimo con referencia externa única, referencia del cliente y
-  estado (abierto, servido o cancelado). Tiene una o varias líneas.
+  estado abierto o servido; el estado cancelado del modelo común no es alcanzable en HU-05. Tiene
+  una o varias líneas, con un artículo distinto en cada una.
 - **Línea de pedido de cliente**: artículo, cantidad pedida y cantidad servida; el pendiente es la
   diferencia. Puede tener varias reservas.
 - **Reserva**: compromiso de una línea de pedido, con estado derivado activa, consumida o liberada.
@@ -389,14 +412,12 @@ Esta especificación define la aceptación; no declara realizadas pruebas ni rev
   maestros); alta de pedido con el de registro de salidas (Shipping.Record: operario); reservar y
   liberar con el de gestión de reservas (Reservations.Manage: responsable de almacén). El
   administrador no tiene permisos implícitos de inventario.
-- La consulta oculta las combinaciones con físico cero; como el reservado nunca supera el físico,
-  ninguna reserva queda oculta por ello.
-- El pedido de cliente es una referencia local mínima: no se edita ni se cancela en esta feature.
+- Como el reservado nunca supera el físico, ocultar por defecto las combinaciones con físico cero
+  no oculta ninguna reserva.
+- El pedido de cliente es una referencia local mínima, sin edición ni cancelación tras el alta.
   Un compromiso que deja de ser necesario se resuelve liberando sus reservas.
-- Cada artículo aparece una sola vez por pedido; la referencia del cliente es obligatoria y de
-  texto libre.
-- El motivo de una liberación es texto libre obligatorio; la reserva se justifica por su pedido y
-  línea, sin motivo adicional.
+- La referencia del cliente es obligatoria y de texto libre.
+- La reserva se justifica por su pedido y línea, sin motivo adicional.
 - Las reservas no caducan; no hay reservas automáticas ni selección por antigüedad de lote.
 - Mientras HU-04 no esté integrada no existen conteos abiertos; la regla de congelación se aplica
   desde su integración.
