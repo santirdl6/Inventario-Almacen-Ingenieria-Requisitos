@@ -1,0 +1,47 @@
+services:
+  recovery-storage:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    user: "0:0"
+    entrypoint: [sh, -c, "chown 10001:0 /v14 && chmod 0770 /v14"]
+    volumes:
+      - recovery-backups:/v14
+
+  sqlserver:
+    environment:
+      MSSQL_MEMORY_LIMIT_MB: "2048"
+    depends_on:
+      recovery-storage:
+        condition: service_completed_successfully
+    volumes:
+      - recovery-backups:/v14
+
+  sqlrestore:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    platform: linux/amd64
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_MEMORY_LIMIT_MB: "2048"
+      MSSQL_SA_PASSWORD: ${SQL_SA_PASSWORD:-LocalSqlAdmin_2026!}
+    depends_on:
+      recovery-storage:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -C -b -Q "SELECT 1" -o /dev/null
+      interval: 10s
+      timeout: 5s
+      start_period: 40s
+      retries: 15
+    volumes:
+      - recovery-restored-data:/var/opt/mssql
+      - recovery-backups:/v14:ro
+
+  tests:
+    environment:
+      Testing__RecoveryRestoreHost: sqlrestore
+
+volumes:
+  recovery-restored-data:
+  recovery-backups:
