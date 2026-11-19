@@ -1,13 +1,17 @@
 # Investigación y decisiones: HU-02 — Ubicaciones
 
-**Fecha**: 2026-11-18 · **Plan**: [plan.md](plan.md) · **Spec**: [spec.md](spec.md)
+**Fecha**: 2026-11-18, revisado el 2026-11-19 (base integrada de A y recorte) · **Plan**: [plan.md](plan.md) · **Spec**: [spec.md](spec.md)
 **Base común**: [research global](../../.specify/memory/project/research.md) (R-01…R-10),
 que este documento no repite. Aquí solo constan las decisiones propias de HU-02.
+
+**Revisión 2026-11-19**: D-01, D-03, D-08 y D-09 no cambian en lo esencial. D-02, D-04–D-07 y
+D-10–D-12 se reescriben para usar la base común de A; D-13 registra el recorte de la
+entrega del sábado. Cada sección revisada indica qué cambia y por qué.
 
 ## D-01. Ampliar `Location` de H0, no redefinirla
 
 **Decisión**: conservar la clase `Domain.Locations.Location`, la tabla `Locations` y la
-migración `20261116194714_H0_StockCore` sin cambios. HU-02 añade métodos de dominio
+migración `20261118194940_H0_StockCore` sin cambios. HU-02 añade métodos de dominio
 (corrección, cambio de tipo, desactivación, reactivación) y una migración aditiva
 `HU02_Locations` posterior a `H0_StockCore`.
 
@@ -28,14 +32,24 @@ la migración comprueba que no haya combinaciones duplicadas y, si las hay, fall
 mensaje explícito en lugar de borrar o renombrar datos.
 
 **Motivo**: dos altas concurrentes del mismo hueco solo se evitan de forma fiable con una
-restricción SQL; una comprobación previa en la aplicación no basta (R-03). El handler
-traduce las violaciones 2601/2627 a un 409 por campo.
+restricción SQL; una comprobación previa en la aplicación no basta (R-03). Aun así, el
+comando comprueba antes de guardar si otra ubicación ocupa el mismo lugar y, si la hay,
+responde 409 `DuplicateLocationPlace` con un `detail` que **nombra su código**, porque US1.3
+exige identificar la ubicación ya registrada. El índice cubre la carrera entre dos altas
+simultáneas; en ese caso el mapper responde el mismo código sin nombrar la existente.
+
+**Traducción del error (revisado 2026-11-19)**: el código repetido ya lo traduce
+`MasterDataProblemMapper` de A a 409 `DuplicateCode` con `errors.code` (índice de `Code`),
+y se reutiliza. Para el índice físico se añade a ese mapper una rama: 2601/2627 sobre
+`UX_Locations_Aisle_Rack_Level` → 409 `DuplicateLocationPlace` con `errors.aisle`,
+`errors.rack` y `errors.level`. Se retira `existingLocationId`: `InventoryProblemException`
+no lleva extensiones y la interfaz ofrece buscar la ubicación por código.
 
 **Alternativas**: applock global de altas (serializa todo sin necesidad); columna calculada
 normalizada (innecesaria porque el dominio ya normaliza al escribir).
 
-**Dependencia**: es un cambio del modelo común. Confirmado por B, **pendiente de validación
-de A en el PR** ([plan §Cambios pendientes de A](plan.md#cambios-al-modelo-común-pendientes-de-a)).
+**Dependencia**: cambio del modelo común **validado por A** (acuerdo con A, 2026-11-19); el
+diff documental se aplica en T068 ([plan §Cambios pendientes de A](plan.md#cambios-al-modelo-común-pendientes-de-a)).
 
 ## D-03. «Tiene movimientos» se deriva de `StockBalances`
 
@@ -49,10 +63,9 @@ existencia de saldo ⇔ existencia de alguna entrada confirmada, también si se 
 (FR-011: el bloqueo persiste aunque el saldo vuelva a cero). Una prueba de integración
 fija esta equivalencia para detectar si una historia futura la rompe.
 
-**Refuerzo**: la regla «nunca se borra un saldo» pasa de convención a garantía:
-`DatabaseBootstrapper` añade `DENY DELETE ON OBJECT::dbo.StockBalances` al usuario de
-ejecución (UPDATE sigue permitido, porque el núcleo actualiza cantidades). Así D-03 no
-depende de que ninguna historia futura respete la convención por disciplina.
+**Refuerzo**: la regla «nunca se borra un saldo» es una garantía: la migración
+`H0_StockCore` ya deniega DELETE sobre `StockBalances` al rol `inventory_runtime` (validado
+por A el 2026-11-19 y probado en `StockCoreTests`). HU-02 no añade trabajo aquí.
 
 **Alternativas**: `EXISTS` sobre `StockEntries` exige un índice nuevo por `LocationId` en
 una tabla de crecimiento 1.000.000+; columna `HasMovements` mantenida por el núcleo
@@ -60,71 +73,75 @@ añade una escritura más a cada movimiento.
 
 ## D-04. Coordinación con movimientos mediante el bloqueo de ubicación
 
-**Decisión**: todo comando de HU-02 que modifique una ubicación existente sigue el mismo
-orden que el [protocolo de stock](../../.specify/memory/project/contracts/stock-operations.md):
-transacción READ COMMITTED → `operation:{key}` → `location:{id}` → (si aplica)
-`locations:receiving` → leer estado y saldos → validar → escribir ubicación, auditoría y
-`OperationResult` → commit. El helper de applock que hoy es privado en `StockCore` se
-extrae a `Infrastructure/Persistence/AppLocks` y lo usan ambos, sin cambiar su semántica.
+**Decisión (revisada 2026-11-19)**: todo comando de HU-02 se ejecuta con el
+`InventoryOperationExecutor` de A, que abre la transacción y adquiere `operation:{key}`;
+dentro de `change`, el comando adquiere `location:{id}` con `context.Locks.LocationsAsync`,
+la misma fase que usa `StockCore`, y solo después lee estado y saldos, valida y escribe.
 
-**Motivo**: `StockCore` ya adquiere `location:{id}` antes de leer `Location.IsActive` y
-rechaza recepciones y reservas en ubicaciones inactivas. Con el mismo bloqueo,
-desactivación y recepción simultáneas quedan serializadas (US5.4, FR-016, SC-004):
-o entra la recepción y la desactivación ve existencias, o entra la desactivación y la
-recepción ve la ubicación inactiva. La corrección de código/pasillo/estantería/nivel
-también toma el bloqueo, para no cambiar la identificación mientras llega la primera entrada.
+**Qué cambia y por qué**: la 1.ª iteración extraía un `AppLocks` propio de `StockCore`.
+La base integrada ya tiene `InventoryLocks`, que impone el orden operación → documentos →
+ubicaciones → artículos y lo comprueba en tiempo de ejecución; usarlo evita un segundo
+helper y no requiere tocar `StockCore`.
+
+**Motivo**: `StockCore` adquiere `location:{id}` antes de leer `Location.IsActive` y rechaza
+recepciones y reservas en ubicaciones inactivas. Con el mismo bloqueo, desactivación y
+recepción simultáneas quedan serializadas (US5.4, FR-016, SC-004). La corrección de
+código/pasillo/estantería/nivel también toma el bloqueo, para no cambiar la identificación
+mientras llega la primera entrada.
 
 **Alternativas**: solo rowversion (no protege frente a una recepción que no modifica la
 fila de `Locations`); SERIALIZABLE sobre `StockBalances` (más difícil de razonar, R-03).
 
 ## D-05. Última zona de recepción activa (FR-021)
 
-**Decisión**: desactivar una ubicación `Receiving` o cambiar su tipo a `Storage` adquiere,
-después de `location:{id}`, el bloqueo `locations:receiving` y cuenta las zonas de recepción
-activas restantes. Si quedaría cero y la petición no trae `acknowledgeNoActiveReceiving: true`,
-responde 409 `NoActiveReceivingLeft` sin cambios. La interfaz muestra la advertencia y,
-si el usuario confirma, reenvía con el reconocimiento y una clave de idempotencia nueva,
-porque el cuerpo cambia (véase D-06). Si el estado se lee antes, `GET /locations/{id}`
-expone `isLastActiveReceiving` para avisar de antemano, pero la decisión es del servidor.
+**Decisión (revisada 2026-11-19)**: desactivar una ubicación `Receiving` o cambiar su tipo a
+`Storage` adquiere, después de `location:{id}`, el recurso `locations:receiving` con un
+método nuevo `InventoryLocks.ReceivingZonesAsync()` en la fase de ubicaciones (`location:`
+precede a `locations:` en orden ordinal, así que se cumple la regla de orden de
+`InventoryLocks`), y cuenta las zonas de recepción activas restantes. Si quedaría cero,
+responde **409 `NoActiveReceivingLeft`** sin cambios, con un `detail` que explica que antes
+debe crearse o activarse otra zona de recepción. `GET /locations/{id}` expone
+`isLastActiveReceiving` para que la interfaz lo explique de antemano, pero decide el servidor.
 
-**Motivo**: la advertencia debe ser verificable en servidor (SC-004) y no depender de una
-lectura previa en el navegador. Sin el bloqueo común, dos desactivaciones simultáneas de
-las dos últimas zonas verían cada una «queda otra» y ambas pasarían sin aviso.
-`StockCore` no adquiere `locations:receiving`, así que no se introduce riesgo de interbloqueo.
+**Qué cambia y por qué**: la 1.ª iteración permitía la retirada con
+`acknowledgeNoActiveReceiving`; el acuerdo con A del 2026-11-19 la impide (spec FR-021).
+El campo de reconocimiento desaparece del contrato y la interfaz ya no reenvía.
 
-**Alternativas**: endpoint de vista previa sin bloqueo (no evita la carrera); impedirlo
-siempre (rechazado en la clarificación 5).
+**Motivo**: sin el bloqueo común, dos retiradas simultáneas de las dos últimas zonas verían
+cada una «queda otra» y ambas pasarían. `StockCore` no adquiere `locations:receiving`, así
+que no hay riesgo de interbloqueo. El método nuevo de `InventoryLocks` lo revisa A (T001).
 
-## D-06. Idempotencia reutilizando `OperationResult`
+**Alternativas**: endpoint de vista previa sin bloqueo (no evita la carrera); applock manual
+fuera de `InventoryLocks` (saltaría la comprobación de fases de A).
 
-**Decisión**: POST y PUT de ubicaciones exigen cabecera `Idempotency-Key` (UUID). Se guarda
-`OperationResult` con `Resource` = `locations` o `locations/{id}`, huella SHA-256 del cuerpo
-normalizado (recortado, mayúsculas) y el cuerpo de respuesta, en la misma transacción.
-Misma clave + mismo actor + mismo recurso + misma huella → se devuelve el resultado
-guardado (también si el If-Match ya quedó obsoleto por ese mismo éxito); cualquier
-diferencia → 409 `IdempotencyConflict`. Un cambio de contenido (p. ej. añadir el
-reconocimiento de D-05) es una intención nueva con clave nueva.
+## D-06. Idempotencia con el ejecutor y `OperationResult` de A
 
-**Motivo**: misma semántica que el núcleo y que el contrato HTTP común; evita una segunda
-tabla de idempotencia. No se añade `GET /operations/{id}`: la comprobación de resultado de
-US5.3 se hace repitiendo la misma clave, como permite el contrato común.
+**Decisión (revisada 2026-11-19)**: POST y PUT exigen `Idempotency-Key` (UUID; si falta o no
+es válido, 400 `InvalidRequest`, con el mismo `Key()` que los endpoints de maestros). El
+comando construye un `OperationRequest` con el método, el recurso canónico
+`/api/v1/locations` o `/api/v1/locations/{id}`, el permiso `Locations.Manage` y el cuerpo
+normalizado (recortado y en mayúsculas). El ejecutor resuelve el replay **antes** de
+ejecutar `change`, de modo que un replay tras éxito devuelve el resultado guardado aunque el
+If-Match ya esté obsoleto; actor, recurso, permiso o huella distintos → 409
+`IdempotencyConflict`.
 
-## D-07. Auditoría con `MasterDataAudit` común
+**Qué cambia y por qué**: se retira `LocationCommandRunner` y su `BeforeCommit`. El ejecutor
+de A ya hace transacción, reintentos, replay, permiso y `OperationResult`; la prueba de
+atomicidad L-15 usa el `FailAfterSaveInterceptor` existente, que falla después de guardar y
+antes del commit. US5.3 puede comprobarse repitiendo la misma clave o con
+`GET /operations/{id}` de A.
 
-**Decisión**: cada alta, corrección, desactivación y reactivación escribe una fila en
-`MasterDataAudit` (EntityType `Location`, Action `Create`/`Update`/`Deactivate`/`Reactivate`,
-Before/After JSON, ActorId de `ICurrentActor`, RecordedAt del servidor, OperationId) en la
-misma transacción. Si la tabla no existe todavía al integrar, `HU02_Locations` la crea con
-exactamente los campos del modelo común y el inicializador deniega UPDATE/DELETE al
-usuario de ejecución, como en el diario.
+## D-07. Auditoría con `MasterDataAudit` y `MasterDataAuditWriter` de A
 
-**Motivo**: FR-015 y principio V (cambios de maestros auditables). La entidad ya está
-definida en el modelo común y HU-08 (A) la necesitará igual; crear una tabla propia de
-ubicaciones duplicaría el concepto.
+**Decisión (revisada 2026-11-19)**: cada alta, corrección, desactivación y reactivación llama a
+`MasterDataAuditWriter.Record(context, MasterDataEntity.Location, id, action, before, after)`
+dentro de `change`, después de guardar la ubicación; el ejecutor la confirma junto con
+`OperationResult`. Before/After son `{code, aisle, rack, level, kind, isActive}`.
 
-**Coordinación**: no cambia la documentación común, pero sí implementa por primera vez
-una tabla compartida. Si A integra antes su versión, B regenera `HU02_Locations` sin esa
-parte (plan global, sincronización §5). Se señala en el PR para revisión de A.
+**Qué cambia y por qué**: la tabla ya existe (`HU08AuditInfrastructure`) con su DENY de
+UPDATE/DELETE, así que HU-02 no la crea. Solo hace falta admitir la entidad: valor
+`Location` en `MasterDataEntity` y en el CHECK `CK_MasterDataAudit_Entity` (migración
+`HU02_Locations`). Son cambios aditivos en archivos de A, señalados para su revisión.
 
 ## D-08. Un PUT para datos y estado, con reglas por tipo de cambio
 
@@ -154,38 +171,62 @@ la pantalla de disponibilidad pertenecen a HU-05.
 ## D-10. Conteo abierto como punto de extensión
 
 **Decisión**: la regla «no desactivar ni cambiar tipo con conteo abierto» (FR-012) se
-implementa tras una interfaz `ILocationUsage` con una implementación H1 que comprueba
-existencias y reservas en `StockBalances`, y que HU-04 ampliará con `CountLocation.IsFrozen`.
-Hasta entonces las pruebas de conteo quedan como evidencia parcial pendiente (spec,
-Alcance y dependencias).
+implementa tras `ILocationUsage`, con una implementación que comprueba existencias y
+reservas en `StockBalances` y que HU-04 ampliará con `CountLocation.IsFrozen` (T034 ⛔).
+Hasta entonces las pruebas de conteo quedan como evidencia parcial pendiente. Sin cambios
+en la revisión del 2026-11-19, salvo que el código de `3b0c0ae` se porta adaptado.
 
-## D-11. Frontend en `features/locations`
+## D-11. Frontend en `features/locations` sobre la base de A
 
-**Decisión**: componentes standalone, formularios reactivos tipados, signals y PrimeNG
-(Table, InputText, Select, Dialog/ConfirmDialog, Message, Tag con texto). Servicio HTTP
-propio de la feature; reutiliza `ApiError` y el interceptor de `core/http`. Clave de
-idempotencia por intención con `crypto.randomUUID()`, guardada en sessionStorage hasta
-recibir una respuesta definitiva (contrato UI, estado 7). El XSRF lo gestiona HttpClient
-con los nombres por defecto (`XSRF-TOKEN` / `X-XSRF-TOKEN`), ya acordados en R-06.
+**Decisión (revisada 2026-11-19)**: se portan las pantallas ya escritas en `8377a12`
+(componentes standalone, formularios reactivos tipados, signals, PrimeNG) adaptándolas a la
+base de A, sin traer la configuración de pruebas de esa rama:
 
-**Dependencias**: la rama `b/h0-frontend-base` (ruta diferida, layout, `ApiError`) no está
-fusionada en `b/hu-02-ubicaciones`; debe integrarse antes de empezar el frontend.
-La búsqueda de artículos por código o nombre (US2.1) consume `GET /articles` de HU-08 (A);
-mientras no exista, la pantalla de artículo admite abrirse desde un identificador y la
-prueba de US2.1 queda pendiente de esa entrega. El inicio de sesión en la interfaz es
-trabajo común aún no entregado; las pruebas E2E de HU-02 dependen de él.
+- Errores con `apiProblem()` (`status`, `code`, `detail`, `errors`) en lugar de `ApiError`.
+- Permisos con `SessionService.has('Locations.Manage')`; `nueva` y `:id/editar` protegidas con
+  `permissionGuard` y `data.permission`; la lista y el detalle heredan `Inventory.Read` del
+  área. Se retira `location-permissions.ts`.
+- Parámetros `id` y `articleId` leídos con `ActivatedRoute`, porque A no activa
+  `withComponentInputBinding`.
+- Mensajes de éxito y error en la propia página (`role="status"` / `role="alert"`), sin
+  `MessageService` ni avisos globales.
+- Búsqueda de artículos (US2.1) con `GET /articles?q=` de A; se retira el acceso provisional.
+
+**Excepción documentada**: se mantiene `idempotent-intent.ts`. El `PendingOperationStore` de A
+solo admite rutas de maestros y exige `MasterData.Manage`; ampliarlo cambiaría su contrato.
+Guarda solo la clave y el cuerpo de la ubicación (datos no sensibles) y se borra tras una
+respuesta definitiva. Si A amplía su almacén, se migra en una historia posterior.
+
+**Alternativa**: `VersionConflictComponent` de A para el 412; se mantiene el panel de
+`8377a12` porque ya está probado y A no tiene etiquetas para pasillo, estantería y nivel.
 
 ## D-12. Pruebas
 
-**Decisión**: pruebas en `Inventario.IntegrationTests`, un archivo por historia más uno de
-infraestructura (véase la estructura de `plan.md`), con el patrón de
-`StockCoreTests`: `IClassFixture<IdentityFixture>`, base y login aleatorios, contextos
-de aplicación con la conexión restringida, existencias preparadas solo con `StockCore`
-y `TestActor`, concurrencia con `Task.WhenAll` sobre contextos independientes. Las
-pruebas HTTP (permisos, ETag/If-Match, Idempotency-Key, ProblemDetails) usan
-`fixture.Factory()` con sesión real y antiforgery como `IdentityTests`.
-Frontend: Vitest/TestBed para servicio, formularios y estados; Playwright cuando exista
-el login de la interfaz.
+**Decisión (revisada 2026-11-19)**: pruebas en `Inventario.IntegrationTests/Locations/`, un
+archivo por historia, con `IClassFixture<IdentityFixture>` y `StockTestHarness` para preparar
+existencias con el núcleo (sin duplicar utilidades). Cada historia prueba su **recorrido
+habitual, su error principal y sus permisos**; US5 concentra concurrencia, versiones,
+idempotencia y atomicidad. Frontend: Vitest/TestBed por pantalla; Playwright solo para el
+recorrido principal, con el fixture de A (`master-data.fixture.ts`) y su cuenta Operario.
+
+**Qué cambia y por qué**: se retiran L-13 y L-14 como pruebas propias. El DENY sobre
+`StockBalances` ya lo prueba `StockCoreTests` y el de `MasterDataAudit`,
+`OperationProtocolTests` de A; la consecuencia práctica de D-03 (identificación bloqueada
+aunque el saldo vuelva a cero) la comprueba L-07.
 
 **Alternativas**: InMemory/SQLite descartados (R-08): no verifican índices únicos,
 collation ni applocks.
+
+## D-13. Recorte para la entrega del sábado
+
+**Decisión (2026-11-19)**: quedan fuera de esta entrega la medición de rendimiento (SC-005,
+antes T064) y la validación con operarios (SC-006, antes T066). La revisión de accesibilidad
+separada (antes T065) se sustituye por comprobaciones de teclado, foco y textos en las specs
+de Vitest y en el E2E.
+
+**Motivo**: plazo. Las dos primeras necesitan datos de volumen y sesiones con trabajadores
+que no caben antes del sábado; el diseño no las impide.
+
+**Consecuencia**: desviación registrada en
+[plan.md § Complexity Tracking](plan.md#complexity-tracking): HU-02 puede integrarse, pero
+no darse por aceptada hasta aportar SC-005 y SC-006.

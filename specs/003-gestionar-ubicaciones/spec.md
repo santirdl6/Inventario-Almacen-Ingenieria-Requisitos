@@ -1,6 +1,6 @@
 # Feature Specification: HU-02 — Gestionar las ubicaciones de los artículos
 
-**Feature Branch**: `b/hu-02-ubicaciones` (el directorio de la feature es independiente de la rama Git).
+**Feature Branch**: `b/hu-02-ubicaciones-v2` (el directorio de la feature es independiente de la rama Git).
 
 **Created**: 2026-11-16
 

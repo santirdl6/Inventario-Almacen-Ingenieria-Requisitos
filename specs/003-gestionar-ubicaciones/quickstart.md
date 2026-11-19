@@ -5,17 +5,21 @@ de pruebas, datos comunes §5, V-01 y V-03). Esta guía solo añade los pasos de
 Contratos: [API](contracts/locations-api.md), [UI](contracts/locations-ui.md);
 reglas: [data-model.md](data-model.md). Nada de lo descrito aquí está ejecutado todavía.
 
+**Revisión 2026-11-19**: base integrada de A; L-11 pasa a «se impide»; L-13 y L-14 se
+retiran (cubiertos por `StockCoreTests` y `OperationProtocolTests`); E2E desbloqueado con el
+login de A, solo para el recorrido principal; rendimiento y operarios fuera de esta entrega.
+
 ## Prerrequisitos
 
-1. Rama `b/hu-02-ubicaciones` con `b/h0-frontend-base` integrada (ruta diferida y `ApiError`).
-2. Migración `HU02_Locations` aplicada por el inicializador; antes, comprobar que no hay
-   combinaciones pasillo/estantería/nivel repetidas en bases existentes (la migración falla
+1. Rama `b/hu-02-ubicaciones-v2` (núcleo de stock y frontend de A integrados).
+2. Migración `HU02_Locations` aplicada; antes, comprobar que no hay combinaciones
+   pasillo/estantería/nivel repetidas en bases existentes (la migración falla
    explícitamente si las hay).
 3. `dotnet ef migrations has-pending-model-changes` sin cambios pendientes.
 
 ## Pruebas automatizadas backend
 
-Mismo comando que el núcleo H0 (guía común, «Núcleo de stock H0»), desde la raíz:
+Contenedor del SDK sobre la red de Compose, como en la guía común:
 
 ```bash
 docker compose up -d sqlserver
@@ -24,64 +28,70 @@ docker run --rm --network inventario_default -v "$PWD/backend:/src" -w /src \
   mcr.microsoft.com/dotnet/sdk:10.0 sh -c 'dotnet tool restore && dotnet test Inventario.slnx --nologo'
 ```
 
-Resultado esperado: las 26 pruebas previas siguen pasando sin cambios (incluidas las 8 de
-`StockCoreTests`, ahora con `StockCore` delegando en `AppLocks`) y las pruebas de ubicaciones
-(`Locations*Tests`, `ArticleLocationsTests`, `LocationStockTests`) cubren la matriz siguiente.
-Repetir tres veces las de concurrencia, como en `StockCoreTests`.
+Resultado esperado: las 88 pruebas previas siguen pasando y las de `Locations/` cubren la
+matriz siguiente. Repetir tres veces las de concurrencia.
 
 | Caso | Preparación y acción | Resultado esperado | Spec |
 |------|----------------------|--------------------|------|
-| L-01 | Alta REC-01 (Receiving), P01-E01-N01, P01-E01-N02. | 201, activas, vacías, auditoría `Create`, sin movimientos. | US1.1, FR-004, FR-015 |
-| L-02 | Alta ` p01-e01-n01 ` y otra con P01/E01/N01 y otro código, también contra una inactiva. | 409 `DuplicateLocationCode` / `DuplicateLocationPlace` con campo e id existente; nada creado. | US1.2–1.3, FR-002–003 |
-| L-03 | Alta con pasillo «   » en tipo Receiving. | 422 con `errors.aisle`; nada creado. | US1.4 |
-| L-04 | 8 altas simultáneas con la misma clave; 2 altas simultáneas del mismo código con claves distintas. | Una ubicación; replays idénticos; la segunda alta 409. | US5.3, FR-018 |
-| L-05 | Recibir con `StockCore` 2 y 4 de ART-01/L-001 en N01/N02; consultar artículo y N02. | Buckets 2 y 4, total 6 desde StockBalances; N02 lista 4 UD. | US2.1, US3.1, SC-003 |
-| L-06 | Dos lotes en la misma ubicación; artículo sin existencias; ubicación inactiva con historial. | Lotes por separado sin duplicar total; vacío sin error; inactiva visible con estado. | US2.2–2.4 |
-| L-07 | Corregir nivel de ubicación sin movimientos; intentar lo mismo en N01 tras recibir y tras dejarla a cero. | Primero 200 + auditoría; después 409 `LocationIdentityLocked` en ambos casos. | US4.1–4.2, FR-011 |
-| L-08 | Desactivar N02 con existencias; reservar y liberar con `StockCore` y reintentar con reserva viva; vaciarla con Ship; desactivar; reactivar. | 409 `LocationNotEmpty`; después 200 `Deactivate` y `Reactivate`; Receive/Reserve rechazados mientras inactiva. | US4.3–4.5, FR-012–013 |
+| L-01 | Alta REC-01 (Receiving), P01-E01-N01, P01-E01-N02; búsqueda por prefijo y filtros. | 201, activas, vacías, auditoría `Create` con entidad `Location`, sin movimientos; la búsqueda solo devuelve coincidencias. | US1.1, US1.5, FR-001, FR-004, FR-005, FR-015 |
+| L-02 | Alta ` p01-e01-n01 ` frente a un código existente y uno inactivo; otro código con P01/E01/N01. | 409 `DuplicateCode` / `DuplicateLocationPlace` con sus campos; nada creado. | US1.2–1.3, FR-002–003 |
+| L-03 | Alta con pasillo «   » en tipo Receiving; longitudes excesivas; `page=0`. | 422 con `errors.aisle` / longitud / `errors.page`; nada creado. | US1.4, FR-003 |
+| L-04 | 8 altas simultáneas con la misma clave. | Una ubicación; respuestas idénticas. | US5.3, FR-018 |
+| L-05 | Recibir con el núcleo 2 y 4 de ART-01/L-001 en N01/N02; consultar el artículo y N02. | Buckets 2 y 4, total 6 desde StockBalances, igual al diario; N02 lista 4 UD. | US2.1, US3.1, SC-003 |
+| L-06 | Dos lotes en la misma ubicación; artículo sin existencias; ubicación inactiva con historial; `pageSize=1`. | Lotes por separado sin duplicar total; vacío sin error; inactiva visible con estado; total de todo el artículo. | US2.2–2.5, FR-007 |
+| L-07 | Corregir nivel sin movimientos; intentar lo mismo en N01 tras recibir y tras dejarla a cero. | Primero 200 + auditoría `Update`; después 409 `LocationIdentityLocked` en ambos casos. | US4.1–4.2, FR-011 |
+| L-08 | Desactivar N02 con existencias y con reserva viva; vaciarla; desactivar; reactivar. | 409 `LocationNotEmpty`; después 200 `Deactivate` y `Reactivate`; Receive/Reserve rechazados mientras inactiva; sigue en las consultas. | US4.3–4.5, FR-012–013 |
 | L-09 | Desactivación y Receive simultáneos sobre ubicación vacía (20 repeticiones). | Siempre uno de los dos resultados válidos; nunca saldo en ubicación inactiva. | US5.4, FR-016, SC-004 |
-| L-10 | Dos PUT con el mismo ETag; PUT sin If-Match; replay tras éxito con ETag ya obsoleto. | 200 y 412; 428; replay devuelve el primer resultado. | US5.2, FR-017 |
-| L-11 | Desactivar la única Receiving sin y con reconocimiento; dos Receiving desactivadas a la vez. | 409 `NoActiveReceivingLeft`, luego 200; en paralelo, como mucho una pasa sin aviso. | US4.7, FR-021 |
-| L-12 | Cuenta GestorMaestros (solo lectura) intenta POST/PUT; sin sesión; sin antiforgery; DELETE. | 403, 401, 400, 405; consulta permitida. | US5.1, FR-010, FR-014 |
-| L-13 | Equivalencia D-03: tras cada operación del núcleo, «tiene saldo» ⇔ «tiene entradas». | Coinciden para todas las ubicaciones de la prueba. | FR-011 |
-| L-14 | Usuario de ejecución intenta UPDATE/DELETE en MasterDataAudit y DELETE en StockBalances. | Error SQL 229 en los tres casos. | FR-011, FR-015 |
-| L-15 | Fallo inducido después de guardar y antes del commit en un alta y en una desactivación; después, repetir con la misma clave. | Ni ubicación ni cambio, ni auditoría, ni `OperationResult`; el reintento confirma un solo efecto con una sola auditoría. | FR-015, FR-018, SC-007 |
+| L-10 | Dos PUT con el mismo ETag; PUT sin If-Match; replay tras éxito con ETag ya obsoleto; misma clave con otro cuerpo. | 200 y 412 `VersionConflict`; 428; replay devuelve el primer resultado; 409 `IdempotencyConflict`. | US5.2–5.3, FR-017–018 |
+| L-11 | Desactivar la única Receiving; pasarla a Storage; con dos Receiving, retirarlas a la vez. | 409 `NoActiveReceivingLeft` sin cambios en ambos; en paralelo, exactamente una 200 y otra 409. | US4.7, FR-021, SC-004 |
+| L-12 | Cuenta GestorMaestros (solo lectura) intenta POST/PUT; Administrador (sin `Inventory.Read`) consulta; sin sesión; sin antiforgery; DELETE. | 403; 403; 401; 400; 405; consulta del lector permitida. | US5.1, FR-010, FR-014 |
+| L-15 | `FailAfterSaveInterceptor` armado en un alta y en una desactivación; después, repetir con la misma clave. | Ni ubicación ni cambio, ni auditoría, ni `OperationResult`; el reintento confirma un solo efecto con una sola auditoría. | FR-015, FR-018, SC-007 |
 
 ## Pruebas frontend
 
-Directorio `frontend/`:
+Directorio `frontend/`, con la configuración de pruebas de A:
 
 ```bash
-npx --no-install ng test --watch=false
-npx --no-install ng build --configuration production
+npm test
+npm run build
 ```
 
-Vitest/TestBed: validación de formulario y conservación de datos tras 422/409, mensaje
-de 412 con «Ver datos vigentes», reutilización de la clave tras error de red, diálogo de
-desactivación con advertencia de última zona de recepción, textos de estado sin depender
-del color. Playwright (L-01, L-05, L-08 por la UI) queda pendiente del login de la interfaz,
-igual que SC-001 por la interfaz y la revisión manual de accesibilidad.
+Vitest/TestBed: validación de formulario y conservación de datos tras 422/409; mensaje de
+412 con «Ver datos vigentes»; misma clave tras error de red; diálogo de desactivación que
+impide retirar la última zona de recepción; textos de estado sin depender del color; foco
+tras error; botones de gestión ocultos sin `Locations.Manage`.
 
-## Rendimiento (SC-005)
+## E2E (recorrido principal)
 
-Con 2.000 ubicaciones, 10.000 artículos y saldos sintéticos generados con el núcleo,
-25 sesiones concurrentes ejecutan `GET /locations?search=` y `GET /articles/{id}/locations`.
-Objetivo: p95 ≤ 2 s. Registrar fecha, entorno y resultados; sin descartar errores.
+```bash
+npm run test:e2e -- e2e/locations.spec.ts
+```
 
-## Validación con operarios (SC-006)
+Con el fixture de A (`master-data.fixture.ts`, entorno dedicado y cuenta Operario):
+iniciar sesión → `/ubicaciones` → crear REC-01 y P01-E01-N01 → error de duplicado sin
+perder lo escrito → buscar → abrir el detalle vacío → desactivar con revisión → reactivar;
+todo por teclado. Con la cuenta GestorMaestros, la lista se ve y no hay botones de gestión.
+Las existencias no se preparan por la interfaz (HU-01 no tiene recepciones HTTP todavía):
+L-05 se demuestra por API.
 
-Al menos tres operarios: alta de una ubicación, corrección de un campo inválido,
-localizar un artículo repartido (< 30 s desde inicio) y desactivar una ubicación vacía.
-Documentar participantes, resultado, incidencias y correcciones (constitución III).
-Requiere el login en la interfaz. La localización de un artículo y el tiempo de 30 s
-requieren además la búsqueda de artículos de HU-08; no se miden con el acceso provisional
-(desde el contenido de una ubicación o por identificador), que es solo para desarrollo.
+## Evidencia
+
+Registrar aquí fecha, entorno, número de pruebas y resultado de cada ejecución completa.
+
+## Fuera de alcance de esta entrega
+
+Desviación registrada en [plan.md § Complexity Tracking](plan.md#complexity-tracking).
+HU-02 no se da por aceptada hasta aportar:
+
+- **Rendimiento (SC-005)**: con 2.000 ubicaciones, 10.000 artículos y saldos sintéticos
+  generados con el núcleo, 25 sesiones concurrentes contra `GET /locations?search=` y
+  `GET /articles/{id}/locations`; p95 ≤ 2 s; localizar un artículo en < 30 s desde el inicio.
+- **Validación con operarios (SC-006)**: al menos tres operarios completan alta,
+  corrección de un campo inválido, localización de un artículo repartido y desactivación
+  de una ubicación vacía; documentar participantes, resultados, incidencias y correcciones.
 
 ## Pendiente por dependencias
 
-- Conteo abierto (FR-012, US3.3, US4.3, SC-004) con HU-04; reservas reales de pedidos con HU-03/HU-05.
-- Búsqueda de artículo por código o nombre (US2.1), tiempo de SC-005 y tarea 3 de SC-006
-  con `GET /articles` de HU-08.
-- Login en la interfaz: E2E con Playwright, SC-001 por la interfaz, partes de interfaz de
-  FR-019 y FR-020, revisión de accesibilidad y validación con operarios (SC-006).
+- Conteo abierto (FR-012, US3.3, US4.3, SC-004) con HU-04 (T034).
+- Reservas reales de pedidos con HU-03/HU-05; mientras, reservas con el núcleo.
 - Integración con recepciones reales (V-03) en H3.
