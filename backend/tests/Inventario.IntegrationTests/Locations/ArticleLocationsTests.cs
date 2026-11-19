@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Inventario.IntegrationTests.Fixtures;
 using Xunit;
 using static Inventario.IntegrationTests.Locations.LocationsTestSupport;
 
@@ -66,6 +67,49 @@ public sealed class ArticleLocationsTests(IdentityFixture fixture) : IClassFixtu
         Assert.False(inactiveArticle.GetProperty("article").GetProperty("isActive").GetBoolean());
         Assert.Equal(2, inactiveArticle.GetProperty("totalCount").GetInt32());
         Assert.Equal("5.000", inactiveArticle.GetProperty("totals").GetProperty("physical").GetString());
+    }
+
+    [Fact]
+    public async Task Hu08_deactivation_preserves_hu02_balances_and_hu08_history_for_the_same_article()
+    {
+        using var factory = fixture.Factory();
+        using var support = new LocationsTestSupport(fixture, factory);
+        var operatorApi = await support.SessionAsync();
+        using var manager = await MasterDataApi.LoginAsync(fixture, factory);
+        var family = await manager.FamilyAsync();
+        var sku = "HU08-HU02-" + Unique(10);
+        using var created = await manager.WriteAsync(HttpMethod.Post, "/api/v1/articles",
+            MasterDataArticleTests.Body(family, sku));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var article = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("resource").GetProperty("id").GetGuid();
+        var location = await CreateLocationAsync(operatorApi, code: "C-" + Unique(10));
+        await support.ReceiveAsync(article, location.Id, 5m, "L-001");
+        await support.ReserveAsync(article, location.Id, 2m, "L-001");
+        await support.ShipAsync(article, location.Id, 1m, ownReserved: 1m, lot: "L-001");
+
+        var path = $"/api/v1/articles/{article:D}";
+        var historyPath = $"{path}/movements?locationId={location.Id:D}";
+        var before = await ReadAsync(operatorApi, article);
+        var previousHistory = await operatorApi.Client.GetFromJsonAsync<JsonElement>(historyPath);
+        Assert.Equal(3, previousHistory.GetProperty("totalCount").GetInt32());
+        using var current = await manager.Client.GetAsync(path);
+        using var disabled = await manager.WriteAsync(HttpMethod.Put, path,
+            MasterDataArticleTests.Body(family, sku, active: false), version: current.Headers.ETag!.ToString());
+        Assert.Equal(HttpStatusCode.OK, disabled.StatusCode);
+        using var deleted = await manager.WriteAsync(HttpMethod.Delete, path, new { },
+            version: disabled.Headers.ETag!.ToString());
+        Assert.Equal(HttpStatusCode.Conflict, deleted.StatusCode);
+        Assert.Equal("HistoryPreventsDeletion", (await deleted.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+
+        var after = await ReadAsync(operatorApi, article);
+        Assert.False(after.GetProperty("article").GetProperty("isActive").GetBoolean());
+        var totals = after.GetProperty("totals");
+        Assert.Equal("4.000", totals.GetProperty("physical").GetString());
+        Assert.Equal("1.000", totals.GetProperty("reserved").GetString());
+        Assert.Equal(before.GetProperty("totals").GetRawText(), totals.GetRawText());
+        var history = await operatorApi.Client.GetFromJsonAsync<JsonElement>(historyPath);
+        Assert.Equal(previousHistory.GetProperty("items").GetRawText(), history.GetProperty("items").GetRawText());
+        await support.Stock.AssertJournalMatchesBalanceAsync(article, location.Id);
     }
 
     [Fact]
