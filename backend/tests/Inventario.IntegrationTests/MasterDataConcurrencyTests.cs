@@ -48,13 +48,7 @@ public sealed class MasterDataConcurrencyTests(IdentityFixture fixture) : IClass
         var second = assignmentFirst ? Deactivate() : Assign();
         try
         {
-            using var scope = fixture.BootstrapServices.CreateScope();
-            var admin = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(4));
-            while (await admin.Database.SqlQueryRaw<int>("""
-                SELECT COUNT(*) AS Value FROM sys.dm_tran_locks
-                WHERE resource_database_id = DB_ID() AND resource_type = 'APPLICATION' AND request_status = 'WAIT'
-                """).SingleAsync(timeout.Token) == 0) await Task.Delay(20, timeout.Token);
+            await WaitForApplicationLockAsync(fixture);
         }
         finally { barrier.Release.TrySetResult(); }
         var results = await Task.WhenAll(first, second);
@@ -72,7 +66,18 @@ public sealed class MasterDataConcurrencyTests(IdentityFixture fixture) : IClass
         else Assert.Null(article);
     }
 
-    private sealed class SaveBarrier : SaveChangesInterceptor
+    internal static async Task WaitForApplicationLockAsync(IdentityFixture fixture)
+    {
+        using var scope = fixture.BootstrapServices.CreateScope();
+        var admin = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(4));
+        while (await admin.Database.SqlQueryRaw<int>("""
+            SELECT COUNT(*) AS Value FROM sys.dm_tran_locks
+            WHERE resource_database_id = DB_ID() AND resource_type = 'APPLICATION' AND request_status = 'WAIT'
+            """).SingleAsync(timeout.Token) == 0) await Task.Delay(20, timeout.Token);
+    }
+
+    internal sealed class SaveBarrier : SaveChangesInterceptor
     {
         public Func<object, bool>? Predicate { get; set; }
         public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);

@@ -70,3 +70,46 @@ integrado aún no acreditado. IV/V: auditoría append-only, resultados, rollback
 concurrencia y reintentos comprobados en SQL. III: mensajes, borrador preservado y revisión
 automatizada; aceptación con trabajadores pendiente. La constitución exige conservar esos
 límites hasta tener evidencia real.
+
+## Corte local con el stock H0, 2026-11-19
+
+FR-014 queda implementado y verificado sobre el diario de la PR #3 en una rama
+local de integración. El recorrido Chromium comprueba desactivación, consulta
+del historial vacío, reactivación y borrado. La build de producción pasó con
+Node 24 en Docker, Vitest pasó 40/40 y la suite SQL pasó 95/95. EF 10.0.13
+confirmó que el modelo coincide con el snapshot. Los resultados y el alcance de US4 se
+detallan en [su validación](us4.md#validación-con-el-stock-h0-2026-11-19).
+
+La PR #4 está fusionada en `a/h0-identity-article`. El cierre de HU-08 requiere
+integrar el stock aprobado, verificar los consumidores todavía pendientes y
+registrar la usabilidad con gestores, la restauración V-14 y las aprobaciones
+de coordinación y aceptación.
+
+## Validación adicional, 2026-11-19
+
+La [aprobación de la PR #3](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/pull/3#pullrequestreview-5974358200)
+queda registrada sobre `25d6df6`. La PR seguía abierta durante el ensayo.
+La [validación conjunta HU-02 y HU-08](us4.md#prueba-cruzada-de-consumidores-2026-11-19)
+pasó 119/119 pruebas SQL e incluyó existencias e historial del mismo artículo
+tras desactivarlo.
+El [ensayo técnico V-14](recovery.md) recuperó maestros, auditoría, resultados y
+diario a un punto en el tiempo en una segunda instancia. La
+[prueba con tres gestores](usability.md) está preparada para convocar.
+
+## Cierre de la entrega académica, 2026-11-19
+
+El usuario aprobó expresamente la entrega de clase de HU-08. El alcance verificado
+incluye los catálogos, el historial compartido, las pruebas con el núcleo de stock
+y HU-02, y el ensayo técnico de restauración. Las PR [#3](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/pull/3)
+y [#4](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/pull/4)
+quedaron fusionadas en `a/h0-identity-article`.
+
+Las verificaciones pendientes con consumidores documentales se cierran en esta
+entrega por traslado a HU-01, HU-03, HU-04, HU-05, HU-06 y HU-07. Cada módulo
+comprobará sus referencias y escritores reales al integrarse. SC-006 y T091
+quedan fuera de la entrega de clase porque no hay tres gestores disponibles.
+
+La aceptación operativa y sus criterios siguen regidos por la
+[constitución](../../../.specify/memory/constitution.md). El ensayo V-14 de clase
+sirve de evidencia técnica para esa revisión posterior. Los estados de las tareas
+constan en el [cierre académico](../tasks.md#cierre-de-la-entrega-académica-2026-11-19).

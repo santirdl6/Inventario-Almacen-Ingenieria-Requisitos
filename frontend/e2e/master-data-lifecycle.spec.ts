@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { test, expect } from './fixtures/master-data.fixture';
 
-test('artículo sin uso conserva consulta de inactivo, explica diario ausente y permite borrado revisado', async ({ page, environment, gestor }) => {
+test('artículo sin uso conserva historial al desactivar y reactivar, y permite borrado revisado', async ({ page, environment, gestor }) => {
   const familyResponse = await gestor.request.post('/api/v1/families', { headers: { 'X-XSRF-TOKEN': gestor.csrfToken, 'Idempotency-Key': randomUUID() }, data: { code: `LIFE-${randomUUID()}`, name: 'Familia retirada' } });
   expect(familyResponse.status()).toBe(201); const familyId = (await familyResponse.json()).resource.id;
   const sku = `LIFE-${randomUUID()}`.toUpperCase();
@@ -15,9 +15,21 @@ test('artículo sin uso conserva consulta de inactivo, explica diario ausente y 
   await page.getByRole('button', { name: 'Confirmar', exact: true }).click(); await deactivated;
   await page.getByRole('link', { name: 'Consultar historial de movimientos' }).click();
   await expect(page.getByText('Inactivo', { exact: true })).toBeVisible();
-  await expect(page.getByRole('alert')).toContainText('Historial pendiente de integración');
-  await expect(page.getByText('No hay movimientos que coincidan con los filtros.')).toHaveCount(0);
+  await expect(page.getByText('No hay movimientos que coincidan con los filtros.')).toBeVisible();
+  const movements = await gestor.request.get(`/api/v1/articles/${id}/movements`);
+  expect(movements.status()).toBe(200);
+  expect(await movements.json()).toMatchObject({ items: [], totalCount: 0 });
   await page.getByRole('link', { name: 'Volver al artículo', exact: true }).click();
+  await expect(page.getByLabel('Código de artículo (obligatorio)')).toHaveValue(sku);
+  const active = page.getByLabel('Artículo activo', { exact: true });
+  await expect(active).not.toBeChecked();
+  await active.check();
+  await page.getByRole('button', { name: 'Guardar artículo' }).click();
+  const reactivated = page.waitForResponse(value => value.url().endsWith(`/api/v1/articles/${id}`) && value.request().method() === 'PUT' && value.status() === 200);
+  await page.getByRole('button', { name: 'Confirmar', exact: true }).click(); await reactivated;
+  await expect(page.getByText('Artículo guardado y confirmado.')).toBeVisible();
+  const after = await gestor.request.get(`/api/v1/articles/${id}`);
+  expect(await after.json()).toMatchObject({ isActive: true });
   await page.getByRole('button', { name: 'Eliminar artículo', exact: true }).click();
   await expect(page.getByText(/Dejará de aparecer en el catálogo/)).toContainText(sku);
   const deleted = page.waitForResponse(value => value.url().endsWith(`/api/v1/articles/${id}`) && value.request().method() === 'DELETE');

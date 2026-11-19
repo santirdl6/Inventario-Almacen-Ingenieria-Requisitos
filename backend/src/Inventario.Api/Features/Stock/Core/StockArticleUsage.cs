@@ -1,5 +1,6 @@
 using Inventario.Api.Domain.MasterData;
 using Inventario.Api.Domain.Stock;
+using Inventario.Api.Features.MasterData.Queries;
 using Inventario.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -50,6 +51,7 @@ public static class StockCoreRegistration
         services.AddScoped<StockArticleUsageContributor>();
         services.AddScoped<IArticleUsageContributor>(provider => provider.GetRequiredService<StockArticleUsageContributor>());
         services.AddScoped<IArticleFirstReferenceContributor>(provider => provider.GetRequiredService<StockArticleUsageContributor>());
+        services.AddScoped<IArticleMovementReader, StockArticleMovementReader>();
         return services;
     }
 }
