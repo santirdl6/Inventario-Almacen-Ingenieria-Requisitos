@@ -312,3 +312,8 @@ Desbloquea a A para elegir destinos activos en HU-01 (`GET /locations?status=act
 - [X] T071 Paginar el contenido de la ubicación en `frontend/src/app/features/locations/detail/location-detail.page.ts` (Anterior/Siguiente con el total de páginas de `/stock`), con prueba en `location-detail.page.spec.ts` per FR-008, US3.1 (partial)
 - [X] T072 Enlazar al contenido de la ubicación (`/ubicaciones/:id`) cuando el formulario recibe `LocationNotEmpty` o `CountScopeFrozen` al cambiar el tipo, en `frontend/src/app/features/locations/form/location-form.page.ts`, con prueba en `location-form.edit.spec.ts` per US4.3 (partial)
 - [X] T073 Comprobar en `backend/tests/Inventario.IntegrationTests/Locations/ArticleLocationsTests.cs` que un artículo inactivo sigue mostrando sus ubicaciones con su estado per US2.4 (partial)
+
+## Phase 17: Convergence
+
+- [X] T074 Probar en `backend/tests/Inventario.IntegrationTests/Locations/LocationsCreateTests.cs` que `GET /api/v1/locations/{id}` de una ubicación inexistente devuelve 404 ProblemDetails per contrato API (GET /locations/{id}), T022 (partial)
+- [X] T075 Probar en `frontend/src/app/features/locations/detail/location-detail.page.spec.ts` que al cerrar el diálogo de estado el foco vuelve al botón Desactivar/Reactivar per contrato UI § Accesibilidad, T058 (partial)

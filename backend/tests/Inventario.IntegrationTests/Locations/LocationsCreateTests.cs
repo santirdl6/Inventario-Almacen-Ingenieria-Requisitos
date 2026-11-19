@@ -145,6 +145,12 @@ public sealed class LocationsCreateTests(IdentityFixture fixture) : IClassFixtur
 
         var none = await api.Client.GetFromJsonAsync<JsonElement>($"/api/v1/locations?search={code}&status=all");
         Assert.Equal(0, none.GetProperty("totalCount").GetInt32());
+
+        // Contrato: el detalle de una ubicación inexistente es 404 ProblemDetails.
+        var missing = await api.Client.GetAsync($"/api/v1/locations/{Guid.NewGuid():D}");
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+        Assert.Equal("application/problem+json", missing.Content.Headers.ContentType!.MediaType);
+        Assert.Equal("NotFound", await ProblemCodeAsync(missing));
     }
 
     [Fact]

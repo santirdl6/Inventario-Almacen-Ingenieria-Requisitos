@@ -74,6 +74,18 @@ describe('LocationDetailPage', () => {
     expect(text(root.querySelector('[data-testid="notice"]'))).toBe('Ubicación P01-E01-N01 desactivada.');
   });
 
+  it('al cerrar el diálogo sin confirmar, el foco vuelve al botón que lo abrió', async () => {
+    const root = await render(detail(), [], ['Inventory.Read', 'Locations.Manage']);
+    const opener = root.querySelector('[data-testid="state-button"] button') as HTMLButtonElement;
+    opener.click();
+    await settle(current);
+    const cancel = Array.from(document.querySelectorAll('.p-dialog button')).find(b => text(b) === 'Cancelar') as HTMLButtonElement;
+    cancel.click();
+    await settle(current);
+    expect(document.activeElement).toBe(root.querySelector('[data-testid="state-button"] button'));
+    httpMock().expectNone(`/api/v1/locations/${detail().id}`);
+  });
+
   it('sin permiso de gestión no ofrece desactivar ni reactivar', async () => {
     const root = await render();
     expect(root.querySelector('[data-testid="state-button"]')).toBeNull();
