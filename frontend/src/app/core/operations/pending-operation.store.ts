@@ -7,6 +7,12 @@ export interface PendingOperation {
 }
 const KEY = 'inventario.pending-operations';
 
+export function mutationPermission(resource: string): string | null {
+  if (/^\/api\/v1\/(families|articles|suppliers)(\/[0-9a-f-]{36})?$/i.test(resource)) return 'MasterData.Manage';
+  if (/^\/api\/v1\/locations(\/[0-9a-f-]{36})?$/i.test(resource)) return 'Locations.Manage';
+  return null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class PendingOperationStore {
   private readonly session = inject(SessionService);
@@ -22,8 +28,9 @@ export class PendingOperationStore {
   begin(method: string, resource: string, payload: unknown, etag?: string): PendingOperation {
     const actorId = this.session.user()?.id;
     if (!actorId) throw new Error('Inicia sesión antes de guardar.');
-    if (!this.session.has('MasterData.Manage') || !/^\/api\/v1\/(families|articles|suppliers)(\/[0-9a-f-]{36})?$/i.test(resource))
-      throw new Error('La intención requiere permiso y una ruta de datos maestros válida.');
+    const permission = mutationPermission(resource);
+    if (!permission || !this.session.has(permission))
+      throw new Error('La intención requiere el permiso de la operación y una ruta válida.');
     const existing = this.forResource(resource);
     if (existing) {
       if (existing.method !== method || !('payload' in existing) || JSON.stringify(existing.payload) !== JSON.stringify(payload ?? null) || existing.etag !== etag)
@@ -41,7 +48,7 @@ export class PendingOperationStore {
       if (!Array.isArray(value)) return [];
       return value.filter((item): item is PendingOperation => item && typeof item.operationId === 'string'
         && typeof item.actorId === 'string' && ['POST', 'PUT', 'DELETE'].includes(item.method)
-        && typeof item.resource === 'string' && /^\/api\/v1\/(families|articles|suppliers)(\/[0-9a-f-]{36})?$/i.test(item.resource)).map(item => freeze(item));
+        && typeof item.resource === 'string' && mutationPermission(item.resource) !== null).map(item => freeze(item));
     } catch { return []; }
   }
   private persist(): void {

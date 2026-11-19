@@ -15,7 +15,9 @@ type TestFixtures = { gestor: Session; lector: Session; administrador: Session;
 type RequestFactory = PlaywrightWorkerArgs['playwright']['request'];
 
 const repositoryRoot = resolve(__dirname, '../../..');
-const project = 'inventario-hu08-e2e';
+const project = process.env['HU08_E2E_PROJECT'] ?? 'inventario-hu08-e2e';
+if (!/^inventario-(?:hu08|hu02|pr6)-e2e(?:-[a-z0-9-]+)?$/.test(project))
+  throw new Error('El proyecto Compose E2E debe tener un nombre dedicado de pruebas.');
 
 function configuration(): { baseURL: string; env: NodeJS.ProcessEnv } {
   const url = new URL(process.env['HU08_E2E_BASE_URL'] ?? 'http://localhost:8082');

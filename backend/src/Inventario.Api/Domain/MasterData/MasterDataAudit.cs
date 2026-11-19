@@ -1,7 +1,7 @@
 namespace Inventario.Api.Domain.MasterData;
 
 public enum MasterDataAction { Create, Update, Deactivate, Reactivate, Delete }
-public enum MasterDataEntity { Family, Supplier, Article }
+public enum MasterDataEntity { Family, Supplier, Article, Location }
 
 public sealed class MasterDataAudit
 {

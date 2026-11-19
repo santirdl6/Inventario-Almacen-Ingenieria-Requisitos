@@ -40,18 +40,21 @@ describe('Áreas de B sobre la base de A', () => {
     expect(routes.at(-1)!.path).toBe('**');
   });
 
-  it('con permiso carga la página provisional de cada área', async () => {
+  it('con permiso carga la página de cada área (provisional salvo las ya desarrolladas)', async () => {
     signIn(operario);
     const harness = await RouterTestingHarness.create();
     const titles: Record<string, string> = { ubicaciones: 'Ubicaciones', existencias: 'Existencias', salidas: 'Salidas', inventarios: 'Inventarios cíclicos' };
+    const developed = ['ubicaciones']; // HU-02
     for (const area of OPERATION_AREAS) {
       await harness.navigateByUrl(`/${area.path}`);
       expect(TestBed.inject(Router).url).toBe(`/${area.path}`);
-      expect(harness.routeNativeElement!.querySelector('h1')!.textContent).toBe(titles[area.path]);
+      expect(harness.routeNativeElement!.querySelector('h1')!.textContent!.trim()).toBe(titles[area.path]);
+      if (developed.includes(area.path)) continue;
       expect(harness.routeNativeElement!.textContent).toContain(area.story);
       expect(harness.routeNativeElement!.textContent).toContain('Pendiente de desarrollo');
     }
-  });
+    // Carga cuatro módulos diferidos; con la caché fría superaba a veces el límite de 5 s.
+  }, 20_000);
 
   it('sin el permiso del área lleva a sin-permiso, y sin sesión al login conservando el destino', async () => {
     signIn(gestor);

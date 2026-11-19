@@ -80,6 +80,7 @@ HU-08 concreta acciones Create/Update/Deactivate/Reactivate/Delete; Before/After
 nulos según la acción. EntityId no tiene FK al maestro, para conservar evidencia de un
 borrado permitido; ActorId y OperationId tienen referencias restrictivas a Identity y al
 resultado común. El rol SQL de ejecución no puede UPDATE/DELETE sobre la auditoría.
+EntityType admite Family, Supplier, Article y Location, con el mismo escritor append-only.
 
 ## Dimensiones y existencias — Persona B / HU-02, HU-05
 
@@ -87,6 +88,10 @@ resultado común. El rol SQL de ejecución no puede UPDATE/DELETE sobre la audit
 
 Id, Code único, Aisle, Rack, Level, Kind (Storage o Receiving), IsActive, Version.
 Pasillo/estantería/nivel obligatorios incluso para una ubicación temporal identificada.
+La combinación Aisle/Rack/Level normalizada es única, incluidas inactivas. Code y partes
+solo admiten A–Z, 0–9 y guion en mayúsculas, con CHECK binario. Code/Aisle/Rack/Level
+quedan bloqueados desde el primer movimiento; Kind solo cambia vacía y sin reservas
+ni conteo abierto. No puede retirarse la última Receiving activa. HU-02 no ofrece DELETE.
 No se desactiva con stock, reservas o un conteo abierto. No se borra con historial.
 Un artículo puede aparecer en cualquier número de ubicaciones.
 
