@@ -317,3 +317,8 @@ Desbloquea a A para elegir destinos activos en HU-01 (`GET /locations?status=act
 
 - [X] T074 Probar en `backend/tests/Inventario.IntegrationTests/Locations/LocationsCreateTests.cs` que `GET /api/v1/locations/{id}` de una ubicación inexistente devuelve 404 ProblemDetails per contrato API (GET /locations/{id}), T022 (partial)
 - [X] T075 Probar en `frontend/src/app/features/locations/detail/location-detail.page.spec.ts` que al cerrar el diálogo de estado el foco vuelve al botón Desactivar/Reactivar per contrato UI § Accesibilidad, T058 (partial)
+
+## Phase 18: Convergence
+
+- [X] T076 Probar en `backend/tests/Inventario.IntegrationTests/Locations/LocationsReliabilityTests.cs` que, con `location:{id}` retenido por otra transacción, `PUT /api/v1/locations/{id}` devuelve 503 `LockTimeout` con cabecera `Retry-After` y la ubicación no cambia per contrato API (503 LockTimeout), FR-016 (partial)
+- [X] T077 Comprobar en `location-form.page.spec.ts` las longitudes máximas visibles (32 y 16) y que cada error de campo queda asociado con `aria-describedby`, y en `article-locations.page.spec.ts` que `asOf` es visible per contrato UI, FR-019 (partial)

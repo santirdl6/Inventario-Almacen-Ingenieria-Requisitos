@@ -40,8 +40,20 @@ describe('LocationFormPage (alta)', () => {
     for (const field of ['code', 'aisle', 'rack', 'level']) {
       expect(root.querySelector(`#${field}`)!.getAttribute('aria-invalid')).toBe('true');
       expect(text(root.querySelector(`#${field}-error`))).toBe('Este campo es obligatorio.');
+      // Contrato UI: el mensaje de error queda asociado al campo.
+      expect(root.querySelector(`#${field}`)!.getAttribute('aria-describedby')!.split(' ')).toContain(`${field}-error`);
     }
     expect(document.activeElement?.id).toBe('code');
+  });
+
+  it('muestra las longitudes máximas (32 y 16) y la obligatoriedad con texto', async () => {
+    const { root } = await render();
+    expect(text(root.querySelector('#code-help'))).toBe('Máximo 32 caracteres.');
+    for (const field of ['aisle', 'rack', 'level']) expect(text(root.querySelector(`#${field}-help`))).toBe('Máximo 16 caracteres.');
+    expect(root.querySelector('#code')!.getAttribute('maxlength')).toBe('32');
+    expect(root.querySelector('#aisle')!.getAttribute('maxlength')).toBe('16');
+    expect(root.querySelector('#code')!.getAttribute('aria-describedby')).toBe('code-help');
+    expect(text(root.querySelector('label[for="code"]'))).toContain('(obligatorio)');
   });
 
   it('propone el código a partir de pasillo, estantería y nivel', async () => {

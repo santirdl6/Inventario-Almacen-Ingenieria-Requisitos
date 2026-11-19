@@ -92,6 +92,30 @@ public sealed class LocationsReliabilityTests(IdentityFixture fixture) : IClassF
     }
 
     [Fact]
+    public async Task A_held_location_lock_returns_503_LockTimeout_with_RetryAfter_and_changes_nothing()
+    {
+        using var factory = fixture.Factory();
+        using var support = new LocationsTestSupport(fixture, factory);
+        var api = await support.SessionAsync();
+        var location = await CreateLocationAsync(api);
+
+        // Otra transacción (p. ej. una recepción en curso) retiene location:{id} con el mismo recurso.
+        await using var holder = fixture.ApplicationDatabase();
+        await using var transaction = await holder.Database.BeginTransactionAsync();
+        await new InventoryLocks(holder).LocationsAsync([location.Id]);
+
+        var blocked = await UpdateAsync(api, location.Id, location.Resource, location.ETag, isActive: false);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, blocked.StatusCode);
+        Assert.Equal("LockTimeout", await ProblemCodeAsync(blocked));
+        Assert.True(blocked.Headers.RetryAfter is not null, "El 503 debe indicar Retry-After.");
+        await transaction.RollbackAsync();
+
+        var (read, _) = await GetAsync(api, location.Id);
+        Assert.True(read.GetProperty("isActive").GetBoolean());
+        Assert.Equal(0, await support.AuditCountAsync(location.Id, MasterDataAction.Deactivate));
+    }
+
+    [Fact]
     public async Task L04_simultaneous_creations_with_the_same_key_create_one_location()
     {
         using var factory = fixture.Factory();

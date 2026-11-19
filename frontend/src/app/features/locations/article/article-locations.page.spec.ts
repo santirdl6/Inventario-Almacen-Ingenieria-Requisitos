@@ -27,6 +27,8 @@ describe('ArticleLocationsPage', () => {
     });
     await settle(fixture);
     expect(text(root.querySelector('[data-testid="totals"]'))).toBe('Total del artículo: 6.000 UD');
+    // Contrato UI: el momento de la consulta (asOf) es visible.
+    expect(text(root.querySelector('.meta'))).toMatch(/^Datos a 18\/11\/2026 \d{2}:\d{2}:\d{2}/);
     const row = text(root.querySelector('tbody tr'));
     expect(row).toContain('P01-E01-N01');
     expect(row).toContain('L-001');
