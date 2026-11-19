@@ -93,6 +93,35 @@ public sealed class LocationQueries(InventoryDbContext database, ILocationUsage 
         });
     }
 
+    /// <summary>US3: contenido de una ubicación por artículo y lote, desde StockBalances (SNAPSHOT).
+    /// Sin total global: los artículos tienen unidades distintas.</summary>
+    public Task<LocationStock?> StockAsync(Guid locationId, int? page, int? pageSize, CancellationToken cancellation)
+    {
+        var paging = Paging.From(page, pageSize);
+        return database.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+        {
+            await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Snapshot, cancellation);
+            var location = await database.Set<Location>().AsNoTracking().SingleOrDefaultAsync(value => value.Id == locationId, cancellation);
+            if (location is null) return null;
+            var asOf = DateTimeOffset.UtcNow;
+            var rows = from balance in database.Set<StockBalance>().AsNoTracking()
+                       join article in database.Set<Article>().AsNoTracking() on balance.ArticleId equals article.Id
+                       join lot in database.Set<Lot>().AsNoTracking() on balance.LotId equals lot.Id
+                       where balance.LocationId == locationId && (balance.Physical != 0m || balance.Reserved != 0m)
+                       select new { balance.Physical, balance.Reserved, Article = article, LotCode = lot.Code };
+            var hasReservations = await rows.AnyAsync(row => row.Reserved > 0m, cancellation);
+            var count = await rows.CountAsync(cancellation);
+            var items = await rows.OrderBy(row => row.Article.Sku).ThenBy(row => row.LotCode)
+                .Skip(paging.Skip).Take(paging.PageSize).ToListAsync(cancellation);
+            var inOpenCount = await usage.IsInOpenCountAsync(locationId, cancellation);
+            await transaction.CommitAsync(cancellation);
+            return new LocationStock(asOf, LocationText.Ref(location),
+                items.Select(row => new LocationStockLine(Ref(row.Article), row.LotCode, LocationText.Quantity(row.Physical),
+                    LocationText.Quantity(row.Reserved), row.Article.BaseUnit)).ToList(),
+                hasReservations, inOpenCount, paging.Page, paging.PageSize, count);
+        });
+    }
+
     internal static ArticleRef Ref(Article article) => new(article.Id, article.Sku, article.Name, article.BaseUnit, article.IsActive);
 
     public static Task<int> ActiveReceivingCountAsync(InventoryDbContext database, CancellationToken cancellation) =>

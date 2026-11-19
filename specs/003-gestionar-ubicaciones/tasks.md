@@ -107,9 +107,9 @@ traen ni `AppLocks`, ni `BusinessRuleException`, ni `HttpPreconditions`, ni los 
 
 **Independent Test**: L-05 (ubicación) y ubicación vacía.
 
-- [ ] T027 [P] [US3] Crear `backend/tests/Inventario.IntegrationTests/Locations/LocationStockTests.cs`: **habitual** (N02 → ART-01, L-001, `4.000` UD; vacía → `items` vacío con datos, tipo y estado; tras Reserve, `hasReservations=true` y reservado en la fila; artículo inactivo con su estado); **error** (ubicación inexistente → 404); **permisos** (sin sesión → 401) (US3.1–US3.3; FR-008, FR-009).
-- [ ] T028 [US3] En `LocationQueries.cs`, `StockAsync`: SNAPSHOT; filas de `StockBalances` con Physical o Reserved distinto de cero; artículo, lote, physical, reserved y unidad; `hasReservations`; `inOpenCount`; paginado; sin total global (D-09; FR-008).
-- [ ] T029 [US3] En `LocationEndpoints.cs`, mapear `GET /locations/{id}/stock` con `.RequireAuthorization("Inventory.Read")` (depende de T028; FR-008, FR-010).
+- [X] T027 [P] [US3] Crear `backend/tests/Inventario.IntegrationTests/Locations/LocationStockTests.cs`: **habitual** (N02 → ART-01, L-001, `4.000` UD; vacía → `items` vacío con datos, tipo y estado; tras Reserve, `hasReservations=true` y reservado en la fila; artículo inactivo con su estado); **error** (ubicación inexistente → 404); **permisos** (sin sesión → 401) (US3.1–US3.3; FR-008, FR-009).
+- [X] T028 [US3] En `LocationQueries.cs`, `StockAsync`: SNAPSHOT; filas de `StockBalances` con Physical o Reserved distinto de cero; artículo, lote, physical, reserved y unidad; `hasReservations`; `inOpenCount`; paginado; sin total global (D-09; FR-008).
+- [X] T029 [US3] En `LocationEndpoints.cs`, mapear `GET /locations/{id}/stock` con `.RequireAuthorization("Inventory.Read")` (depende de T028; FR-008, FR-010).
 
 ---
 
