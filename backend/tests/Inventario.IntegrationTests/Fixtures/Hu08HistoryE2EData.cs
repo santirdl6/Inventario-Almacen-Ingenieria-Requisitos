@@ -57,8 +57,8 @@ public static class Hu08HistoryE2EData
                 if (!article.IsActive || await db.Set<StockEntry>().AnyAsync(value => value.ArticleId == articleId))
                     throw new InvalidOperationException("La preparación solo se ejecuta una vez sobre un artículo nuevo activo.");
                 var suffix = Guid.NewGuid().ToString("N")[..10].ToUpperInvariant();
-                var first = new Location("E2E-A-" + suffix, "A1", "E1", "N1", LocationKind.Storage);
-                var second = new Location("E2E-B-" + suffix, "A2", "E2", "N2", LocationKind.Storage);
+                var first = new Location("E2E-A-" + suffix, "A1-" + suffix, "E1", "N1", LocationKind.Storage);
+                var second = new Location("E2E-B-" + suffix, "A2-" + suffix, "E2", "N2", LocationKind.Storage);
                 db.AddRange(first, second); await db.SaveChangesAsync();
                 var principal = await scope.ServiceProvider.GetRequiredService<SignInManager<ApplicationUser>>().CreateUserPrincipalAsync(user);
                 principal = await scope.ServiceProvider.GetRequiredService<IClaimsTransformation>().TransformAsync(principal);

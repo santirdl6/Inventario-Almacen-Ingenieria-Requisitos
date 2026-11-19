@@ -197,3 +197,14 @@ por el usuario. El snapshot refleja solo la migración aditiva de contraparte; l
 archivos reservados permanecen intactos. La revisión de la otra persona y las condiciones
 constitucionales de producción siguen asignadas fuera de este módulo, sin certificarlas
 como realizadas por este cierre técnico.
+
+## Publicación y base integrada de HU-02
+
+El [PR #6](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/pull/6)
+se ha aprobado y fusionado tras resolver R1–R4. El cierre de HU-08 y la coordinación
+están publicados en el [PR #7](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/pull/7),
+actualizado sobre esa base y con revisión solicitada a B para COORD-01.
+La verificación conjunta pasa **127 SQL**, **108 frontend** y **15 E2E**, con build/tipos
+correctos y modelo sin diferencias. [Detalle y comandos](pr-publication.md).
+La revisión de B sigue siendo una condición externa de integración, no una tarea de
+implementación que reabra HU-08 ni una aprobación que este registro dé por recibida.
