@@ -201,9 +201,9 @@ traen ni `AppLocks`, ni `BusinessRuleException`, ni `HttpPreconditions`, ni los 
 
 **Independent Test**: dos pestañas editan la misma ubicación (412 sin perder lo escrito); cortar la red al guardar → «Resultado pendiente de comprobar» → «Comprobar» con la misma clave.
 
-- [ ] T060 [US5] En `form/location-form.page.ts`, portar desde `8377a12` el 412 («Otra persona ha cambiado esta ubicación», «Ver datos vigentes» en panel aparte y «Descartar mis cambios») y el resultado pendiente (error de red o timeout → «Resultado pendiente de comprobar» con «Comprobar», que repite con la misma clave); botón deshabilitado mientras confirma; nunca éxito sin 2xx (US5.2, US5.3; FR-017, FR-018, FR-020).
-- [ ] T061 [US5] Aplicar el resultado pendiente en `location-state-dialog.ts` y mostrar un 403 como «Tu cuenta no tiene permiso para modificar ubicaciones», manteniendo la consulta (depende de T057; US5.1; FR-010, FR-020).
-- [ ] T062 [P] [US5] Portar y adaptar `form/location-form.conflict.spec.ts`: el 412 conserva lo escrito; tras error de red, «Comprobar» reutiliza la clave; doble clic → una sola petición; 403 con mensaje en la página (US5.1–US5.3).
+- [X] T060 [US5] En `form/location-form.page.ts`, portar desde `8377a12` el 412 («Otra persona ha cambiado esta ubicación», «Ver datos vigentes» en panel aparte y «Descartar mis cambios») y el resultado pendiente (error de red o timeout → «Resultado pendiente de comprobar» con «Comprobar», que repite con la misma clave); botón deshabilitado mientras confirma; nunca éxito sin 2xx (US5.2, US5.3; FR-017, FR-018, FR-020).
+- [X] T061 [US5] Aplicar el resultado pendiente en `location-state-dialog.ts` y mostrar un 403 como «Tu cuenta no tiene permiso para modificar ubicaciones», manteniendo la consulta (depende de T057; US5.1; FR-010, FR-020).
+- [X] T062 [P] [US5] Portar y adaptar `form/location-form.conflict.spec.ts`: el 412 conserva lo escrito; tras error de red, «Comprobar» reutiliza la clave; doble clic → una sola petición; 403 con mensaje en la página (US5.1–US5.3).
 
 ---
 
