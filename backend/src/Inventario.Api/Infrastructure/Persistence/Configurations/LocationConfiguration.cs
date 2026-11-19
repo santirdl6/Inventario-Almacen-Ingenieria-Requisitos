@@ -21,9 +21,15 @@ internal sealed class LocationConfiguration : IEntityTypeConfiguration<Location>
         builder.Property(location => location.Code).HasMaxLength(Location.CodeMaxLength).IsRequired()
             .UseCollation("Latin1_General_100_CI_AS");
         builder.HasIndex(location => location.Code).IsUnique();
-        builder.Property(location => location.Aisle).HasMaxLength(Location.PartMaxLength).IsRequired();
-        builder.Property(location => location.Rack).HasMaxLength(Location.PartMaxLength).IsRequired();
-        builder.Property(location => location.Level).HasMaxLength(Location.PartMaxLength).IsRequired();
+        builder.Property(location => location.Aisle).HasMaxLength(Location.PartMaxLength).IsRequired()
+            .UseCollation("Latin1_General_100_CI_AS");
+        builder.Property(location => location.Rack).HasMaxLength(Location.PartMaxLength).IsRequired()
+            .UseCollation("Latin1_General_100_CI_AS");
+        builder.Property(location => location.Level).HasMaxLength(Location.PartMaxLength).IsRequired()
+            .UseCollation("Latin1_General_100_CI_AS");
+        // HU-02 FR-003: un lugar físico por ubicación, también frente a las inactivas (sin filtro).
+        builder.HasIndex(location => new { location.Aisle, location.Rack, location.Level }).IsUnique()
+            .HasDatabaseName("UX_Locations_Aisle_Rack_Level");
         builder.Property(location => location.Kind).HasConversion<string>().HasMaxLength(16);
         builder.Property(location => location.Version).IsRowVersion();
     }

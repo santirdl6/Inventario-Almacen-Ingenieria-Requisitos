@@ -30,7 +30,8 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                     b.Property<string>("Aisle")
                         .IsRequired()
                         .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)");
+                        .HasColumnType("nvarchar(16)")
+                        .UseCollation("Latin1_General_100_CI_AS");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -49,12 +50,14 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                     b.Property<string>("Level")
                         .IsRequired()
                         .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)");
+                        .HasColumnType("nvarchar(16)")
+                        .UseCollation("Latin1_General_100_CI_AS");
 
                     b.Property<string>("Rack")
                         .IsRequired()
                         .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)");
+                        .HasColumnType("nvarchar(16)")
+                        .UseCollation("Latin1_General_100_CI_AS");
 
                     b.Property<byte[]>("Version")
                         .IsConcurrencyToken()
@@ -66,6 +69,10 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Code")
                         .IsUnique();
+
+                    b.HasIndex("Aisle", "Rack", "Level")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Locations_Aisle_Rack_Level");
 
                     b.ToTable("Locations", null, t =>
                         {
@@ -228,7 +235,7 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_MasterDataAudit_Before", "[Before] IS NULL OR ISJSON([Before], VALUE) = 1");
 
-                            t.HasCheckConstraint("CK_MasterDataAudit_Entity", "[EntityType] IN ('Family','Supplier','Article')");
+                            t.HasCheckConstraint("CK_MasterDataAudit_Entity", "[EntityType] IN ('Family','Supplier','Article','Location')");
                         });
                 });
 
