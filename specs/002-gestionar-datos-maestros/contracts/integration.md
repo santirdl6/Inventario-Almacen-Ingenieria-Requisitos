@@ -160,3 +160,20 @@ IArticleStateEffects recibe el mismo OperationContext para el futuro evaluador H
 StockAlert presente sin evaluador rechaza el cambio. No se han integrado documentos,
 reservas, movimientos ni alertas, y permanecen pendientes sus pruebas reales y la revisión B.
 El estado consolidado de validación se registra en [aceptación](../validation/acceptance.md).
+
+## Historial con el núcleo H0 de stock
+
+`StockCoreRegistration` aporta `StockArticleMovementReader` al endpoint
+`GET /api/v1/articles/{id}/movements`. El lector comparte el contexto y la transacción
+snapshot de la consulta de artículos. Usa `StockEntry` y `StockMovement` de
+`H0_StockCore`, con una fila por entrada del diario y el ID de la cabecera como
+`movementId`. Una salida mixta conserva sus dos entradas. El filtro temporal
+`[from,to)` opera sobre `RecordedAt`, que también ordena la página en sentido
+descendente, con el ID de entrada ascendente como desempate.
+
+La unidad procede de `BaseUnitSnapshot`. La ubicación se presenta como origen en
+salidas, reservas y liberaciones, y como destino en recepciones. Las entradas de
+ajuste usan origen o destino según su efecto. El lote técnico de artículos sin
+seguimiento se presenta como ausencia de lote. Se expone la contraparte si el
+diario la registró. El lector conserva la respuesta 503 si falta la migración, y
+devuelve una página vacía cuando el diario existe y el filtro no encuentra entradas.

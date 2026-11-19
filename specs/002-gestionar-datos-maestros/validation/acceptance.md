@@ -70,3 +70,17 @@ integrado aún no acreditado. IV/V: auditoría append-only, resultados, rollback
 concurrencia y reintentos comprobados en SQL. III: mensajes, borrador preservado y revisión
 automatizada; aceptación con trabajadores pendiente. La constitución exige conservar esos
 límites hasta tener evidencia real.
+
+## Corte local con el stock H0, 2026-11-19
+
+FR-014 queda implementado y verificado sobre el diario de la PR #3 en una rama
+local de integración. El recorrido Chromium comprueba desactivación, consulta
+del historial vacío, reactivación y borrado. La build de producción pasó con
+Node 24 en Docker, Vitest pasó 40/40 y la suite SQL pasó 94/94. EF 10.0.13
+confirmó que el modelo coincide con el snapshot. Los resultados y el alcance de US4 se
+detallan en [su validación](us4.md#validación-con-el-stock-h0-2026-11-19).
+
+La PR #4 está fusionada en `a/h0-identity-article`. El cierre de HU-08 requiere
+integrar el stock aprobado, verificar los consumidores todavía pendientes y
+registrar la usabilidad con gestores, la restauración V-14 y las aprobaciones
+de coordinación y aceptación.

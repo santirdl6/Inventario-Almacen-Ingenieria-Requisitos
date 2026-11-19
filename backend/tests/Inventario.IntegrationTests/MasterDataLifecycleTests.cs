@@ -40,7 +40,7 @@ public sealed class MasterDataLifecycleTests(IdentityFixture fixture) : IClassFi
     }
 
     [Fact]
-    public async Task Inactive_article_keeps_history_access_but_missing_journal_is_not_an_empty_page()
+    public async Task Inactive_article_without_movements_has_an_empty_history()
     {
         using var factory = fixture.Factory(); using var api = await MasterDataApi.LoginAsync(fixture, factory);
         var family = await api.FamilyAsync(); var sku = "HISTORY-" + Guid.NewGuid().ToString("N");
@@ -49,8 +49,10 @@ public sealed class MasterDataLifecycleTests(IdentityFixture fixture) : IClassFi
         var changed = await api.WriteAsync(HttpMethod.Put, $"/api/v1/articles/{id:D}", MasterDataArticleTests.Body(family, sku, active: false), version: created.Headers.ETag!.ToString());
         Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
         var response = await api.Client.GetAsync($"/api/v1/articles/{id:D}/movements");
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-        Assert.Equal("DependencyUnavailable", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var history = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Empty(history.GetProperty("items").EnumerateArray());
+        Assert.Equal(0, history.GetProperty("totalCount").GetInt32());
         Assert.Equal(HttpStatusCode.NotFound, (await api.Client.GetAsync($"/api/v1/articles/{Guid.NewGuid():D}/movements")).StatusCode);
         Assert.Equal(HttpStatusCode.UnprocessableEntity, (await api.Client.GetAsync($"/api/v1/articles/{id:D}/movements?from=2026-11-17T12:00:00")).StatusCode);
         Assert.Equal(HttpStatusCode.UnprocessableEntity, (await api.Client.GetAsync($"/api/v1/articles/{id:D}/movements?from=2026-11-18T00:00:00Z&to=2026-11-17T00:00:00Z")).StatusCode);

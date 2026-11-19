@@ -101,6 +101,15 @@ bloqueo de operación. El consumidor (HU-01/03/04/05):
 3. Dentro de `change`, invoca `StockCore.ApplyAsync(context, command)` y devuelve
    `StockCore.Response(outcome)`.
 
+Si el handler necesita revalidar documentos o datos propios antes de aplicar stock,
+planifica todos los recursos del comando y llama a `context.Locks` en el orden
+documentos → ubicaciones → artículos. En una confirmación de recepción, incluye el
+pedido de compra y la recepción juntos en `DocumentsAsync`, con los tipos canónicos
+de cada uno, y los destinos y artículos de todas sus asignaciones. Haz las lecturas
+de negocio después de adquirir sus bloqueos. `ApplyAsync` reutiliza los recursos ya
+adquiridos. Si la relectura descubre un recurso fuera del orden permitido, se aplica
+el rollback y la replanificación del paso 7.
+
 `ApplyAsync` sigue los pasos 4–8 con `context.Locks` (`InventoryLocks`): documento
 `document:{tipo}:{id}` → ubicaciones → artículos. Después lee el estado, marca la primera
 referencia del artículo con `ArticleReferenceTracker` (IsDefinitionLocked, mismo bloqueo y

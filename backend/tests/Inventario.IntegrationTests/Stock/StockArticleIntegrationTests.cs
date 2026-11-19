@@ -3,7 +3,9 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Inventario.Api.Domain.MasterData;
 using Inventario.Api.Domain.Stock;
+using Inventario.Api.Features.MasterData.Queries;
 using Inventario.Api.Features.Stock.Core;
+using Inventario.Api.Infrastructure.Http;
 using Inventario.Api.Infrastructure.Persistence;
 using Inventario.IntegrationTests.Fixtures;
 using Microsoft.Data.SqlClient;
@@ -72,6 +74,10 @@ public sealed class StockArticleIntegrationTests(IdentityFixture fixture) : ICla
         var path = $"/api/v1/articles/{id:D}";
         var current = await api.Client.GetAsync(path);
         Assert.Equal(HttpStatusCode.OK, current.StatusCode);
+        var context = (await api.Client.GetFromJsonAsync<JsonElement>(path + "/context")).GetProperty("capabilities");
+        Assert.False(context.GetProperty("canDelete").GetBoolean());
+        Assert.Equal("History", context.GetProperty("deleteBlockReason").GetString());
+        Assert.False(context.GetProperty("canEditDefinition").GetBoolean());
         var deleted = await api.WriteAsync(HttpMethod.Delete, path, new { }, version: current.Headers.ETag!.ToString());
         Assert.Equal(HttpStatusCode.Conflict, deleted.StatusCode);
         Assert.Equal("HistoryPreventsDeletion", (await deleted.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
@@ -116,7 +122,7 @@ public sealed class StockArticleIntegrationTests(IdentityFixture fixture) : ICla
         using var api = await MasterDataApi.LoginAsync(fixture, factory);
         var stock = new StockTestHarness(fixture, factory.Services);
         var (_, principal) = await stock.ActorAsync();
-        var (id, _) = await CreateArticleAsync(api, "FIRSTREF");
+        var (id, etag) = await CreateArticleAsync(api, "FIRSTREF");
         var path = $"/api/v1/articles/{id:D}";
         var before = await (await api.Client.GetAsync(path)).Content.ReadFromJsonAsync<JsonElement>();
         Assert.False(before.GetProperty("isDefinitionLocked").GetBoolean());
@@ -127,10 +133,107 @@ public sealed class StockArticleIntegrationTests(IdentityFixture fixture) : ICla
         var after = await current.Content.ReadFromJsonAsync<JsonElement>();
         Assert.True(after.GetProperty("isDefinitionLocked").GetBoolean());
         var family = after.GetProperty("familyId").GetGuid();
-        var changed = await api.WriteAsync(HttpMethod.Put, path,
-            MasterDataArticleTests.Body(family, after.GetProperty("sku").GetString()!, unit: "KG", lot: false),
-            version: current.Headers.ETag!.ToString());
+        var body = MasterDataArticleTests.Body(family, after.GetProperty("sku").GetString()!, unit: "KG", lot: false);
+        var stale = await api.WriteAsync(HttpMethod.Put, path, body, version: etag);
+        Assert.Equal(HttpStatusCode.PreconditionFailed, stale.StatusCode);
+        var changed = await api.WriteAsync(HttpMethod.Put, path, body, version: current.Headers.ETag!.ToString());
         Assert.Equal(HttpStatusCode.Conflict, changed.StatusCode);
         Assert.Equal("ArticleDefinitionLocked", (await changed.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task History_for_an_inactive_article_filters_and_pages_the_committed_journal()
+    {
+        using var factory = fixture.Factory();
+        using var api = await MasterDataApi.LoginAsync(fixture, factory);
+        using var reader = await MasterDataApi.LoginAsync(fixture, factory, "Operario");
+        using var administrator = await MasterDataApi.LoginAsync(fixture, factory, "Administrador");
+        var stock = new StockTestHarness(fixture, factory.Services);
+        var (actorId, principal) = await stock.ActorAsync();
+        var (article, firstLocation) = await stock.SeedAsync(allowsFractional: true, tracksLot: true);
+        var secondLocation = await LocationAsync();
+        var path = $"/api/v1/articles/{article.Id:D}";
+        var url = path + "/movements";
+
+        var receipt = await stock.RunAsync(principal, StockCore.Prepare(StockOperation.Receive,
+            StockTestHarness.Context("receipt") with { SupportReference = "ALB-123", CounterpartyReference = "Proveedor" },
+            [new(article.Id, firstLocation.Id, "lote-1", 2.125m), new(article.Id, secondLocation, "lote-2", 3m)]));
+        var shipment = await stock.RunAsync(principal, StockCore.PrepareShipment(StockTestHarness.Context("shipment"),
+            [new(article.Id, firstLocation.Id, "lote-1", 1m, 0m)]));
+        var current = await api.Client.GetAsync(path);
+        var disable = MasterDataArticleTests.Body(article.FamilyId, article.Sku,
+            unit: article.BaseUnit, fractions: true, lot: true, active: false);
+        Assert.Equal(HttpStatusCode.OK, (await api.WriteAsync(HttpMethod.Put, path, disable,
+            version: current.Headers.ETag!.ToString())).StatusCode);
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await administrator.Client.GetAsync(url)).StatusCode);
+        var all = (await reader.Client.GetFromJsonAsync<PageResult<ArticleMovementDto>>(url))!;
+        Assert.Equal(3, all.TotalCount);
+        Assert.Equal(shipment.MovementId, all.Items[0].MovementId);
+        Assert.Equal(firstLocation.Id, all.Items[0].Origin!.Id);
+        Assert.Null(all.Items[0].Destination);
+
+        var start = Uri.EscapeDataString(receipt.RecordedAt.ToString("O"));
+        var end = Uri.EscapeDataString(shipment.RecordedAt.ToString("O"));
+        var range = $"{url}?from={start}&to={end}&actorId={actorId:D}&pageSize=1";
+        var first = (await reader.Client.GetFromJsonAsync<PageResult<ArticleMovementDto>>(range))!;
+        var second = (await reader.Client.GetFromJsonAsync<PageResult<ArticleMovementDto>>(range + "&page=2"))!;
+        Assert.Equal(2, first.TotalCount);
+        Assert.Equal(all.Items.Skip(1).Select(item => item.Id), first.Items.Concat(second.Items).Select(item => item.Id));
+        Assert.All(first.Items.Concat(second.Items), item => Assert.Equal(receipt.MovementId, item.MovementId));
+
+        var lot = all.Items.Single(item => item.Quantity == "2.125").Lot!;
+        var page = (await reader.Client.GetFromJsonAsync<PageResult<ArticleMovementDto>>(
+            $"{range}&locationId={firstLocation.Id:D}&lotId={lot.Id:D}"))!;
+        Assert.Equal(1, page.TotalCount);
+        var movement = Assert.Single(page.Items);
+        Assert.Equal("Receipt", movement.Kind);
+        Assert.Equal("2.125", movement.Quantity);
+        Assert.Equal("UD", movement.BaseUnit);
+        Assert.Equal(actorId, movement.Actor.Id);
+        Assert.Equal(receipt.SourceDocumentId, movement.Document.Id);
+        Assert.Equal("ALB-123", movement.SupportReference);
+        Assert.Equal("Proveedor", movement.CounterpartyReference);
+        Assert.Null(movement.Origin);
+        Assert.Equal(firstLocation.Code, movement.Destination!.Code);
+        Assert.Equal("LOTE-1", movement.Lot!.Code);
+    }
+
+    [Fact]
+    public async Task Inactive_article_rejects_new_stock_but_can_release_and_ship_existing_reservation()
+    {
+        using var factory = fixture.Factory();
+        using var api = await MasterDataApi.LoginAsync(fixture, factory);
+        var stock = new StockTestHarness(fixture, factory.Services);
+        var (_, actor) = await stock.ActorAsync();
+        var (article, location) = await stock.SeedAsync();
+        StockCommand Command(StockOperation operation, string type, decimal quantity) =>
+            StockCore.Prepare(operation, StockTestHarness.Context(type), [new(article.Id, location.Id, null, quantity)]);
+        await stock.RunAsync(actor, Command(StockOperation.Receive, "receipt", 5m));
+        await stock.RunAsync(actor, Command(StockOperation.Reserve, "reservation", 3m));
+
+        var path = $"/api/v1/articles/{article.Id:D}";
+        using var current = await api.Client.GetAsync(path);
+        var disable = MasterDataArticleTests.Body(article.FamilyId, article.Sku, lot: false, active: false);
+        Assert.Equal(HttpStatusCode.OK, (await api.WriteAsync(HttpMethod.Put, path, disable,
+            version: current.Headers.ETag!.ToString())).StatusCode);
+
+        var receipt = await Assert.ThrowsAsync<InventoryProblemException>(() =>
+            stock.RunAsync(actor, Command(StockOperation.Receive, "receipt", 1m)));
+        Assert.Equal("ArticleInactive", receipt.Code);
+        var reservation = await Assert.ThrowsAsync<InventoryProblemException>(() =>
+            stock.RunAsync(actor, Command(StockOperation.Reserve, "reservation", 1m)));
+        Assert.Equal("ArticleInactive", reservation.Code);
+        await stock.RunAsync(actor, Command(StockOperation.Release, "release", 1m));
+        await stock.RunAsync(actor, StockCore.PrepareShipment(StockTestHarness.Context("shipment"),
+            [new(article.Id, location.Id, null, 2m, 2m)]));
+
+        var balance = (await stock.BalanceAsync(article.Id, location.Id))!;
+        Assert.Equal(3m, balance.Physical);
+        Assert.Equal(0m, balance.Reserved);
+        await stock.AssertJournalMatchesBalanceAsync(article.Id, location.Id);
+        var history = (await api.Client.GetFromJsonAsync<PageResult<ArticleMovementDto>>(path + "/movements"))!;
+        Assert.Equal(4, history.TotalCount);
+        Assert.All(history.Items, movement => Assert.Null(movement.Lot));
     }
 }
