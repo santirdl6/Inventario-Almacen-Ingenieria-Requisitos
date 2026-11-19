@@ -321,9 +321,13 @@ simular la pérdida de la respuesta tras confirmar.
   operación, ejecutor, bloqueos y núcleo de stock— descritos en el
   [contrato de stock](../../.specify/memory/project/contracts/stock-operations.md#implementación-h0-b-2026-11-18);
   esta feature no crea otra vía de escritura, otro registro de resultados ni otro cálculo.
-- El plan de coordinación y la decisión R-10 sitúan el pedido de cliente mínimo en HU-03; esta
-  spec lo incorpora a HU-05 porque la reserva lo necesita antes. Ambas historias son de B y HU-03
-  lo consumirá; el plan de HU-05 deberá reflejar el cambio en esos documentos.
+- Dos fuentes sitúan el pedido de cliente mínimo en HU-03: la
+  [decisión R-10](../../.specify/memory/project/research.md#r-10-desbloqueo-de-referencias-e-identidad-del-núcleo-h0)
+  (research.md, línea 261) y el
+  [plan de coordinación](../001-reparto-specs-inventario/plan.md#integración-de-las-futuras-specs)
+  (plan.md, línea 114). HU-05 lo incorpora por decisión de B sobre la frontera HU-03/HU-05, porque
+  la reserva lo necesita antes; HU-03 lo consumirá. El cambio queda pendiente de revisión de A,
+  según AGENTS.md, y el plan de HU-05 deberá reflejarlo en ambos documentos.
 - Mientras no existan recepciones reales (HU-01), las existencias de prueba se preparan mediante
   el núcleo común; la aceptación integrada con recepciones y salidas se completa en H3.
 

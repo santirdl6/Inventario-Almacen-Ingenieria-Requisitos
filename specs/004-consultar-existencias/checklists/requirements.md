@@ -47,5 +47,7 @@ implementación, pruebas ejecutadas ni aceptación operativa.
   componentes de H0 al contrato de stock, sin fijar tecnologías, rutas ni estructuras de datos.
 - Cobertura de la HU original: búsqueda por artículo con filtros de ubicación o lote (US1, FR-001,
   FR-004); físico, reservado y disponible (US1, FR-002/003); resultados confirmados (US1.5, FR-005).
-- Coordinación pendiente para el plan: el pedido de cliente mínimo pasa de HU-03 (plan 001, R-10)
-  a HU-05; hay que actualizar esos documentos con revisión de A, según AGENTS.md.
+- Coordinación pendiente para el plan: R-10 (research.md, línea 261) y el plan 001 (plan.md,
+  línea 114) sitúan el pedido de cliente mínimo en HU-03. HU-05 lo incorpora por decisión de B
+  sobre la frontera HU-03/HU-05; queda pendiente de revisión de A y de actualizar ambos
+  documentos, según AGENTS.md.
