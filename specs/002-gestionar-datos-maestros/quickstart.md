@@ -266,7 +266,8 @@ medir al menos 200 búsquedas paginadas por código/nombre/familia/estado y regi
 errores, entorno y volumen. Objetivo SC-005: al menos 95 % en ≤2 s. No se acredita por
 medir solo SQL ni por eliminar muestras fallidas. La búsqueda no modifica datos.
 
-Tres gestores representativos realizan cada uno las tareas de SC-006: alta de familia,
+En H5-01 del [backlog receptor](../001-reparto-specs-inventario/integration-tasks.md),
+tres gestores representativos realizan cada uno las tareas de SC-006: alta de familia,
 artículo y proveedor, corrección de dato inválido y desactivación, sin asistencia técnica
 ni errores no detectados. Registrar tiempos, resultados, incidencias y correcciones.
 Playwright no sustituye este ejercicio. Antes de producción se aplica V-14 y la aprobación
@@ -279,3 +280,38 @@ concurrencia, migración y validación humana. Separar evidencia disponible de H
 integrada pendiente; ningún escenario escrito equivale a prueba aprobada.
 Los responsables definidos por la constitución revisan los resultados antes de aceptar
 la entrega. Las decisiones compartidas se revisan A+B antes de fusionar migraciones/contratos.
+
+## 7. Convergencia: historial poblado y filtros legibles
+
+Desde `frontend/`, con Docker iniciado, ejecutar:
+
+```bash
+HU08_E2E_BROWSER_CHANNEL=chrome npm run test:e2e -- e2e/master-data-lifecycle.spec.ts
+```
+
+Se puede omitir `HU08_E2E_BROWSER_CHANNEL` para usar Chromium instalado por Playwright.
+El fixture crea un artículo auditado por HTTP y prepara dos entradas de recepción y una
+salida mediante `scripts/prepare-hu08-history.cs`, el ejecutor común y StockCore, con
+la identidad controlada Operario. El auxiliar usa la conexión de ejecución, solo admite
+InventoryHu08E2E y no instala endpoints de prueba ni altera InventoryDev. Compara diario
+y saldos antes/después de desactivar/reactivar; comprueba filtros y selección por teclado.
+Las cuentas se retiran aunque falle una prueba y los actores históricos se conservan.
+
+T099 forma parte de `MasterDataLifecycleConcurrencyTests`: usa conexiones independientes
+y espera observable de applock, no llamadas secuenciales. Los resultados actuales, fallos
+corregidos y dependencias pendientes están en [convergencia](validation/convergence.md).
+
+## 8. Cierre técnico y actualización aditiva del diario
+
+HU-08 queda cerrada según [aceptación](validation/acceptance.md#cierre-final-de-hu-08-2026-11-19).
+No hay tareas de implementación locales pendientes. Los módulos futuros y H5 reciben
+sus comprobaciones con IDs en el backlog receptor; no se reabre el catálogo por su ausencia.
+
+La migración final `20261119171332_HU08MovementCounterparty` añade motivo de no aplicabilidad
+de contraparte al diario. No actualiza movimientos confirmados: la CHECK se habilita sin
+validar retroactivamente las filas antiguas y se exige a cada inserción nueva. En producción
+se aplica externamente antes de usar el nuevo lector; hasta disponer de esa migración, el
+historial devuelve 503 DependencyUnavailable. El Compose de pruebas/E2E la aplica en sus
+bases aisladas. Referencia o motivo es obligatorio en hechos nuevos; el replay conserva las
+huellas históricas. Las pruebas `StockCounterpartyTests` cubren actualización de esquema,
+rechazos, permisos, proyección e idempotencia.

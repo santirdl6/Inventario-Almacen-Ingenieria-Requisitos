@@ -23,3 +23,5 @@ Thumbs.db
 *.pfx
 **/.keys/
 .DS_Store
+.idea/
+.vscode/

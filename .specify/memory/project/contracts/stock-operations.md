@@ -101,6 +101,15 @@ bloqueo de operación. El consumidor (HU-01/03/04/05):
 3. Dentro de `change`, invoca `StockCore.ApplyAsync(context, command)` y devuelve
    `StockCore.Response(outcome)`.
 
+`StockCommandContext` acepta CounterpartyReference o CounterpartyNotApplicableReason
+(máximo 500 caracteres para el motivo). Los valores se normalizan con Trim; un hecho
+nuevo sin ambos se rechaza 422 desde ApplyAsync, después del replay del ejecutor y antes
+de cualquier efecto. Esto permite recuperar una intención histórica confirmada aunque
+su petición anterior careciera de ese dato. El campo nuevo solo se incorpora a NormalizedBody
+cuando tiene valor: las huellas de peticiones antiguas sin él no cambian. Con otro motivo,
+la misma clave produce IdempotencyConflict. El diario y el lector conservan el motivo;
+los hechos históricos sin evidencia continúan siendo distinguibles y no se reescriben.
+
 ### Ejemplo de integración: bloqueos del consumidor en la recepción (HU-01)
 
 Si el consumidor tiene que leer y validar su propio documento antes de aplicar el stock,

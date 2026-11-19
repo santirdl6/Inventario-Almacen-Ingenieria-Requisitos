@@ -78,7 +78,7 @@ después de recrear contenedores. El detalle técnico y los defaults residen en 
 |------|-----------|-----------|------------------------------|
 | H0. Base común | Configuración API, Identity, inicialización SQL y borrador de contratos HTTP. | Configuración Angular/PrimeNG, contenedores y borrador del servicio de stock. | Ambas revisan arranque Compose, volúmenes, estructura, login, migración base, errores, bloqueos y pruebas de transacción/idempotencia. |
 | H1. Fundamentos | HU-08: artículos, familias, proveedores. | HU-02: ubicaciones. | Identificadores/unidades acordados; datos de ejemplo comunes; ubicación temporal disponible. |
-| H2. Flujos base | HU-07: compra y envío. | HU-05: consultas; comandos mínimos de reserva/liberación compartidos con HU-03. | Pedido enviado de prueba y físico/reservado/disponible coherentes; contrato de recepción listo. |
+| H2. Flujos base | HU-07: compra y envío. | HU-05: consultas, alta/consulta del pedido de cliente mínimo y reservar/liberar. | Pedido enviado de prueba y físico/reservado/disponible coherentes; pedido de cliente disponible para HU-03 y contrato de recepción listo. |
 | H3. Movimientos | HU-01: recepciones parciales. | HU-03: salidas. | Recibir → ubicar → reservar → servir → consultar, incluyendo concurrencia y reintentos. |
 | H4. Control | HU-06: mínimo, alerta interna y sugerencia. | HU-04: conteo y ajuste autorizado. | Ajuste confirmado actualiza consulta y alerta; no sobrescribe movimientos de un conteo. |
 | H5. Aceptación | Flujo compra/recepción y evidencia de maestros/alertas. | Flujo salida/conteo y evidencia de stock/ubicaciones. | Validación con operarios, rendimiento, restauración y conciliación documentados. |
@@ -111,7 +111,9 @@ el mantenimiento completo del artículo permanecen en HU-08. Detalles y evidenci
 
 Para H0, B implementa el esqueleto y Receive/Reserve/Ship mínimos que permitan demostrar
 idempotencia, rollback y concurrencia en SQL real; las reglas completas quedan en sus
-historias. B concreta CustomerOrder mínimo en HU-03 como soporte de HU-03/HU-05.
+historias. Según el acuerdo de reparto de 2026-11-19, B concreta CustomerOrder mínimo
+(alta y consulta) en HU-05, junto con reservar/liberar; HU-03 consume el pedido y sus
+reservas para las salidas, sin duplicar ese soporte. Sustituye su asignación previa a HU-03.
 La revisión cruzada A+B de esta ampliación sigue pendiente de registrarse.
 
 Entrega B / H0 (2026-11-18): A adelantó la base común (OperationResult, InventoryOperationExecutor,
@@ -138,6 +140,20 @@ del plan global y actualizan los documentos afectados.
 
 La validación integrada utiliza los escenarios V-01 a V-14 de la guía global, además de
 los específicos de cada historia. Las evidencias se incorporan a las specs responsables.
+
+### Tareas receptoras tras el cierre técnico de HU-08
+
+La [numeración y nombres confirmados](../../docs/agrupamiento.md) reservan 004–006
+para B (HU-05, HU-03, HU-04) y 007–009 para A (HU-07, HU-01, HU-06). 002/HU-08 y
+003/HU-02 conservan sus números. El alta/consulta del pedido de cliente y reservas
+corresponden a HU-05 en H2; las salidas y su consumo de reservas, a HU-03 en H3.
+
+El [backlog de integración](integration-tasks.md) asigna a cada HU las pruebas de sus
+escritores, referencias, documentos y efectos. Es el destino trazable mientras no exista
+su spec; al crearla se incorporan sus tareas y se conservan los IDs receptores. HU-08
+cierra su implementación propia y no permanece abierta por módulos futuros. COORD-01
+conserva la revisión compartida antes de integrar/fusionar; H5 conserva validación humana,
+restauración operativa y aceptación de responsables, sin tratarlas como pruebas realizadas.
 
 ## Complexity Tracking
 

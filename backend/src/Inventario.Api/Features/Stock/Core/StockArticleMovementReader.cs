@@ -11,11 +11,44 @@ namespace Inventario.Api.Features.Stock.Core;
 
 internal sealed class StockArticleMovementReader : IArticleMovementReader
 {
+    public async Task<PageResult<MovementFilterOption>> FiltersAsync(InventoryDbContext database, Guid articleId,
+        string field, MasterDataQueryOptions options, CancellationToken cancellation)
+    {
+        var migrations = await database.Database.GetAppliedMigrationsAsync(cancellation);
+        if (!migrations.Contains(StockSchema.Migration) || !migrations.Contains(StockSchema.CounterpartyMigration))
+            throw new InventoryProblemException(503, "DependencyUnavailable", "El diario de stock todavía no está disponible.");
+        var entries = database.Set<StockEntry>().Where(entry => entry.ArticleId == articleId);
+        // Solo identidades que ya aparecen en este historial; no es un directorio de cuentas.
+        var query = field switch
+        {
+            "actor" => from entry in entries
+                join movement in database.Set<StockMovement>() on entry.MovementId equals movement.Id
+                join actor in database.Set<ApplicationUser>() on movement.ActorId equals actor.Id
+                select new { actor.Id, Label = actor.UserName ?? "Responsable sin nombre" },
+            "location" => from entry in entries
+                join location in database.Set<Location>() on entry.LocationId equals location.Id
+                select new { location.Id, Label = EF.Functions.Collate(location.Code, "Latin1_General_100_CI_AS") + " — Pasillo " + location.Aisle
+                    + ", estantería " + location.Rack + ", nivel " + location.Level },
+            _ => from entry in entries
+                join lot in database.Set<Lot>() on entry.LotId equals lot.Id
+                where !lot.IsUntracked
+                select new { lot.Id, Label = lot.Code }
+        };
+        query = query.Distinct();
+        if (options.Query is { } text)
+            query = query.Where(value => EF.Functions.Collate(value.Label, "Latin1_General_100_CI_AS").Contains(text));
+        var total = await query.CountAsync(cancellation);
+        var items = await query.OrderBy(value => value.Label).ThenBy(value => value.Id)
+            .Skip((options.Page - 1) * options.PageSize).Take(options.PageSize)
+            .Select(value => new MovementFilterOption(value.Id, value.Label)).ToListAsync(cancellation);
+        return new(items, options.Page, options.PageSize, total);
+    }
+
     public async Task<PageResult<ArticleMovementDto>> ReadAsync(InventoryDbContext database, Guid articleId,
         ArticleMovementOptions options, CancellationToken cancellation)
     {
         var migrations = await database.Database.GetAppliedMigrationsAsync(cancellation);
-        if (!migrations.Contains(StockSchema.Migration))
+        if (!migrations.Contains(StockSchema.Migration) || !migrations.Contains(StockSchema.CounterpartyMigration))
             throw new InventoryProblemException(503, "DependencyUnavailable", "El diario de stock todavía no está disponible.");
 
         var entries = from entry in database.Set<StockEntry>().AsNoTracking()
@@ -53,7 +86,7 @@ internal sealed class StockArticleMovementReader : IArticleMovementReader
                 movement.OccurredAt, movement.RecordedAt,
                 new MovementActor(movement.ActorId, row.ActorName ?? movement.ActorId.ToString("D")),
                 movement.Reason, new MovementDocument(movement.SourceDocumentType, movement.SourceDocumentId),
-                movement.SupportReference, movement.SupportNotApplicableReason, movement.CounterpartyReference, null,
+                movement.SupportReference, movement.SupportNotApplicableReason, movement.CounterpartyReference, movement.CounterpartyNotApplicableReason,
                 isOrigin || reservation ? location : null, isDestination ? location : null,
                 row.Lot.IsUntracked ? null : new MovementLot(row.Lot.Id, row.Lot.Code));
         }).ToArray();

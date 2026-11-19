@@ -99,7 +99,7 @@ detallarlos; cambiarlos requiere actualizar los contratos y las specs afectadas.
 |------|---------------|
 | Cantidades | Unidad base por artículo; decimal(18,3), sin float; un artículo de unidades enteras rechaza fracciones. |
 | Edición de la definición del artículo | Unidad base, seguimiento por lote y admisión de fracciones solo cambian sin documentos, reservas ni movimientos asociados. La primera referencia, incluso en un documento en borrador, bloquea los tres campos. |
-| Reservas | Asignación explícita por pedido, artículo, ubicación y lote; creación y liberación mínimas pertenecen a HU-03/HU-05, sin módulo comercial completo. |
+| Reservas | Asignación explícita por pedido, artículo, ubicación y lote; pedido mínimo (alta/consulta), creación y liberación de reservas pertenecen a HU-05. HU-03 consume pedido y reservas al servir, sin módulo comercial completo. |
 | Salidas | Consumen primero la reserva del propio pedido en el saldo indicado; el resto solo consume disponible. Nunca toman reservas ajenas. |
 | Lotes | Artículo con seguimiento exige lote en recepción y movimientos; sin seguimiento usa un bucket no nulo SIN-LOTE propio del artículo. No se introduce gestión por serie o caducidad en esta entrega. |
 | Recepción | Rechaza cantidad aceptada superior al pendiente y artículos ajenos al pedido. Conserva como incidencia las diferencias observadas sin incorporarlas al stock. |
@@ -258,7 +258,10 @@ se crea en preparación controlada de pruebas; no hay alta de negocio provisiona
 contrato completo de núcleo sigue en stock-operations: operación → documentos → ubicaciones
 → artículos, y escritura atómica de documento, diario, saldos, reservas aplicables y resultado.
 El esqueleto y Receive/Reserve/Ship mínimos de B se validan en SQL Server real; las reglas
-completas se concretan en sus historias. CustomerOrder mínimo queda a cargo de B en HU-03.
+completas se concretan en sus historias. Por acuerdo de alcance revisado por A el
+2026-11-19, CustomerOrder mínimo (alta y consulta) queda a cargo de B en HU-05, porque
+las reservas lo requieren en H2; HU-03 lo consume para las salidas en H3. Sustituye la
+asignación anterior a HU-03, conservando entidades, estados y permisos comunes.
 
 La spec consumidora HU-08 mantiene sus requisitos y registra esta preparación en su
 [handoff H0](../../../specs/002-gestionar-datos-maestros/h0-handoff.md). HU-02/HU-03/HU-04/

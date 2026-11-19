@@ -11,6 +11,7 @@ public sealed record MovementActor(Guid Id, string Name);
 public sealed record MovementDocument(string Type, Guid Id);
 public sealed record MovementLocation(Guid Id, string Code, string Description);
 public sealed record MovementLot(Guid Id, string Code);
+public sealed record MovementFilterOption(Guid Id, string Label);
 public sealed record ArticleMovementDto(Guid Id, Guid MovementId, string Kind, string Quantity, string BaseUnit,
     DateTimeOffset OccurredAt, DateTimeOffset RecordedAt, MovementActor Actor, string Reason,
     MovementDocument Document, string? SupportReference, string? SupportNotApplicableReason,
@@ -43,10 +44,28 @@ public sealed partial record ArticleMovementOptions(DateTimeOffset? From, DateTi
 public interface IArticleMovementReader
 {
     Task<PageResult<ArticleMovementDto>> ReadAsync(InventoryDbContext database, Guid articleId, ArticleMovementOptions options, CancellationToken cancellation);
+    Task<PageResult<MovementFilterOption>> FiltersAsync(InventoryDbContext database, Guid articleId, string field,
+        MasterDataQueryOptions options, CancellationToken cancellation);
 }
 
 public sealed class ArticleMovementQueries(InventoryDbContext database, IEnumerable<IArticleMovementReader> readers)
 {
+    public Task<PageResult<MovementFilterOption>> FiltersAsync(Guid id, string field, MasterDataQueryOptions options, CancellationToken cancellation) =>
+        database.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+        {
+            if (field is not ("actor" or "location" or "lot"))
+                throw InventoryProblemException.Validation("field", "Selecciona responsable, ubicación o lote.");
+            await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Snapshot, cancellation);
+            if (!await database.Articles.AnyAsync(value => value.Id == id, cancellation))
+                throw new InventoryProblemException(404, "NotFound", "El artículo no existe.");
+            var providers = readers.ToArray();
+            if (providers.Length != 1)
+                throw new InventoryProblemException(503, "DependencyUnavailable", "Falta el lector del diario compartido.");
+            var result = await providers[0].FiltersAsync(database, id, field, options, cancellation);
+            await transaction.CommitAsync(cancellation);
+            return result;
+        });
+
     public Task<PageResult<ArticleMovementDto>> ReadAsync(Guid id, ArticleMovementOptions options, CancellationToken cancellation) =>
         database.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
         {

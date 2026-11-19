@@ -407,6 +407,10 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ActorId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("CounterpartyNotApplicableReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<string>("CounterpartyReference")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -462,6 +466,8 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
 
                     b.ToTable("StockMovements", null, t =>
                         {
+                            t.HasCheckConstraint("CK_StockMovements_Counterparty", "([CounterpartyReference] IS NOT NULL AND LEN(LTRIM(RTRIM([CounterpartyReference]))) > 0) OR ([CounterpartyNotApplicableReason] IS NOT NULL AND LEN(LTRIM(RTRIM([CounterpartyNotApplicableReason]))) > 0)");
+
                             t.HasCheckConstraint("CK_StockMovements_Reason_NotBlank", "LEN(LTRIM(RTRIM([Reason]))) > 0");
 
                             t.HasCheckConstraint("CK_StockMovements_Support", "[SupportReference] IS NOT NULL OR [SupportNotApplicableReason] IS NOT NULL");

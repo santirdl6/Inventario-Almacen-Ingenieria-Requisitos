@@ -5,6 +5,11 @@
 
 ## Resultado
 
+**Destino del ejercicio operativo**: H5-02 del
+[backlog de puesta en servicio](../../001-reparto-specs-inventario/integration-tasks.md).
+Este ensayo técnico se conserva como evidencia; T092/T107 ya no son trabajo de
+implementación pendiente en HU-08.
+
 La prueba `Hu08RecoveryTests` pasó con SQL Server 2025 en dos instancias Docker
 independientes. Restauró un backup completo y dos backups de log con checksum
 hasta el punto elegido en el segundo log. `DBCC CHECKDB` terminó sin errores.

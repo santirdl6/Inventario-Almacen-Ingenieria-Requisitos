@@ -429,3 +429,51 @@ Todos los checkboxes se generan sin marcar: este archivo es la salida de planifi
 de tareas. Marcar cada uno solo al terminar su implementación y verificación
 exigidas. No modificar los marcadores reviewer-owned del checklist de calidad para simular
 aceptación de código. Conservar evidencia real de humanos, revisión A+B y dependencias.
+
+## Phase 9: Convergence
+
+**Evaluación**: 2026-11-19, implementación actual frente a spec, plan y tareas. Hallazgos F1–F12; 58 requisitos/criterios, 12 casos límite, 18 decisiones del plan y cinco principios constitucionales comprobados. Las tareas condicionadas a consumidores reales, participantes o puesta en servicio mantienen esas dependencias y no sustituyen sus historias ni convierten el cierre académico en aceptación operativa.
+
+- [X] T097 CRITICAL [F1] Completar la evidencia de contraparte del diario compartido en `backend/src/Inventario.Api/Domain/Stock/StockMovement.cs`, `backend/src/Inventario.Api/Features/Stock/Core/StockCommands.cs`, `backend/src/Inventario.Api/Features/Stock/Core/StockCore.cs`, su configuración/migración aditiva y `backend/src/Inventario.Api/Features/Stock/Core/StockArticleMovementReader.cs`: exigir contraparte o motivo explícito de no aplicabilidad en hechos nuevos y proyectarlo en el historial; distinguir información histórica no registrada sin inventarla ni reescribir movimientos confirmados. Actualizar los acuerdos globales afectados y verificar persistencia, validación, replay histórico, migración y consulta de inactivos con SQL real en `backend/tests/Inventario.IntegrationTests/Stock/StockCounterpartyTests.cs`; la revisión compartida previa a integrar/fusionar se registra en COORD-01 del backlog receptor per Constitution IV; FR-014; T069 (partial)
+- [X] T098 CRITICAL [F2] Hacer utilizable el historial sin conocer UUID internos en `frontend/src/app/features/master-data/articles/article-history.component.ts` y sus servicios/modelos: ofrecer búsqueda o selección de responsable, ubicación y lote por nombres/códigos reconocibles, usando fuentes reales del alcance integrado; traducir tipos de movimiento y etiquetas documentales técnicas al español conservando los valores contractuales de la API. Verificar filtros, teclado y presentación de movimientos reales en `frontend/src/app/features/master-data/articles/article-history.component.spec.ts` y `frontend/e2e/master-data-lifecycle.spec.ts`, sin añadir administración de cuentas per Constitution III; FR-020; US4/AC5 (contradicts)
+- [X] T099 HIGH [F3] Añadir y ejecutar en `backend/tests/Inventario.IntegrationTests/MasterDataLifecycleConcurrencyTests.cs` la carrera de edición de unidad/lotes/fracciones frente a la primera referencia mediante `StockCore` real, con conexiones independientes, barrera y espera de applock observada en ambos órdenes de commit; comprobar rechazo de edición si gana la referencia y uso de la definición vigente si gana la edición, incluida la unidad histórica y la ausencia de cambios parciales. Registrar el resultado en `specs/002-gestionar-datos-maestros/validation/us2.md` per FR-019; plan: gate de primera referencia; T045/T066 (missing)
+- **T100 — Trasladada**: primera referencia documental, retirada de borrador y carreras con definición son tareas INT-HU01/03/04/05/07-01 del [backlog receptor](../001-reparto-specs-inventario/integration-tasks.md), ejecutadas por cada nuevo escritor. Conserva FR-009/019, US2/AC8 y T035/T075/T076; no es implementación pendiente de HU-08.
+- **T101 — Trasladada**: referencias documentales/reservas, borrado sin huérfanos y sus carreras son tareas INT-HU01/03/04/05/07-01 del backlog receptor. Conserva FR-010/011/019, US4/AC2 y T064/T066/T075/T076; el stock presente ya está verificado.
+- **T102 — Trasladada**: documentos e instantáneas de proveedores corresponden a INT-HU07-02 y su consumo INT-HU01-02. Conserva US3/AC3/AC4/AC6, SC-007 y T076; los catálogos de proveedor propios de HU-08 están implementados.
+- **T103 — Trasladada**: pedidos, reservas, recepciones, compromisos y ajustes de inactivos se prueban en INT-HU01/03/04/05-02 e INT-HU07-02. Conserva FR-013/019, US4/AC6 y T078; no se sustituyen esos documentos por llamadas al núcleo.
+- [X] T104 HIGH [F9] Ampliar y ejecutar `frontend/e2e/master-data-lifecycle.spec.ts` con un artículo que tenga movimientos, ubicaciones y lote generados por el ejecutor/núcleo real en el entorno E2E aislado: rechazar borrado u ofrecer desactivación según capacidad vigente, desactivar/reactivar, localizar el inactivo y consultar su historial con filtros por período/responsable/ubicación/lote. Comprobar cantidades y unidades exactas, autoría, soporte/contraparte, origen/destino y conservación del diario, incluyendo el recorrido por teclado, y guardar resultados en `specs/002-gestionar-datos-maestros/validation/us4.md` per FR-014/020; US4/AC4; US4/AC5; T077 (partial)
+- **T105 — Trasladada a H5-01**: las tres sesiones humanas SC-006/T091 se conservan en el backlog de puesta en servicio, con el guion de `validation/usability.md`; quedan fuera del cierre técnico/académico por decisión del usuario y no se declaran realizadas.
+- **T106 — Trasladada a INT-HU06-01**: HU-06 implementa y prueba el evaluador real de IArticleStateEffects, episodios y rollback conjunto. HU-08 ya entrega el punto de integración y su gate; conserva las fuentes T068/T078 y plan: integración HU-06.
+- **T107 — Trasladada a H5-02**: V-14 operativo con documentos/contingencia reales y objetivos aprobados pertenece a la puesta en servicio común. Se conservan `validation/recovery.md`, el ensayo técnico y T092; el traslado no declara una aprobación operativa.
+- [X] T108 MEDIUM [F12] Consolidar `validation/coordination.md`, `contracts/integration.md`, `validation/acceptance.md`, `README.md` y `quickstart.md` con la cadena actual, matriz FR/SC/Q, resultados finales y cierre técnico de HU-08; registrar el traslado por módulo con IDs receptores en `specs/001-reparto-specs-inventario/integration-tasks.md`. Por la decisión de cierre del usuario, la revisión compartida previa a integrar/fusionar y la aceptación operativa se mantienen respectivamente en COORD-01/H5-03, sin presentarlas como realizadas per plan: revisión y evidencia de cierre; T093/T094/T095/T096 (partial)
+
+### Estado intermedio de Phase 9, 2026-11-19 — histórico, sustituido por el cierre final
+
+T098/T099/T104 completadas y verificadas; detalle de comandos, resultados y fallos
+corregidos en [convergencia](validation/convergence.md). Suite SQL: 97 aprobadas y
+V-14 omitida por su entorno específico; regresión final afectada: 16/16. Vitest: 41/41
+y 3/3 de historial tras la corrección final de accesibilidad; tipos y build correctos.
+E2E: los 11 escenarios previos y el nuevo poblado están aprobados en ejecuciones
+separadas; no se presenta una pasada única 12/12. EF no detecta cambios de modelo.
+
+T097 sigue pendiente porque el usuario mantiene el snapshot reservado para B; no se
+modifican dominio, mappings ni migraciones. T100–T103 esperan escritores documentales
+reales; T106, HU-06; T105, tres gestores; T107, condiciones y responsables de puesta
+en servicio. T108 tiene documentación y matriz actualizadas, pero conserva pendiente
+la revisión conjunta de cambios y aceptación integrada/operativa. Ninguno de estos
+bloqueos se sustituye con dobles ni con aprobaciones supuestas.
+
+### Cierre final de HU-08, 2026-11-19
+
+La solicitud posterior del usuario de terminar todas las tareas y cerrar la spec
+sustituye los bloqueos de la continuación anterior. T097 está implementada mediante
+la migración aditiva `20261119171332_HU08MovementCounterparty`; T098/T099/T104 y
+el cierre documental T108 están verificados. T100–T103/T105–T107 se cierran en HU-08
+por traslado explícito a los receptores anteriores, no como pruebas superadas.
+
+**No quedan tareas de implementación abiertas en esta spec.** El nuevo escritor
+incorpora sus tareas receptoras al crear su propia spec; HU-08 no se reabre por su
+ausencia. SC-006 y la aceptación operativa siguen en H5, y la revisión de cambios
+compartidos antes de integrar/fusionar, en COORD-01. Resultados: 101 pruebas SQL
+aprobadas (V-14 específica omitida), 41 frontend, 12 E2E funcionales en una pasada,
+build Docker correcto y modelo EF sin diferencias. Detalle en [aceptación](validation/acceptance.md).

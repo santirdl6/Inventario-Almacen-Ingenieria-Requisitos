@@ -150,8 +150,10 @@ conservan físico no negativo y reservas no superiores al físico. Documento, di
 reservas aplicables y OperationResult se confirman conjuntamente.
 
 Estas pruebas de protocolo aún corresponden a B: las pruebas de Article no demuestran
-idempotencia ni concurrencia del stock. B concreta CustomerOrder mínimo en HU-03; las
-reglas completas de operaciones y conteos permanecen en las historias correspondientes.
+idempotencia ni concurrencia del stock. La asignación inicial del CustomerOrder mínimo a
+HU-03 queda sustituida por el acuerdo de alcance del 2026-11-19: B entrega su alta y
+consulta en HU-05 junto con reservar/liberar; HU-03 consume ese soporte para salidas.
+Las reglas completas de operaciones y conteos permanecen en sus historias correspondientes.
 
 ## Revisión de B de la base común (2026-11-18)
 

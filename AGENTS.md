@@ -40,6 +40,18 @@ en un plan local. Si afecta una obligación constitucional, seguir su procedimie
 El catálogo y reparto 4+4 están en `specs/001-reparto-specs-inventario/spec.md`;
 los hitos H0–H5 y los puntos de encuentro, en su `plan.md`.
 
+La reserva de números y nombres está en `docs/agrupamiento.md`: B usa 004–006 para
+HU-05/HU-03/HU-04 y A 007–009 para HU-07/HU-01/HU-06. Consultarla antes de crear una
+feature; no confundir el número de directorio con el ID de la historia ni ocupar el
+bloque de la otra persona. HU-05 entrega el pedido de cliente mínimo y reservas;
+HU-03 consume ese soporte para las salidas.
+
+Antes de especificar, planificar o generar tareas de HU-01/HU-03/HU-04/HU-05/HU-06/HU-07,
+consultar `specs/001-reparto-specs-inventario/integration-tasks.md` e incorporar las tareas
+receptoras del módulo con sus IDs de trazabilidad. La aceptación operativa H5 y la revisión
+compartida se mantienen allí. No reabrir HU-08 por la ausencia de un consumidor futuro;
+su nuevo escritor debe satisfacer los contratos y pruebas en su propio módulo.
+
 Los comandos Spec Kit mantienen sus rutas convencionales de feature; estas instrucciones
 añaden la consulta explícita de la base global. No se presupone que Spec Kit cargue
 automáticamente todos los archivos de `.specify/memory/`.

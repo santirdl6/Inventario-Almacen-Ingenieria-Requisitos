@@ -85,3 +85,71 @@ de intenciones se verifican en SQL/frontend. Resultados consolidados en
 [aceptación técnica](acceptance.md), con los pendientes integrados explícitos.
 No hay aprobación nueva de B ni de responsables operativos. La cadena y el snapshot
 continúan necesitando revisión cruzada; no se realizó commit, push ni fusión.
+
+## Reanudación de coordinación A+B, posterior al 2026-11-18
+
+El responsable de B comunicó que su implementación de la base común está en
+`b/h0-stock-service`, publicada el día 16 como PR #2, y propone rehacerla para consumir
+la implementación común de A (`OperationResult`, `InventoryLocks`, ejecutor, auditoría
+y sesión), regenerando `H0_StockCore` sin duplicar `OperationResults` y aplicando los
+DENY del rol `inventory_runtime`. Para el frontend, propone conservar el login/layout de
+A e integrar las rutas de B.
+
+Mientras B completa esa integración, solicita coordinación de archivos: A no editará
+`Program.cs`, `ApiProblems.cs`, `DatabaseBootstrapper.cs`,
+`InventoryDbContextModelSnapshot.cs`, `frontend/src/app/app.routes.ts` ni
+`frontend/src/main.ts`. Estas rutas se mantienen fuera del trabajo concurrente de HU-08.
+La revisión del snapshot y las conexiones de StockCore se hará después de recibir la
+integración; PR #2 y su estado proceden del reporte del responsable, no de una revisión
+local del PR.
+
+El responsable de B pidió validar cuatro propuestas para HU-02: índice único de ubicación
+por Aisle/Rack/Level, no borrar ubicaciones, DENY DELETE de StockBalances y un recurso de
+bloqueo `locations:receiving` después de `location:{id}`. La respuesta registrada es:
+
+- El índice compuesto es viable si los tres campos obligatorios y normalizados identifican
+  la ubicación en el ámbito real. Mantener `Code` único como identidad estable y decidir
+  explícitamente si el índice compuesto lo complementa.
+- «Nunca borrar» amplía el modelo compartido, que actualmente impide borrar con historial.
+  Requiere justificación operativa, revisión de ambas personas e impacto en las historias
+  consumidoras antes de cambiar `data-model.md`.
+- DENY DELETE sobre saldos es coherente con que el núcleo sea el escritor de existencias;
+  la integración debe comprobar el permiso bajo `inventory_runtime` y el ciclo de vida de
+  saldos vacíos al eliminar artículos sin uso.
+- `locations:receiving` queda pendiente hasta documentar qué carrera evita, qué escritores
+  lo adquieren y cómo se ordena con los bloqueos de ubicación existentes. No se añade un
+  nivel al protocolo común sin ese contrato.
+
+No se ha editado ninguno de los seis archivos protegidos ni se ha recibido revisión
+conjunta. HU-08 mantiene pendientes los gates que requieren StockCore, documentos de
+recepción/compra, revisión A+B, evidencia de los responsables y restauración.
+
+## Implementación de convergencia, 2026-11-19
+
+El usuario ha ratificado «Mantener reserva de B» al consultar si T097 podía actualizar
+el snapshot. Se conserva íntegro el registro anterior; ninguno de los seis archivos
+reservados se modifica en esta continuación. T097 queda bloqueada hasta coordinar la
+migración aditiva de contraparte y su revisión con B; no se cambia el modelo por otra vía.
+
+El árbol presente ya incorpora H0_StockCore y el lector de historial, pero no las rutas
+ni migración HU-02 de los ensayos cruzados documentados anteriormente. T098 amplía la
+interfaz de lectura del historial con opciones legibles; T099 prueba su carrera de
+definición y T104 verifica stock real en navegador. No se han recibido nuevas revisiones
+A+B ni aprobaciones operativas. La documentación de T108 avanza y su cierre sigue
+pendiente de esas revisiones. [Resultados y dependencias](convergence.md).
+
+## Decisión final de cierre técnico, 2026-11-19
+
+El usuario solicita realizar todas las tareas propias y cerrar HU-08, trasladando a
+cada módulo posterior lo que necesita su existencia. Esta solicitud sustituye la
+reserva del snapshot para finalizar T097: se genera una sola migración aditiva
+`20261119171332_HU08MovementCounterparty` sobre la cadena actual y su snapshot; los
+otros cinco archivos reservados no se modifican. Las migraciones previas se conservan.
+
+Modelo/protocolo/API comunes actualizados, sin cambio de disponibilidad, estados o
+efectos de stock. El impacto sobre nuevos escritores y sus pruebas se asigna en
+[integration-tasks.md](../../001-reparto-specs-inventario/integration-tasks.md).
+COORD-01 requiere revisión A+B antes de integrar/fusionar y coordinación de cualquier
+migración concurrente de B; no se declara una revisión nueva recibida. H5 conserva los
+ejercicios y aceptación operativos. HU-08 queda técnicamente cerrada con evidencia final
+101 SQL, 41 frontend y 12 E2E; no hay tareas de implementación locales pendientes.

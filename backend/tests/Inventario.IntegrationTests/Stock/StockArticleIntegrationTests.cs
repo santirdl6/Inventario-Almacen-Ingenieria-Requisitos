@@ -206,6 +206,21 @@ public sealed class StockArticleIntegrationTests(IdentityFixture fixture) : ICla
         Assert.Null(movement.Origin);
         Assert.Equal(firstLocation.Code, movement.Destination!.Code);
         Assert.Equal("LOTE-1", movement.Lot!.Code);
+
+        // Las opciones proceden del diario de este artículo, también inactivo, no del catálogo de usuarios.
+        var optionsUrl = url + "/filters";
+        Assert.Equal(HttpStatusCode.Forbidden, (await administrator.Client.GetAsync(optionsUrl + "?field=actor")).StatusCode);
+        var actors = await reader.Client.GetFromJsonAsync<JsonElement>(optionsUrl + "?field=actor");
+        Assert.Equal(actorId, Assert.Single(actors.GetProperty("items").EnumerateArray()).GetProperty("id").GetGuid());
+        var locations = await reader.Client.GetFromJsonAsync<JsonElement>(optionsUrl + "?field=location&pageSize=1");
+        Assert.Equal(2, locations.GetProperty("totalCount").GetInt32());
+        Assert.Single(locations.GetProperty("items").EnumerateArray());
+        var lots = await reader.Client.GetFromJsonAsync<JsonElement>(optionsUrl + "?field=lot&q=lote-1");
+        Assert.Equal("LOTE-1", Assert.Single(lots.GetProperty("items").EnumerateArray()).GetProperty("label").GetString());
+        var literal = await reader.Client.GetFromJsonAsync<JsonElement>(optionsUrl + "?field=lot&q=%25");
+        Assert.Empty(literal.GetProperty("items").EnumerateArray());
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await reader.Client.GetAsync(optionsUrl + "?field=other")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await reader.Client.GetAsync($"/api/v1/articles/{Guid.NewGuid():D}/movements/filters?field=actor")).StatusCode);
     }
 
     [Fact]
