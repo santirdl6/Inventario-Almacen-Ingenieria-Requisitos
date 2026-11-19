@@ -118,7 +118,9 @@ public sealed class StockArticleIntegrationTests(IdentityFixture fixture) : ICla
         var (_, principal) = await stock.ActorAsync();
         var (id, _) = await CreateArticleAsync(api, "FIRSTREF");
         var path = $"/api/v1/articles/{id:D}";
-        var before = await (await api.Client.GetAsync(path)).Content.ReadFromJsonAsync<JsonElement>();
+        var initial = await api.Client.GetAsync(path);
+        var before = await initial.Content.ReadFromJsonAsync<JsonElement>();
+        var staleETag = initial.Headers.ETag!.ToString();
         Assert.False(before.GetProperty("isDefinitionLocked").GetBoolean());
 
         await stock.RunAsync(principal, Receive(id, await LocationAsync(), 1m));
@@ -126,10 +128,18 @@ public sealed class StockArticleIntegrationTests(IdentityFixture fixture) : ICla
         var current = await api.Client.GetAsync(path);
         var after = await current.Content.ReadFromJsonAsync<JsonElement>();
         Assert.True(after.GetProperty("isDefinitionLocked").GetBoolean());
+        var currentETag = current.Headers.ETag!.ToString();
+        Assert.NotEqual(staleETag, currentETag);
         var family = after.GetProperty("familyId").GetGuid();
-        var changed = await api.WriteAsync(HttpMethod.Put, path,
-            MasterDataArticleTests.Body(family, after.GetProperty("sku").GetString()!, unit: "KG", lot: false),
-            version: current.Headers.ETag!.ToString());
+        var body = MasterDataArticleTests.Body(family, after.GetProperty("sku").GetString()!, unit: "KG", lot: false);
+
+        // La primera referencia cambió la versión: el ETag leído antes de recibir está obsoleto.
+        var stale = await api.WriteAsync(HttpMethod.Put, path, body, Guid.NewGuid(), staleETag);
+        Assert.Equal(HttpStatusCode.PreconditionFailed, stale.StatusCode);
+        Assert.Equal("VersionConflict", (await stale.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+
+        // Con el ETag vigente, el cambio de definición se rechaza por la primera referencia.
+        var changed = await api.WriteAsync(HttpMethod.Put, path, body, Guid.NewGuid(), currentETag);
         Assert.Equal(HttpStatusCode.Conflict, changed.StatusCode);
         Assert.Equal("ArticleDefinitionLocked", (await changed.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
     }

@@ -1,6 +1,7 @@
 using Inventario.Api.Domain.Stock;
 using Inventario.Api.Features.Stock.Core;
 using Inventario.Api.Infrastructure.Http;
+using Inventario.Api.Infrastructure.Persistence.Operations;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -277,5 +278,41 @@ public sealed class StockCoreTests(IdentityFixture fixture) : IClassFixture<Iden
             "UPDATE StockBalances SET Reserved = Physical + 1 WHERE ArticleId = {0}", article.Id));
         Assert.Equal(547, check.Number);
         await stock.AssertJournalMatchesBalanceAsync(article.Id, location.Id);
+    }
+
+    [Fact]
+    public async Task A_consumer_declares_all_its_locks_before_ApplyAsync_and_the_core_reuses_them()
+    {
+        using var factory = fixture.Factory();
+        var stock = new StockTestHarness(fixture, factory.Services);
+        var (_, principal) = await stock.ActorAsync();
+        var (article, location) = await stock.SeedAsync();
+        var purchaseOrder = Guid.NewGuid();
+        var receipt = Guid.NewGuid();
+        var command = Receive(article.Id, location.Id, 5, context: StockTestHarness.Context("receipt", receipt));
+
+        // Ejemplo de stock-operations.md (HU-01): compra y recepción en la fase documental,
+        // después ubicaciones y artículos; el núcleo encuentra todo retenido y no falla por orden.
+        var outcome = await stock.RunAsync(principal, Guid.NewGuid(), command, async (context, token) =>
+        {
+            await context.Locks.DocumentsAsync([new("purchase-order", purchaseOrder), new("receipt", receipt)], token);
+            await context.Locks.LocationsAsync([location.Id], token);
+            await context.Locks.ArticlesAsync([article.Id], token);
+        });
+        Assert.Equal(receipt, outcome.SourceDocumentId);
+        Assert.Equal(5m, (await stock.BalanceAsync(article.Id, location.Id))!.Physical);
+
+        // Sin el documento de origen del comando, ApplyAsync tendría que pedirlo después de los
+        // artículos: InventoryLocks lo rechaza y nada se confirma.
+        var other = Guid.NewGuid();
+        var missing = Receive(article.Id, location.Id, 1, context: StockTestHarness.Context("receipt", other));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => stock.RunAsync(principal, Guid.NewGuid(), missing,
+            async (context, token) =>
+            {
+                await context.Locks.DocumentsAsync([new("purchase-order", purchaseOrder)], token);
+                await context.Locks.LocationsAsync([location.Id], token);
+                await context.Locks.ArticlesAsync([article.Id], token);
+            }));
+        Assert.Equal(5m, (await stock.BalanceAsync(article.Id, location.Id))!.Physical);
     }
 }
