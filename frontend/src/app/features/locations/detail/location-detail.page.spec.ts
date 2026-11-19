@@ -80,6 +80,33 @@ describe('LocationDetailPage', () => {
     expect(document.querySelector('app-location-state-dialog')).toBeNull();
   });
 
+  it('pagina el contenido cuando no cabe en una página', async () => {
+    signIn();
+    const fixture = TestBed.createComponent(LocationDetailPage);
+    current = fixture;
+    await settle(fixture);
+    const location = detail({ isEmpty: false });
+    httpMock().expectOne(`/api/v1/locations/${location.id}`).flush(location, { headers: { ETag: '"V1"' } });
+    const first = httpMock().expectOne(r => r.url === `/api/v1/locations/${location.id}/stock`);
+    expect(first.request.params.get('page')).toBe('1');
+    first.flush({
+      asOf: '2026-11-18T10:00:00Z', location: { id: location.id, code: location.code, description: location.description, kind: location.kind, isActive: true },
+      items: [{ article, lotCode: 'L-001', physical: '1.000', reserved: '0.000', unit: 'UD' }],
+      hasReservations: false, inOpenCount: false, page: 1, pageSize: 25, totalCount: 30
+    });
+    await settle(fixture);
+    const root = fixture.nativeElement as HTMLElement;
+    expect(text(root.querySelector('[data-testid="stock-pager"]'))).toContain('Página 1 de 2 · 30 existencias');
+    Array.from(root.querySelectorAll('[data-testid="stock-pager"] button')).find(b => text(b) === 'Siguiente')!
+      .dispatchEvent(new MouseEvent('click'));
+    expect(httpMock().expectOne(r => r.url === `/api/v1/locations/${location.id}/stock`).request.params.get('page')).toBe('2');
+  });
+
+  it('con una sola página no muestra paginación', async () => {
+    const root = await render(detail({ isEmpty: false }), [{ article, lotCode: 'L-001', physical: '1.000', reserved: '0.000', unit: 'UD' }]);
+    expect(root.querySelector('[data-testid="stock-pager"]')).toBeNull();
+  });
+
   it('una ubicación inexistente se explica en la página', async () => {
     signIn();
     const fixture = TestBed.createComponent(LocationDetailPage);

@@ -56,6 +56,16 @@ public sealed class ArticleLocationsTests(IdentityFixture fixture) : IClassFixtu
         var inactiveRow = withInactive.GetProperty("items").EnumerateArray().First();
         Assert.False(inactiveRow.GetProperty("location").GetProperty("isActive").GetBoolean());
         Assert.Equal("5.000", withInactive.GetProperty("totals").GetProperty("physical").GetString());
+
+        // US2.4: un artículo inactivo también sigue mostrando sus ubicaciones, con su estado
+        // (preparación directa; la desactivación de artículos es de HU-08).
+        await using (var database = fixture.ApplicationDatabase())
+            await Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlInterpolatedAsync(database.Database,
+                $"UPDATE dbo.Articles SET IsActive = 0 WHERE Id = {article}");
+        var inactiveArticle = await ReadAsync(api, article);
+        Assert.False(inactiveArticle.GetProperty("article").GetProperty("isActive").GetBoolean());
+        Assert.Equal(2, inactiveArticle.GetProperty("totalCount").GetInt32());
+        Assert.Equal("5.000", inactiveArticle.GetProperty("totals").GetProperty("physical").GetString());
     }
 
     [Fact]

@@ -62,6 +62,21 @@ describe('LocationFormPage (corrección, US4)', () => {
       'La ubicación no está vacía: tiene 4.000 unidades físicas y 0.000 reservadas. Revisa su contenido; no se ha movido nada.');
     await settle(fixture);
     expect(text(root.querySelector('#kind-error'))).toContain('4.000 unidades físicas');
+    // US4.3: además de explicar el motivo, enlaza al contenido de la ubicación.
+    expect(root.querySelector('[data-testid="content-link"]')!.getAttribute('href')).toBe(`/ubicaciones/${ID}#contenido-ubicacion`);
+  });
+
+  it('un conteo abierto también enlaza al contenido', async () => {
+    const { fixture, root } = await render(detail({ hasMovements: true }));
+    const kind = root.querySelector('#kind') as HTMLSelectElement;
+    kind.value = 'Receiving';
+    kind.dispatchEvent(new Event('change'));
+    root.querySelector('form')!.dispatchEvent(new Event('submit'));
+    flushProblem(httpMock().expectOne(`/api/v1/locations/${ID}`), 409, 'CountScopeFrozen',
+      'La ubicación está incluida en un conteo abierto. Espera a que termine el conteo.');
+    await settle(fixture);
+    expect(text(root.querySelector('#kind-error'))).toContain('conteo abierto');
+    expect(root.querySelector('[data-testid="content-link"]')).not.toBeNull();
   });
 
   it('una identificación bloqueada por el servidor se muestra por campo', async () => {

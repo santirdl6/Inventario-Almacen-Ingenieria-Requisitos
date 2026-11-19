@@ -1,4 +1,4 @@
-import { Component, ElementRef, Injector, OnInit, afterNextRender, inject, signal } from '@angular/core';
+import { Component, ElementRef, Injector, OnInit, afterNextRender, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
@@ -89,6 +89,13 @@ import { LocationStateDialog } from './location-state-dialog';
               </tr>
             </ng-template>
           </p-table>
+          @if (stockPages() > 1) {
+            <nav class="pager" aria-label="Páginas del contenido de la ubicación" data-testid="stock-pager">
+              <p-button label="Anterior" [text]="true" [disabled]="content.page <= 1" (onClick)="loadStock(content.page - 1)" />
+              <span>Página {{ content.page }} de {{ stockPages() }} · {{ content.totalCount }} existencias</span>
+              <p-button label="Siguiente" [text]="true" [disabled]="content.page >= stockPages()" (onClick)="loadStock(content.page + 1)" />
+            </nav>
+          }
         }
       } @else if (stockError()) {
         <p class="error-text" role="alert">{{ stockError() }}</p>
@@ -115,6 +122,10 @@ export class LocationDetailPage implements OnInit {
 
   readonly location = signal<Versioned<LocationDetail> | null>(null);
   readonly stock = signal<LocationStock | null>(null);
+  readonly stockPages = computed(() => {
+    const content = this.stock();
+    return content ? Math.max(1, Math.ceil(content.totalCount / content.pageSize)) : 1;
+  });
   readonly loadError = signal<string | null>(null);
   readonly stockError = signal<string | null>(null);
   /** Aviso de éxito de la pantalla anterior o de un cambio de estado. */
@@ -155,8 +166,13 @@ export class LocationDetailPage implements OnInit {
         this.loadError.set(problem.status === 404 ? 'La ubicación no existe.' : problem.detail);
       }
     });
+    this.loadStock(this.stock()?.page ?? 1);
+  }
+
+  /** FR-008: todo el contenido es consultable, también más allá de la primera página. */
+  protected loadStock(page: number): void {
     this.stockError.set(null);
-    this.api.stock(this.id()).subscribe({
+    this.api.stock(this.id(), page).subscribe({
       next: result => this.stock.set(result),
       error: (error: unknown) => this.stockError.set(asProblem(error).detail)
     });

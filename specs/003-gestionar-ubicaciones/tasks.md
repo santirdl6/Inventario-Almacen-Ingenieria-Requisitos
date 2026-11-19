@@ -303,3 +303,12 @@ Desbloquea a A para elegir destinos activos en HU-01 (`GET /locations?status=act
 - Total activo: 57 tareas (1 bloqueada por HU-04); 12 retiradas.
 - No se crea ningún endpoint de artículos en HU-02: la búsqueda es de A.
 - No hacer commit desde estas tareas sin indicación expresa.
+
+---
+
+## Phase 16: Convergence
+
+- [X] T070 Leer también `status` y `kind` del parámetro de URL en `frontend/src/app/features/locations/list/location-list.page.ts`, para que el enlace al duplicado (`?search=…&status=all`) muestre una ubicación inactiva, con prueba en `location-list.page.spec.ts` per FR-002, US1.2–US1.3 (partial)
+- [X] T071 Paginar el contenido de la ubicación en `frontend/src/app/features/locations/detail/location-detail.page.ts` (Anterior/Siguiente con el total de páginas de `/stock`), con prueba en `location-detail.page.spec.ts` per FR-008, US3.1 (partial)
+- [X] T072 Enlazar al contenido de la ubicación (`/ubicaciones/:id`) cuando el formulario recibe `LocationNotEmpty` o `CountScopeFrozen` al cambiar el tipo, en `frontend/src/app/features/locations/form/location-form.page.ts`, con prueba en `location-form.edit.spec.ts` per US4.3 (partial)
+- [X] T073 Comprobar en `backend/tests/Inventario.IntegrationTests/Locations/ArticleLocationsTests.cs` que un artículo inactivo sigue mostrando sus ubicaciones con su estado per US2.4 (partial)

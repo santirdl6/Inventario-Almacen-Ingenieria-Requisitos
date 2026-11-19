@@ -137,6 +137,9 @@ function textControl(max: number): FormControl<string> {
           @if (errorFor('kind'); as message) {
             <small class="field-error" id="kind-error">{{ message }}</small>
           }
+          @if (contentLink() && id()) {
+            <a [routerLink]="['/ubicaciones', id()]" fragment="contenido-ubicacion" data-testid="content-link">Ver el contenido de la ubicación</a>
+          }
         </div>
         <div class="actions">
           <p-button type="submit" [label]="isEdit() ? 'Guardar cambios' : 'Crear ubicación'"
@@ -181,6 +184,7 @@ export class LocationFormPage implements OnInit {
   readonly serverErrors = signal<Partial<Record<Field, string>>>({});
   readonly generalError = signal<string | null>(null);
   readonly duplicateSearch = signal<string | null>(null);
+  readonly contentLink = signal(false);
   readonly conflict = signal(false);
   readonly current = signal<LocationDetail | null>(null);
   private readonly revision = signal(0);
@@ -362,7 +366,9 @@ export class LocationFormPage implements OnInit {
         break;
       case 'LocationNotEmpty':
       case 'CountScopeFrozen':
+        // US4.3: se explica la circunstancia y se enlaza al contenido de la ubicación.
         this.serverErrors.set({ kind: problem.detail });
+        this.contentLink.set(true);
         break;
       case 'VersionConflict':
         this.conflict.set(true);
@@ -383,6 +389,7 @@ export class LocationFormPage implements OnInit {
     this.serverErrors.set({});
     this.generalError.set(null);
     this.duplicateSearch.set(null);
+    this.contentLink.set(false);
     this.conflict.set(false);
   }
 

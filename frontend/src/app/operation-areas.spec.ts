@@ -53,7 +53,8 @@ describe('Áreas de B sobre la base de A', () => {
       expect(harness.routeNativeElement!.textContent).toContain(area.story);
       expect(harness.routeNativeElement!.textContent).toContain('Pendiente de desarrollo');
     }
-  });
+    // Carga cuatro módulos diferidos; con la caché fría superaba a veces el límite de 5 s.
+  }, 20_000);
 
   it('sin el permiso del área lleva a sin-permiso, y sin sesión al login conservando el destino', async () => {
     signIn(gestor);

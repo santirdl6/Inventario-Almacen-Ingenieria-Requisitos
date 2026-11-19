@@ -103,8 +103,9 @@ export class LocationListPage implements OnInit {
 
   readonly filters = new FormGroup({
     search: new FormControl(this.route.snapshot.queryParamMap.get('search') ?? '', { nonNullable: true }),
-    kind: new FormControl<LocationKind | ''>('', { nonNullable: true }),
-    status: new FormControl<LocationStatusFilter>('active', { nonNullable: true })
+    kind: new FormControl<LocationKind | ''>(urlKind(this.route.snapshot.queryParamMap.get('kind')), { nonNullable: true }),
+    // El enlace a un duplicado pide status=all: el código o lugar puede ser de una inactiva (FR-002).
+    status: new FormControl<LocationStatusFilter>(urlStatus(this.route.snapshot.queryParamMap.get('status')), { nonNullable: true })
   });
 
   readonly result = signal<Page<LocationSummary> | null>(null);
@@ -155,4 +156,12 @@ export class LocationListPage implements OnInit {
       }
     });
   }
+}
+
+function urlKind(value: string | null): LocationKind | '' {
+  return value === 'Storage' || value === 'Receiving' ? value : '';
+}
+
+function urlStatus(value: string | null): LocationStatusFilter {
+  return value === 'inactive' || value === 'all' ? value : 'active';
 }

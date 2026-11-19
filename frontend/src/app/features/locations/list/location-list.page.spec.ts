@@ -52,10 +52,23 @@ describe('LocationListPage', () => {
     expect(request.request.params.get('status')).toBe('all');
   });
 
-  it('la búsqueda inicial llega por la URL (enlace desde un duplicado)', async () => {
-    setup({ search: 'P01-E01-N01' });
+  it('la búsqueda inicial llega por la URL y el enlace de un duplicado incluye las inactivas', async () => {
+    setup({ search: 'P01-E01-N01', status: 'all', kind: 'Receiving' });
+    const fixture = await render();
+    const request = httpMock().expectOne(r => r.url === '/api/v1/locations');
+    expect(request.request.params.get('search')).toBe('P01-E01-N01');
+    expect(request.request.params.get('status')).toBe('all');
+    expect(request.request.params.get('kind')).toBe('Receiving');
+    request.flush({ items: [summary({ isActive: false, statusLabel: 'Inactiva' })], page: 1, pageSize: 25, totalCount: 1 });
+    await settle(fixture);
+    expect(text(fixture.nativeElement.querySelector('tbody tr'))).toContain('Inactiva');
+    expect((fixture.nativeElement.querySelector('#status') as HTMLSelectElement).value).toBe('all');
+  });
+
+  it('un estado desconocido en la URL vuelve a las activas', async () => {
+    setup({ status: 'borradas' });
     await render();
-    expect(httpMock().expectOne(r => r.url === '/api/v1/locations').request.params.get('search')).toBe('P01-E01-N01');
+    expect(httpMock().expectOne(r => r.url === '/api/v1/locations').request.params.get('status')).toBe('active');
   });
 
   it('sin resultados lo indica, permite limpiar los filtros y con gestión ofrece el alta', async () => {
