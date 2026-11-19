@@ -174,7 +174,7 @@ y frontend). Se tocan tres archivos transversales —`Program.cs`, `ApiProblems.
 
 | Dependencia | Efecto | Mitigación |
 |-------------|--------|------------|
-| Validación de A de FR-003/FR-014 y `MasterDataAudit` | Bloquea la fusión de `HU02_Locations`. | Sección siguiente; si A rechaza, se retira el índice y se reabre la clarificación 1. |
+| Validación de A de `MasterDataAudit` (FR-003 validada el 2026-11-19) | Bloquea la fusión de `HU02_Locations`. | Sección siguiente; si A rechaza, se retira el índice y se reabre la clarificación 1. |
 | `b/h0-frontend-base` no está en esta rama | Frontend no puede empezar. | Integrar esa rama antes de las tareas de UI. |
 | `GET /articles` (HU-08, A) | US2.1, tiempo de SC-005 y tarea 3 de SC-006. | Acceso provisional (desde el contenido de una ubicación o por id) solo para desarrollo y pruebas; criterios registrados como pendientes. |
 | Login en la UI (común) | Playwright de HU-02, SC-001 por la interfaz, revisión de accesibilidad y validación con operarios (SC-006). | Pruebas HTTP con sesión real y Vitest entretanto; criterios de interfaz registrados como pendientes. |
@@ -184,7 +184,8 @@ y frontend). Se tocan tres archivos transversales —`Program.cs`, `ApiProblems.
 ## Cambios al modelo común pendientes de A
 
 Ninguno de estos archivos se edita en esta rama hasta la revisión de A en el PR. FR-003 está
-**confirmada por B, pendiente de validación de A**; FR-014 endurece una frase existente.
+**validada por A** (acuerdo con A, 2026-11-19). FR-014 es alcance de HU-02 y no cambia el
+modelo común: la ausencia de DELETE se documenta solo en `contracts/locations-api.md`.
 
 ### `.specify/memory/project/data-model.md` — sección `### Location`
 
@@ -193,13 +194,11 @@ Ninguno de estos archivos se edita en esta rama hasta la revisión de A en el PR
 
  Id, Code único, Aisle, Rack, Level, Kind (Storage o Receiving), IsActive, Version.
  Pasillo/estantería/nivel obligatorios incluso para una ubicación temporal identificada.
--No se desactiva con stock, reservas o un conteo abierto. No se borra con historial.
 +La combinación (Aisle, Rack, Level), normalizada, es única entre todas las ubicaciones,
 +incluidas las inactivas (HU-02 FR-003). Code, Aisle, Rack y Level no cambian desde que
 +exista algún saldo/movimiento en la ubicación; Kind solo cambia si está vacía, sin
 +reservas ni conteo abierto. Almacén único: sin zona, almacén ni posición.
-+No se desactiva con stock, reservas o un conteo abierto. No se borra nunca, tenga o no
-+historial; la retirada es la desactivación reversible (HU-02 FR-014).
+ No se desactiva con stock, reservas o un conteo abierto. No se borra con historial.
  Un artículo puede aparecer en cualquier número de ubicaciones.
 
  **Base técnica H0 B (2026-11-16)**: `Domain.Locations.Location` y tabla `Locations` con
@@ -263,7 +262,6 @@ y resultado) que se registre en la sección «Evidencia» del quickstart de la f
 +LocationNotEmpty; con conteo abierto, CountScopeFrozen. Un PUT que cambia isActive no
 +cambia otros campos. Retirar la última zona Receiving activa exige
 +acknowledgeNoActiveReceiving=true; si falta, NoActiveReceivingLeft.
-+No existe DELETE /locations/{id}: las ubicaciones no se borran nunca.
 +GET /locations/{id}/stock devuelve el contenido de la ubicación por artículo y lote.
  GET /articles/{id}/locations devuelve todas sus ubicaciones con cantidades y lote,
  paginadas; filtrar isActive no oculta la historia del artículo.
