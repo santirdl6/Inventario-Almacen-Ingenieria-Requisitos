@@ -44,6 +44,11 @@ Segunda sesión, limitada a los cambios acordados con A (acuerdo con A, 2026-11-
 - Q: ¿Exige FR-014 (ninguna ubicación se borra) cambiar el modelo común? → A: No. FR-014 es alcance de HU-02: la regla común «no se borra con historial» prohíbe borrar con historial, pero no obliga a ofrecer borrado sin él; el modelo común no cambia (acuerdo con A, 2026-11-19).
 - Q: ¿Valida A la unicidad de pasillo+estantería+nivel, y cambia algo del código o del alcance físico? → A: Sí, A la aprueba. El código sigue siendo único y estable (FR-002, FR-011); almacén y zona siguen fuera, como establecen el reparto y el plan global (un almacén inicial) (acuerdo con A, 2026-11-19).
 
+Tercera sesión: ambigüedad detectado en prueba manual 2026-11-19 (caso 2: «  nay - a2  » se
+guardó como «NAY - A2», con espacios interiores).
+
+- Q: ¿Qué caracteres admiten el código, el pasillo, la estantería y el nivel? → A: Solo letras A–Z sin acentos ni Ñ, dígitos 0–9 y guion; se guardan en mayúsculas tras recortar los espacios extremos. Un valor con cualquier otro carácter (espacios interiores, acentos, Ñ, guion bajo…) se rechaza con un mensaje en su campo, conservando lo escrito. La regla se comprueba con una lista explícita de caracteres ASCII, sin depender de la intercalación de la base de datos (detectado en prueba manual 2026-11-19).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Registrar las ubicaciones físicas del almacén (Priority: P1)
@@ -77,6 +82,11 @@ y comprobar que muestran su pasillo, estantería, nivel y tipo. Intentar repetir
    consulta busca por código o por pasillo y filtra por tipo y estado, **Then** obtiene solo
    las coincidencias, con código, descripción física, tipo y estado expresados con texto;
    si no hay coincidencias se le indica y puede cambiar la búsqueda.
+6. **Given** un alta o una corrección cuyo código, pasillo, estantería o nivel contiene
+   caracteres distintos de A–Z, 0–9 y guion (por ejemplo «nay - a2», «ÁREA» o «Ñ1»),
+   **When** se intenta guardar, **Then** se rechaza indicando el campo y los caracteres
+   admitidos, no se crea ni modifica la ubicación y se conserva lo escrito; «p01-e01» se
+   acepta y se guarda como «P01-E01».
 
 ---
 
@@ -203,6 +213,10 @@ simular la pérdida de su respuesta.
 
 - Los códigos se comparan sin distinguir mayúsculas y sin espacios extremos, también frente a
   ubicaciones inactivas; un código inactivo no se reutiliza para otra ubicación.
+- Los espacios extremos se recortan, pero un espacio interior no se elimina ni se convierte:
+  «nay - a2» se rechaza (FR-002). Las letras acentuadas y la Ñ también se rechazan, aunque la
+  base de datos las ordene junto a A–Z. Si una base ya contiene valores que incumplen la regla,
+  la actualización se detiene con un mensaje claro en lugar de modificarlos.
 - Pasillo, estantería y nivel se normalizan del mismo modo; dos ubicaciones no pueden designar
   la misma combinación física, aunque una esté inactiva.
 - Una zona temporal de recepción exige también pasillo, estantería y nivel: no existen
@@ -231,10 +245,14 @@ simular la pérdida de su respuesta.
   de recepción) y estado activo/inactivo, conservando una identidad estable. Todas las
   ubicaciones pertenecen al único almacén; no se registran almacén, zona ni posición.
 - **FR-002**: El código DEBE ser obligatorio y único entre todas las ubicaciones, incluidas
-  las inactivas, sin distinguir mayúsculas ni espacios extremos.
+  las inactivas, sin distinguir mayúsculas ni espacios extremos. Solo DEBE admitir letras A–Z
+  sin acentos ni Ñ, dígitos 0–9 y guion; se guarda en mayúsculas, y un código con otros
+  caracteres (también espacios interiores) DEBE rechazarse indicando el campo y conservando
+  los datos introducidos.
 - **FR-003**: Pasillo, estantería y nivel DEBEN ser obligatorios para todo tipo de ubicación,
-  y su combinación, normalizada sin distinguir mayúsculas ni espacios extremos, DEBE ser única
-  entre todas las ubicaciones, incluidas las inactivas (validada por A, 2026-11-19).
+  admitir solo los mismos caracteres que el código (FR-002) y, normalizados sin distinguir
+  mayúsculas ni espacios extremos, su combinación DEBE ser única entre todas las ubicaciones,
+  incluidas las inactivas (validada por A, 2026-11-19).
 - **FR-004**: Una ubicación nueva DEBE crearse activa y sin existencias; crearla NO DEBE
   generar movimientos ni cantidades.
 - **FR-005**: Los usuarios con permiso de consulta de inventario DEBEN poder listar y buscar
@@ -341,7 +359,8 @@ Esta especificación define la aceptación; no declara realizadas pruebas ni rev
   corrección, desactivación y reactivación de ubicaciones con datos válidos, y los resultados
   siguen visibles al volver a abrir cada ubicación.
 - **SC-002**: En el 100 % de los casos definidos de código o combinación física repetidos
-  (también frente a ubicaciones inactivas), campos obligatorios vacíos y cambios de código,
+  (también frente a ubicaciones inactivas), campos obligatorios vacíos, caracteres no
+  admitidos en código, pasillo, estantería o nivel, y cambios de código,
   pasillo, estantería o nivel en ubicaciones con algún movimiento confirmado (incluidos los
   revertidos) se impide el guardado sin crear ni modificar registros, con indicación del dato
   que debe corregirse.
