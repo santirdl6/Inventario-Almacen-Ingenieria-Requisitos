@@ -93,9 +93,9 @@ traen ni `AppLocks`, ni `BusinessRuleException`, ni `HttpPreconditions`, ni los 
 
 **Independent Test**: L-05 (artículo) y L-06.
 
-- [ ] T024 [P] [US2] Crear `backend/tests/Inventario.IntegrationTests/Locations/ArticleLocationsTests.cs`: **habitual** L-05 (2 + 4 de ART-01/L-001 en N01/N02 con el núcleo → buckets 2 y 4, total 6 igual al diario) y L-06 (dos lotes en una ubicación sin duplicar el total; `pageSize=1` con totales de todo el artículo; artículo sin existencias → 200 vacío y totales cero; artículo inactivo y ubicación inactiva visibles con su estado; tras un Ship, nuevo reparto); **error** (artículo inexistente → 404); **permisos** (Administrador → 403) (US2.2–US2.5; FR-006, FR-007, FR-009; SC-003).
-- [ ] T025 [US2] En `LocationQueries.cs`, `ArticleLocationsAsync`: transacción SNAPSHOT de solo lectura; `StockBalances` con `Locations`, `Lots` y `Articles`; sin buckets con Physical = 0 y Reserved = 0; `totals` de todo el artículo; `asOf`; `includeInactiveLocations=true` por defecto; «Sin lote» para `SIN-LOTE`; orden por código y lote (D-09; FR-006, FR-007, FR-009).
-- [ ] T026 [US2] En `LocationEndpoints.cs`, mapear `GET /articles/{id}/locations` con `.RequireAuthorization("Inventory.Read")` (depende de T025; FR-007, FR-010).
+- [X] T024 [P] [US2] Crear `backend/tests/Inventario.IntegrationTests/Locations/ArticleLocationsTests.cs`: **habitual** L-05 (2 + 4 de ART-01/L-001 en N01/N02 con el núcleo → buckets 2 y 4, total 6 igual al diario) y L-06 (dos lotes en una ubicación sin duplicar el total; `pageSize=1` con totales de todo el artículo; artículo sin existencias → 200 vacío y totales cero; artículo inactivo y ubicación inactiva visibles con su estado; tras un Ship, nuevo reparto); **error** (artículo inexistente → 404); **permisos** (Administrador → 403) (US2.2–US2.5; FR-006, FR-007, FR-009; SC-003).
+- [X] T025 [US2] En `LocationQueries.cs`, `ArticleLocationsAsync`: transacción SNAPSHOT de solo lectura; `StockBalances` con `Locations`, `Lots` y `Articles`; sin buckets con Physical = 0 y Reserved = 0; `totals` de todo el artículo; `asOf`; `includeInactiveLocations=true` por defecto; «Sin lote» para `SIN-LOTE`; orden por código y lote (D-09; FR-006, FR-007, FR-009).
+- [X] T026 [US2] En `LocationEndpoints.cs`, mapear `GET /articles/{id}/locations` con `.RequireAuthorization("Inventory.Read")` (depende de T025; FR-007, FR-010).
 
 > US2.1 (búsqueda por código o nombre) usa `GET /articles?q=` de A: no hay trabajo de backend (véase T055).
 

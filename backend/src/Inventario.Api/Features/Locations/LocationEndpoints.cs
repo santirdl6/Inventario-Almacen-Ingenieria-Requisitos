@@ -41,6 +41,11 @@ public static class LocationEndpoints
                 commands.CreateAsync(Key(context), LocationWrite.Read(body, true), token))
             .RequireAuthorization(LocationCommands.Permission).Accepts<LocationWrite>("application/json")
             .Produces<LocationMutation>(201).ProducesProblem(400).ProducesProblem(403).ProducesProblem(409).ProducesProblem(422);
+        api.MapGet("/articles/{id:guid}/locations", async (Guid id, int? page, int? pageSize, bool? includeInactiveLocations,
+                LocationQueries queries, CancellationToken token) =>
+                await queries.ArticleLocationsAsync(id, page, pageSize, includeInactiveLocations, token) is { } result
+                    ? Results.Ok(result) : ApiProblems.Status(404))
+            .WithTags("Locations").RequireAuthorization(Read).Produces<ArticleLocations>().ProducesProblem(404).ProducesProblem(422);
         return api;
     }
 
