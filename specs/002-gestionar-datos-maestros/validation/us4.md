@@ -52,3 +52,24 @@ del endpoint HTTP con datos creados por el ejecutor y el núcleo de stock.
 En este corte se puede verificar el efecto de stock en T035, T064, T066, T070,
 T075, T077 y T078. Su cierre integrado sigue sujeto a los escenarios documentales
 y consumidores indicados en [tareas](../tasks.md).
+
+## Prueba cruzada de consumidores, 2026-11-19
+
+El corte publicado de HU-02 (`3d32162`) pasó 112/112 pruebas contra SQL Server.
+Al combinarlo con HU-08 (`cddfa4f`) en `work/hu08-hu02-validation` (`ae3db49`), pasaron
+119/119. EF confirmó el snapshot de la cadena que termina en
+`20261119101936_HU02_Locations`.
+
+`ArticleLocationsTests.Hu08_deactivation_preserves_hu02_balances_and_hu08_history_for_the_same_article`
+da de alta el artículo con el endpoint de HU-08, crea su ubicación con el de
+HU-02 y registra recepción, reserva y salida mediante el ejecutor común.
+Al desactivar el artículo con HU-08, el lector de HU-02 mantiene físico 4 y
+reservado 1. El historial filtrado por ubicación conserva las tres entradas
+y el DELETE del artículo responde `409 HistoryPreventsDeletion`. Se comprobaron
+las cantidades contra los deltas del diario.
+
+El resto de Q-05/Q-07/Q-09 requiere las implementaciones de compras (HU-07),
+recepciones (HU-01), pedidos y salidas (HU-03), reservas (HU-05),
+conteos (HU-04) y alertas (HU-06). El núcleo ejercita los efectos de stock
+disponibles. Las ramas publicadas durante el ensayo todavía carecían de esos
+consumidores documentales.
