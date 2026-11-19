@@ -45,6 +45,38 @@ public sealed class Location
         return normalized.Length > maximumLength ? $"No puede superar {maximumLength} caracteres." : null;
     }
 
+    /// <summary>Corrige la identificación física. Las reglas que dependen de saldos (FR-011)
+    /// las aplica el comando bajo location:{id}. Devuelve si hubo cambio efectivo.</summary>
+    public bool Correct(string code, string aisle, string rack, string level)
+    {
+        var next = new Location(code, aisle, rack, level, Kind);
+        if (next.Code == Code && next.Aisle == Aisle && next.Rack == Rack && next.Level == Level) return false;
+        (Code, Aisle, Rack, Level) = (next.Code, next.Aisle, next.Rack, next.Level);
+        return true;
+    }
+
+    public bool ChangeKind(LocationKind kind)
+    {
+        if (!Enum.IsDefined(kind)) throw new ArgumentOutOfRangeException(nameof(kind));
+        if (Kind == kind) return false;
+        Kind = kind;
+        return true;
+    }
+
+    public bool Deactivate()
+    {
+        if (!IsActive) return false;
+        IsActive = false;
+        return true;
+    }
+
+    public bool Reactivate()
+    {
+        if (IsActive) return false;
+        IsActive = true;
+        return true;
+    }
+
     public LocationSnapshot AuditSnapshot() => new(Code, Aisle, Rack, Level, Kind.ToString(), IsActive);
 
     public Guid Id { get; private set; } = Guid.NewGuid();

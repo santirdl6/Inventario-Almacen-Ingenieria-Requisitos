@@ -41,6 +41,19 @@ public static class LocationEndpoints
                 commands.CreateAsync(Key(context), LocationWrite.Read(body, true), token))
             .RequireAuthorization(LocationCommands.Permission).Accepts<LocationWrite>("application/json")
             .Produces<LocationMutation>(201).ProducesProblem(400).ProducesProblem(403).ProducesProblem(409).ProducesProblem(422);
+        locations.MapPut("/{id:guid}", (Guid id, JsonElement body, HttpContext context, LocationCommands commands,
+                CancellationToken token) =>
+                commands.UpdateAsync(Key(context), id, LocationWrite.Read(body, false), context.Request.Headers.IfMatch.ToString(), token))
+            .RequireAuthorization(LocationCommands.Permission).Accepts<LocationWrite>("application/json")
+            .Produces<LocationMutation>().ProducesProblem(400).ProducesProblem(403).ProducesProblem(404).ProducesProblem(409)
+            .ProducesProblem(412).ProducesProblem(422).ProducesProblem(428);
+        // FR-014: no existe borrado. Sin esta ruta, el fallback de /api respondería 404.
+        locations.MapDelete("/{id:guid}", (HttpContext context) =>
+            {
+                context.Response.Headers.Allow = "GET, PUT";
+                return ApiProblems.Status(405);
+            })
+            .RequireAuthorization().ExcludeFromDescription();
         locations.MapGet("/{id:guid}/stock", async (Guid id, int? page, int? pageSize, LocationQueries queries,
                 CancellationToken token) =>
                 await queries.StockAsync(id, page, pageSize, token) is { } result ? Results.Ok(result) : ApiProblems.Status(404))
