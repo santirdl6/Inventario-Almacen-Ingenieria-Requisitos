@@ -99,6 +99,21 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - `IX_ReservationAllocations_Bucket (ArticleId, LocationId, LotId) INCLUDE (RemainingQuantity)`.
 
   (data-model; FR-009–FR-013, FR-015–FR-019.)
+
+  **Estado (2026-11-20): parcial, sin marcar.** Por decisión de B, T003 se parte:
+  - Hecho:
+    - Línea base: 121/1/0, en `quickstart.md`, sección «Evidencia».
+    - Dominio: `CustomerOrder.cs` y `Reservation.cs` con `Hu05DomainTests` (13 casos).
+    - Suite completa 134/1/0 y modelo sin cambios.
+  - **Pendiente, junto a la migración de T004 cuando se fusione el PR #7**: las cuatro
+    configuraciones. `InventoryDbContext` las registra todas
+    (`ApplyConfigurationsFromAssembly`), y sin la migración ni el contributor de T004 fallarían:
+    - las tres pruebas `HasPendingModelChanges()` (`H0ReferenceTests`, `IdentityTests`,
+      `StockCoreTests`);
+    - `ArticleUsageCoverageValidator`, que daría 503 `DependencyUnavailable` en HU-08.
+  - `Touch()` no está en el dominio: marcar `State` como modificado necesita el `DbContext`.
+    Lo hace el comando con `db.Entry(x).Property(v => v.State).IsModified = true`, como
+    `ArticleCommands.cs` de A (T008, T011, T013; research D-07).
 - [ ] T004 [INT-HU05-01] Depende de T003 y, **para la migración**, de la fusión del PR #7 de A.
   - Generar `dotnet ef migrations add HU05_CustomerOrdersReservations` en
     `backend/src/Inventario.Api/Infrastructure/Persistence/Migrations/`, sobre
