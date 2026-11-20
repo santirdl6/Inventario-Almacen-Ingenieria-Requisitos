@@ -753,7 +753,7 @@ preparadas.
   - Rojo previo anotado: las pruebas de la opción activa y de Production fallaban porque la ruta no
     existía. La de «por defecto» pasaba antes de implementar, como guarda.
   - **Desviación**: también se apaga en Production, además de la opción. Así lo pidió B (2026-11-20).
-- [ ] T018 ⚑ commit aparte (archivos comunes y de A).
+- [X] T018 ⚑ commit aparte (archivos comunes y de A).
   - En `docker-compose.yml`, servicio `app`, añadir
     `Testing__EnableStockSeeding: ${TESTING_ENABLE_STOCK_SEEDING:-false}`.
   - En `frontend/e2e/fixtures/master-data.fixture.ts` (A), pasar
@@ -762,6 +762,18 @@ preparadas.
   - Nada más cambia.
 
   Depende de T017.
+
+  **Hecho (2026-11-20)**: tres commits aparte de archivos de A, autorizados por B.
+  - `docker-compose.yml` (`4659302`): `Testing__EnableStockSeeding:
+    ${TESTING_ENABLE_STOCK_SEEDING:-false}` en `app`. Por defecto queda `"false"`.
+  - `frontend/e2e/fixtures/master-data.fixture.ts`: `TESTING_ENABLE_STOCK_SEEDING=true` solo en
+    el entorno del proyecto Compose E2E, y la cuenta `responsable` (`ResponsableAlmacen`).
+    `Operario` ya existía (`lector`).
+  - **Desviación (autorizada por B)**: hizo falta un tercer archivo de A. Era
+    `backend/tests/Inventario.IntegrationTests/Fixtures/MasterDataTestData.cs` (`ef296cc`):
+    `ValidateE2ERequest` solo admitía exactamente tres cuentas y ahora acepta una cuarta
+    `ResponsableAlmacen` opcional, con los mismos controles. No hay API de alta de usuarios. Pruebas
+    en `Stock/E2EProvisioningTests.cs`; rojo previo: la cuarta cuenta se rechazaba.
 - [ ] T019 [US3] Crear `frontend/e2e/stock.spec.ts` con **E2E-01** usando el fixture de A:
   1. Preparar 10 de ART-01/L-001 en N01 con el endpoint de T017.
   2. El responsable abre `/existencias`, elige ART-01 y ve totales y filas.
