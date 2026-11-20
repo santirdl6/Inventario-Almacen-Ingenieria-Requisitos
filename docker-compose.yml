@@ -75,6 +75,9 @@ services:
       Smtp__Host: smtp
       Smtp__Port: "1025"
       Smtp__From: ${SMTP_FROM:-inventario@localhost.test}
+      # HU-05 (research D-17): siembra de existencias para E2E; desactivada salvo que el
+      # proyecto E2E pase TESTING_ENABLE_STOCK_SEEDING=true.
+      Testing__EnableStockSeeding: ${TESTING_ENABLE_STOCK_SEEDING:-false}
     ports:
       - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8081}:8080"
     volumes:
