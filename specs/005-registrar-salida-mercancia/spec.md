@@ -40,6 +40,7 @@ y resultados de negocio. Las decisiones de implementación corresponden al futur
 - Q: ¿Se puede descartar (eliminar) un borrador de salida completo, o solo editarlo y quitarle líneas? → A: Se puede eliminar un borrador completo; no afecta al stock y retira sus referencias al artículo, con la prueba de retirada de referencias de INT-HU03-01 (FR-004, US1.9).
 - Q: ¿Cómo se eligen los orígenes al preparar una salida? → A: El sistema propone los orígenes a partir de las reservas propias remanentes de la línea y el operario puede cambiarlos, quitarlos o añadir otros antes de guardar; sin reserva propia no hay propuesta. No es una asignación automática: nada se guarda sin que el operario lo revise (FR-006, US1.10, R-05).
 - Q: ¿Incluye HU-03 corregir una salida confirmada mediante una reversión vinculada? → A: No. Una salida confirmada no se revierte en HU-03; las diferencias se corrigen con el ajuste de inventario de HU-04, cuya spec deberá cubrir explícitamente la corrección de una salida errónea (FR-013, Alcance y dependencias).
+- Q: ¿Cómo elige el operario, en la pantalla de salidas, el pedido de cliente que va a servir? → A: Escribiendo la referencia externa del pedido: búsqueda exacta, sin distinguir mayúsculas ni espacios extremos, que abre ese pedido; HU-03 añade solo esa búsqueda, sin lista paginada de pedidos (FR-001a, US1.11).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -93,6 +94,11 @@ y cliente.
     operario la añade a la salida, **Then** se proponen esos orígenes con su remanente reservado,
     sin superar el pendiente de la línea, y el operario puede cambiar la cantidad, quitarlos o
     añadir otro origen antes de guardar; una línea sin reserva propia no recibe propuesta.
+11. **Given** un pedido con referencia externa «PED-0042», **When** el operario escribe « ped-0042 »
+    en la pantalla de salidas, **Then** se abre ese pedido con sus líneas y pendientes; **When**
+    escribe una referencia que no existe, **Then** se indica que no hay ningún pedido con esa
+    referencia, sin error técnico; **When** el pedido existe pero ya está servido, **Then** se
+    muestra indicando que no admite nuevas salidas.
 
 ---
 
@@ -247,6 +253,9 @@ el mismo disponible.
 - Fecha y hora del hecho posterior al momento del registro: se rechaza. Anterior: se admite y se
   conservan ambas, para registrar una salida tardía tras una contingencia.
 - Línea de pedido sin pendiente en el momento de preparar: no se ofrece para la salida.
+- Referencia de pedido escrita de forma parcial o con errores: no hay coincidencia aproximada; se
+  indica que no existe ningún pedido con esa referencia y se conserva el texto escrito para
+  corregirlo.
 - Salida confirmada con un error físico (cantidad u origen equivocados): no se edita ni se borra;
   tampoco se revierte en HU-03; la diferencia se corrige con un ajuste de inventario de HU-04.
 - Propuesta de orígenes cuya reserva propia supera lo que puede servirse (por ejemplo, porque el
@@ -263,6 +272,11 @@ el mismo disponible.
   una salida vinculada a un único pedido de cliente abierto existente, con fecha y hora del hecho y
   una o varias líneas. Esta feature NO DEBE crear pedidos de cliente ni reservas: usa los que
   registra HU-05.
+- **FR-001a**: Los usuarios con permiso de consulta DEBEN poder localizar un pedido de cliente
+  escribiendo su referencia externa completa, comparada sin distinguir mayúsculas ni espacios
+  extremos, con la misma regla de unicidad del alta de HU-05. La búsqueda DEBE devolver como mucho
+  un pedido, indicar expresamente cuándo no existe ninguno y mostrar el estado del pedido
+  encontrado. Esta feature NO DEBE ofrecer una lista ni una búsqueda parcial de pedidos.
 - **FR-002**: Cada línea DEBE indicar una línea del pedido, una ubicación de origen, el lote (o «sin
   lote» si el artículo no se gestiona por lote) y una cantidad positiva en la unidad del artículo.
   Una misma salida NO DEBE contener dos líneas con la misma línea de pedido, ubicación y lote; sí
@@ -359,7 +373,8 @@ el mismo disponible.
 
 - Esta feature desarrolla verticalmente la preparación, revisión, confirmación y consulta de salidas
   de mercancía contra pedidos de cliente. Quedan fuera el alta, edición y cancelación de pedidos y
-  la creación y liberación de reservas (HU-05), los conteos y ajustes (HU-04), las alertas de mínimo
+  la creación y liberación de reservas (HU-05), la lista paginada y la búsqueda parcial de
+  pedidos (pendientes de HU-05, S1), los conteos y ajustes (HU-04), las alertas de mínimo
   (HU-06), los traslados entre ubicaciones, las devoluciones de cliente, el transporte, los
   albaranes imprimibles y cualquier dato comercial.
 - Corrección de salidas confirmadas (clarificación 2026-11-20): HU-03 no las revierte. La spec de

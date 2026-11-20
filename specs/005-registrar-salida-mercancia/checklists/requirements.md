@@ -42,6 +42,8 @@ implementación, pruebas ejecutadas ni aceptación operativa.
   resuelven en la sesión de clarificación: eliminar un borrador completo (FR-004, US1.9),
   orígenes propuestos desde las reservas propias y editables (FR-006a, US1.10) y salida confirmada
   sin reversión en HU-03, que se corrige con el ajuste de HU-04 (FR-013, Alcance y dependencias).
+  Pregunta extra: el pedido se localiza por su referencia externa exacta (FR-001a, US1.11), porque
+  HU-05 no construyó la lista de pedidos (S1). Siguen cumpliéndose los 16 criterios.
 - Las demás decisiones abiertas se documentan en Assumptions como valores por defecto: contraparte
   siempre el cliente del pedido (nunca el motivo de no aplicación), motivo implícito de expedición,
   ciclo borrador → confirmada del contrato común, varios borradores y salidas parciales por pedido,
