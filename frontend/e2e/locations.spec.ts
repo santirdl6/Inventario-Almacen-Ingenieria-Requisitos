@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
 import { test, expect } from './fixtures/master-data.fixture';
 
 // HU-02 · Recorrido principal por la interfaz (T063): login de A, alta, duplicado, búsqueda,
@@ -93,4 +94,33 @@ test('una cuenta de solo lectura consulta ubicaciones pero no puede gestionarlas
   await expect(page.getByRole('link', { name: 'Nueva ubicación' })).toHaveCount(0);
   await page.goto('/ubicaciones/nueva');
   await expect(page).toHaveURL('/sin-permiso');
+});
+
+test('un alta con respuesta perdida se recupera tras recargar sin otra intención ni duplicado', async ({ page, environment, lector }) => {
+  const run = randomUUID().replaceAll('-', '').slice(0, 10).toUpperCase();
+  const code = `RECOVER-${run}`;
+  await login(page, environment.accounts.lector.email, environment.accounts.lector.password, '/ubicaciones/nueva');
+  await page.getByLabel(/^Código/).fill(code); await page.getByLabel(/^Pasillo/).fill(`P-${run}`);
+  await page.getByLabel(/^Estantería/).fill('E01'); await page.getByLabel(/^Nivel/).fill('N01');
+  let sends = 0; let id = ''; let key = '';
+  await page.route('**/api/v1/locations', async route => {
+    if (route.request().method() !== 'POST') { await route.continue(); return; }
+    sends++; key = route.request().headers()['idempotency-key'];
+    const response = await route.fetch(); expect(response.status()).toBe(201);
+    id = (await response.json()).resource.id; await route.abort('failed');
+  });
+  await page.getByRole('button', { name: 'Crear ubicación', exact: true }).click();
+  await expect(page.getByTestId('pending')).toContainText('Resultado pendiente de comprobar');
+  await page.reload();
+  await expect(page.getByLabel(/^Código/)).toHaveValue(code);
+  await expect(page.getByTestId('pending')).toContainText(key);
+  await expect(page.getByRole('button', { name: 'Crear ubicación', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Comprobar', exact: true }).click();
+  await expect(page).toHaveURL(`/ubicaciones/${id}`);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(`Ubicación ${code}`);
+  expect(sends).toBe(1);
+  const result = await lector.request.get(`/api/v1/locations?search=${code}&status=all`);
+  expect(result.status()).toBe(200); expect((await result.json()).totalCount).toBe(1);
+  const outcome = await lector.request.get(`/api/v1/operations/${key}`);
+  expect(outcome.status()).toBe(200); expect((await outcome.json()).status).toBe(201);
 });

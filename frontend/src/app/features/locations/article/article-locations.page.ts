@@ -45,7 +45,7 @@ import { asProblem } from '../shared/operation';
         <p-button label="Actualizar" [text]="true" (onClick)="load(result.page)" />
       </p>
 
-      @if (result.items.length === 0) {
+      @if (result.totalCount === 0) {
         <p class="empty" data-testid="empty">Este artículo no está almacenado en ninguna ubicación.</p>
       } @else {
         <p-table [value]="mutable(result.items)" ariaLabel="Ubicaciones del artículo">
@@ -104,7 +104,13 @@ export class ArticleLocationsPage implements OnInit {
   load(page: number): void {
     this.error.set(null);
     this.api.articleLocations(this.articleId(), page).subscribe({
-      next: result => this.data.set(result),
+      next: result => {
+        if (result.totalCount > 0 && result.items.length === 0 && result.page > 1) {
+          this.load(Math.max(1, Math.ceil(result.totalCount / result.pageSize)));
+          return;
+        }
+        this.data.set(result);
+      },
       error: (error: unknown) => {
         const problem = asProblem(error);
         this.error.set(problem.status === 404 ? 'El artículo no existe.' : problem.detail);

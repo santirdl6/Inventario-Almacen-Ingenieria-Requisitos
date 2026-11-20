@@ -74,7 +74,7 @@ code, traceId, operationId cuando aplique y errors por campo. No contienen traza
 | 400 | JSON o identificador inválido; antiforgery rechazado. |
 | 401 / 403 | Sin sesión / permiso insuficiente. |
 | 404 | Recurso inexistente o resultado de operación aún no observado. |
-| 409 | InsufficientStock, ReservedStockConflict, CountScopeFrozen, DocumentAlreadyConfirmed, OverReceipt, ArticleInactive, HistoryPreventsDeletion, IdempotencyConflict. |
+| 409 | InsufficientStock, ReservedStockConflict, CountScopeFrozen, DocumentAlreadyConfirmed, OverReceipt, ArticleInactive, HistoryPreventsDeletion, IdempotencyConflict, DuplicateLocationPlace, LocationIdentityLocked, LocationNotEmpty, NoActiveReceivingLeft. |
 | 412 / 428 | Versión obsoleta / falta If-Match. |
 | 422 | Campos de negocio inválidos, cantidades/unidades o suma de asignaciones incorrectas. |
 | 503 | LockTimeout o indisponibilidad tras reintentos; Retry-After. Comprobar operationId antes de repetir. |
@@ -149,6 +149,17 @@ entrega DDL al proceso API; no es un alta provisional de artículos.
 
 GET, POST /locations y GET, PUT /locations/{id}: code, aisle, rack, level, kind, isActive.
 Lectura Inventory.Read; mutación Locations.Manage. Código duplicado se rechaza.
+El lugar físico duplicado devuelve 409 DuplicateLocationPlace; la identificación con
+historial queda bloqueada (LocationIdentityLocked). Con stock/reservas no se desactiva
+ni cambia tipo (LocationNotEmpty); el conteo abierto lo bloquea cuando HU-04 se integre.
+Retirar la última Receiving activa devuelve NoActiveReceivingLeft. Un cambio de estado
+se guarda separado de una corrección de datos. Caracteres válidos: A–Z, 0–9 y guion.
+GET /locations/{id}/stock devuelve el contenido por artículo/lote. Paginación fuera de
+rango se rechaza 422; el total no se limita a la página. El detalle de Location se lee
+en SNAPSHOT y su ETag fuerte cubre representación completa más rowversion (digest SHA-256
+en Base64 entre comillas); PUT exige ese token opaco con If-Match. Los demás recursos
+que solo representan su fila conservan sus tokens de rowversion. Las intenciones de
+ubicaciones comparten el almacén/transporte de maestros, reautorizadas con Locations.Manage.
 GET /articles/{id}/locations devuelve todas sus ubicaciones con cantidades y lote,
 paginadas; filtrar isActive no oculta la historia del artículo.
 

@@ -1,14 +1,14 @@
 import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
-import { timeout } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { MasterDataMutationsService } from '../../../core/http/master-data-mutations.service';
+import { SessionService } from '../../../core/session/session.service';
 import { ApiProblem } from '../../../core/http/api-problem';
-import { completeIntent, intentKey } from '../data/idempotent-intent';
 import { LocationDetail, UpdateLocationRequest, Versioned } from '../data/location.models';
 import { LocationsApi } from '../data/locations-api.service';
 import {
   FORBIDDEN_MESSAGE,
-  MUTATION_TIMEOUT_MS,
   OperationStatus,
   PENDING_CHECK_MESSAGE,
   asProblem,
@@ -54,7 +54,10 @@ import {
       @if (status() === 'pending-check') {
         <div class="pending" role="status" data-testid="pending">
           <p>{{ pendingMessage }}</p>
-          <p-button label="Comprobar" (onClick)="check()" />
+          <p>Operación: {{ pending()?.operationId }}</p>
+          <p-button label="Comprobar" [disabled]="checking()" (onClick)="check()" />
+          @if (canReplay()) { <p-button label="Repetir petición original" [disabled]="checking()" (onClick)="retryOriginal()" /> }
+          @if (pending() && !hasOriginal()) { <p>La petición original se retiró al cerrar sesión. Solo puedes comprobar su resultado.</p> }
         </div>
       }
 
@@ -78,16 +81,20 @@ export class LocationStateDialog {
   readonly closed = output<void>();
 
   private readonly api = inject(LocationsApi);
+  private readonly mutations = inject(MasterDataMutationsService);
   protected readonly pendingMessage = PENDING_CHECK_MESSAGE;
 
-  readonly status = signal<OperationStatus>('idle');
+  private readonly confirming = signal(false);
+  readonly pending = computed(() => this.mutations.pending.forResource(`/api/v1/locations/${this.location().id}`));
+  readonly status = computed<OperationStatus>(() => this.confirming() ? 'confirming' : this.pending() ? 'pending-check' : 'idle');
+  readonly checking = signal(false);
+  readonly canReplay = signal(false);
   readonly problem = signal<string | null>(null);
   readonly notEmpty = signal(false);
   /** El servidor confirmó que es la última zona de recepción activa. */
   private readonly serverLast = signal(false);
   /** Tras un rechazo que exige reabrir (versión obsoleta, permiso) no se ofrece reintentar. */
   readonly blocked = signal(false);
-  private pendingBody: UpdateLocationRequest | null = null;
 
   readonly deactivating = computed(() => this.location().isActive);
   readonly title = computed(() => (this.deactivating() ? 'Desactivar ubicación' : 'Reactivar ubicación'));
@@ -105,6 +112,12 @@ export class LocationStateDialog {
   );
 
   constructor() {
+    inject(SessionService).loggedOut.pipe(takeUntilDestroyed()).subscribe(() => this.reset());
+    this.mutations.recovered.pipe(takeUntilDestroyed()).subscribe(({ operation, outcome }) => {
+      if (operation.resource !== `/api/v1/locations/${this.location().id}`) return;
+      const resource = (outcome.body as { resource?: LocationDetail } | null)?.resource;
+      if (resource) { this.confirming.set(false); this.changed.emit({ value: resource, etag: outcome.headers['ETag'] ?? '' }); }
+    });
     // Cada apertura empieza sin mensajes de la anterior.
     effect(() => {
       if (this.visible()) this.reset();
@@ -126,12 +139,25 @@ export class LocationStateDialog {
     });
   }
 
-  check(): void {
-    if (this.pendingBody && this.status() === 'pending-check') {
-      this.status.set('idle');
-      this.send(this.pendingBody);
-    }
+  async check(): Promise<void> {
+    const operation = this.pending(); if (!operation || this.checking()) return;
+    this.checking.set(true);
+    try {
+      const outcome = await this.mutations.check(operation);
+      if (!outcome) { this.canReplay.set(this.hasOriginal()); this.problem.set('Todavía no se observa un resultado. Puede seguir en curso.'); }
+    } catch (error) { this.problem.set(asProblem(error).detail); }
+    finally { this.checking.set(false); }
   }
+
+  async retryOriginal(): Promise<void> {
+    const operation = this.pending(); if (!operation || !this.canReplay() || this.checking()) return;
+    this.confirming.set(true);
+    try { await this.mutations.retry(operation); }
+    catch (error) { this.handle(asProblem(error)); }
+    finally { this.confirming.set(false); }
+  }
+
+  hasOriginal(): boolean { const operation = this.pending(); return !!operation && 'payload' in operation; }
 
   close(): void {
     if (this.status() === 'confirming') return;
@@ -140,25 +166,15 @@ export class LocationStateDialog {
 
   private send(body: UpdateLocationRequest): void {
     const location = this.location();
-    const intent = `location:state:${location.id}`;
-    const key = intentKey(intent, body);
-    this.pendingBody = body;
-    this.status.set('confirming');
-    this.api.update(location.id, body, this.etag(), key).pipe(timeout(MUTATION_TIMEOUT_MS)).subscribe({
+    this.confirming.set(true);
+    this.api.update(location.id, body, this.etag()).subscribe({
       next: saved => {
-        completeIntent(intent);
-        this.pendingBody = null;
-        this.status.set('idle');
+        this.confirming.set(false);
         this.changed.emit(saved);
       },
       error: (error: unknown) => {
-        if (isUncertain(error)) {
-          this.status.set('pending-check');
-          return;
-        }
-        completeIntent(intent);
-        this.pendingBody = null;
-        this.status.set('idle');
+        this.confirming.set(false);
+        if (isUncertain(error)) return;
         this.handle(asProblem(error));
       }
     });
@@ -190,11 +206,10 @@ export class LocationStateDialog {
   }
 
   private reset(): void {
-    this.status.set('idle');
+    this.confirming.set(false); this.canReplay.set(false);
     this.problem.set(null);
     this.notEmpty.set(false);
     this.serverLast.set(false);
     this.blocked.set(false);
-    this.pendingBody = null;
   }
 }

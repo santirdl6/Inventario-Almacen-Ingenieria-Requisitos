@@ -3,9 +3,10 @@ import { AbstractControl, FormControl, FormGroup, ReactiveFormsModule, Validatio
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
-import { timeout } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { MasterDataMutationsService } from '../../../core/http/master-data-mutations.service';
+import { SessionService } from '../../../core/session/session.service';
 import { ApiProblem } from '../../../core/http/api-problem';
-import { completeIntent, intentKey } from '../data/idempotent-intent';
 import {
   CODE_MAX_LENGTH,
   KIND_OPTIONS,
@@ -18,7 +19,6 @@ import {
 import { LocationsApi } from '../data/locations-api.service';
 import {
   FORBIDDEN_MESSAGE,
-  MUTATION_TIMEOUT_MS,
   OperationStatus,
   PENDING_CHECK_MESSAGE,
   asProblem,
@@ -106,7 +106,10 @@ function textControl(max: number): FormControl<string> {
     @if (status() === 'pending-check') {
       <div class="pending" role="status" data-testid="pending">
         <p>{{ pendingMessage }}</p>
-        <p-button label="Comprobar" (onClick)="checkResult()" />
+        <p>Operación: {{ pending()?.operationId }}</p>
+        <p-button label="Comprobar" [disabled]="checking()" (onClick)="checkResult()" />
+        @if (canReplay()) { <p-button label="Repetir petición original" [disabled]="checking()" (onClick)="retryOriginal()" /> }
+        @if (pending() && !hasOriginal()) { <p>La petición original se retiró al cerrar sesión. Solo puedes comprobar su resultado.</p> }
       </div>
     }
 
@@ -167,6 +170,8 @@ export class LocationFormPage implements OnInit {
   readonly id = signal<string | undefined>(inject(ActivatedRoute).snapshot.paramMap.get('id') ?? undefined);
 
   private readonly api = inject(LocationsApi);
+  private readonly mutations = inject(MasterDataMutationsService);
+  private readonly session = inject(SessionService);
   private readonly router = inject(Router);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
@@ -192,7 +197,11 @@ export class LocationFormPage implements OnInit {
   readonly loaded = signal<Versioned<LocationDetail> | null>(null);
   readonly identityLocked = computed(() => this.loaded()?.value.hasMovements ?? false);
   readonly loadError = signal<string | null>(null);
-  readonly status = signal<OperationStatus>('idle');
+  private readonly confirming = signal(false);
+  readonly pending = computed(() => this.mutations.pending.forResource(this.resourcePath()));
+  readonly status = computed<OperationStatus>(() => this.confirming() ? 'confirming' : this.pending() ? 'pending-check' : 'idle');
+  readonly checking = signal(false);
+  readonly canReplay = signal(false);
   readonly serverErrors = signal<Partial<Record<Field, string>>>({});
   readonly generalError = signal<string | null>(null);
   readonly duplicateSearch = signal<string | null>(null);
@@ -200,9 +209,17 @@ export class LocationFormPage implements OnInit {
   readonly conflict = signal(false);
   readonly current = signal<LocationDetail | null>(null);
   private readonly revision = signal(0);
-  private pendingBody: LocationFields | null = null;
 
   constructor() {
+    this.session.loggedOut.pipe(takeUntilDestroyed()).subscribe(() => {
+      this.form.reset(); this.form.disable(); this.loaded.set(null); this.current.set(null);
+      this.confirming.set(false); this.canReplay.set(false); this.clearMessages();
+    });
+    this.mutations.recovered.pipe(takeUntilDestroyed()).subscribe(({ operation, outcome }) => {
+      if (operation.resource !== this.resourcePath()) return;
+      const resource = (outcome.body as { resource?: LocationDetail } | null)?.resource;
+      if (resource) this.saved({ value: resource, etag: outcome.headers['ETag'] ?? '' });
+    });
     for (const name of [...IDENTITY_FIELDS, 'kind'] as Field[]) {
       this.form.controls[name].valueChanges.subscribe(() => {
         this.revision.update(value => value + 1);
@@ -218,6 +235,7 @@ export class LocationFormPage implements OnInit {
   ngOnInit(): void {
     const id = this.id();
     if (id) this.load(id);
+    this.restorePending();
   }
 
   /** Mensaje de error de un campo: primero el del servidor, después el de validación local. */
@@ -257,12 +275,30 @@ export class LocationFormPage implements OnInit {
     this.send(this.body());
   }
 
-  /** Repite la misma petición con la misma clave para conocer el resultado sin duplicarlo. */
-  checkResult(): void {
-    if (this.pendingBody && this.status() === 'pending-check') {
-      this.status.set('idle');
-      this.send(this.pendingBody);
-    }
+  /** Consulta el resultado sin reenviar; el replay posterior requiere una acción explícita. */
+  async checkResult(): Promise<void> {
+    const operation = this.pending(); if (!operation || this.checking()) return;
+    this.checking.set(true);
+    try {
+      const outcome = await this.mutations.check(operation);
+      if (!outcome) { this.canReplay.set(this.hasOriginal()); this.generalError.set('Todavía no se observa un resultado. Puede seguir en curso; conserva esta intención.'); }
+    } catch (error) { this.generalError.set(asProblem(error).detail); }
+    finally { this.checking.set(false); }
+  }
+
+  async retryOriginal(): Promise<void> {
+    const operation = this.pending(); if (!operation || !this.canReplay() || this.checking()) return;
+    this.confirming.set(true);
+    try { await this.mutations.retry(operation); }
+    catch (error) { this.handle(asProblem(error)); }
+    finally { this.confirming.set(false); }
+  }
+
+  hasOriginal(): boolean { const operation = this.pending(); return !!operation && 'payload' in operation; }
+  private resourcePath(): string { return this.id() ? `/api/v1/locations/${this.id()}` : '/api/v1/locations'; }
+  private restorePending(): void {
+    const operation = this.pending();
+    if (operation?.payload) this.form.patchValue(operation.payload as Partial<LocationFields>);
   }
 
   viewCurrent(): void {
@@ -303,6 +339,7 @@ export class LocationFormPage implements OnInit {
           else control.enable({ emitEvent: false });
         }
         this.revision.update(value => value + 1);
+        this.restorePending();
       },
       error: (error: unknown) => {
         const problem = asProblem(error);
@@ -322,41 +359,28 @@ export class LocationFormPage implements OnInit {
     };
   }
 
-  private intent(): string {
-    return this.isEdit() ? `location:update:${this.id()}` : 'location:create';
-  }
-
   private send(body: LocationFields): void {
-    const intent = this.intent();
-    const key = intentKey(intent, body);
     const loaded = this.loaded();
     const id = this.id();
     const request = id && loaded
-      ? this.api.update(id, { ...body, isActive: loaded.value.isActive }, loaded.etag, key)
-      : this.api.create(body, key);
+      ? this.api.update(id, { ...body, isActive: loaded.value.isActive }, loaded.etag)
+      : this.api.create(body);
 
-    this.pendingBody = body;
-    this.status.set('confirming');
-    request.pipe(timeout(MUTATION_TIMEOUT_MS)).subscribe({
-      next: saved => {
-        completeIntent(intent);
-        this.pendingBody = null;
-        this.status.set('idle');
-        // El aviso se muestra en la pantalla de destino (sin avisos globales).
-        void this.router.navigate(['/ubicaciones', saved.value.id],
-          { state: { notice: `Ubicación ${saved.value.code} guardada.` } });
-      },
+    this.confirming.set(true);
+    request.subscribe({
+      next: saved => this.saved(saved),
       error: (error: unknown) => {
-        if (isUncertain(error)) {
-          this.status.set('pending-check');
-          return;
-        }
-        completeIntent(intent);
-        this.pendingBody = null;
-        this.status.set('idle');
+        this.confirming.set(false);
+        if (isUncertain(error)) return;
         this.handle(asProblem(error));
       }
     });
+  }
+
+  private saved(saved: Versioned<LocationDetail>): void {
+    this.confirming.set(false); this.canReplay.set(false);
+    void this.router.navigate(['/ubicaciones', saved.value.id],
+      { state: { notice: `Ubicación ${saved.value.code} guardada.` } });
   }
 
   private handle(problem: ApiProblem): void {

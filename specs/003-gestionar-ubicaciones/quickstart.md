@@ -141,6 +141,23 @@ HU-02 no se da por aceptada hasta aportar:
 
 - Conteo abierto (FR-012, US3.3, US4.3, SC-004) con HU-04 (T034, bloqueada; `inOpenCount`
   es `false` y la regla de conteo abierto no se ha demostrado).
-- Revisión de A (T001) y cierre documental en la base común (T068), pendientes.
+- Revisión técnica de A (T001) y actualización de contratos comunes (T068) resueltas;
+  correcciones y ejecución final en [revisión de PR #6](validation/pr-review-2026-11-19.md).
 - Reservas reales de pedidos con HU-03/HU-05; mientras, reservas con el núcleo.
 - Integración con recepciones reales (V-03) en H3.
+
+## Revisión de A y corrección del PR #6
+
+T083–T086 corrigen las cuatro reproducciones de revisión. Ubicaciones comparte el
+transporte de intenciones, con actor/permiso, restauración, consulta y replay explícito;
+el detalle tiene ETag fuerte de la representación completa y lectura SNAPSHOT; las
+páginas desaparecidas por cambios de stock vuelven a una página válida.
+121 SQL aprobadas (1 omitida V-14), 107 frontend y 14 E2E en una pasada; build, tipos
+y modelo correctos. Comando E2E aislado desde frontend:
+
+```bash
+HU08_E2E_PROJECT=inventario-pr6-e2e HU08_E2E_BASE_URL=http://localhost:8083 HU08_E2E_BROWSER_CHANNEL=chrome npm run test:e2e -- --grep-invert SC-005
+```
+
+La retirada de cuentas y la parada se limitan a ese proyecto. El proyecto predeterminado
+sigue siendo inventario-hu08-e2e. No usar InventoryDev para estas comprobaciones.

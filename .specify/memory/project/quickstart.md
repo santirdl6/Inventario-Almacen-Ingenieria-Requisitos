@@ -308,3 +308,15 @@ claves necesarias para backups y Data Protection, con acceso restringido.
 Antes de producción deben quedar aprobados RPO/RTO, responsables de registro/ajuste/revisión,
 calendario de conteos y procedimiento de contingencia. Esta guía define cómo demostrarlo;
 no declara aprobaciones ni ensayos ya realizados.
+
+## 9. HU-02 — Revisión de integración del 2026-11-19
+
+Ubicaciones incorpora unicidad física, caracteres ASCII, auditoría y bloqueo de última
+Receiving. La revisión de A del PR #6 corrige restauración de intenciones, separación por
+actor, ETag fuerte de la representación completa y recuperación de páginas desaparecidas.
+Resultado del head corregido: 121 pruebas SQL aprobadas y V-14 específica omitida,
+107 frontend, 14 E2E funcionales, build/tipos correctos y EF sin diferencias. El entorno
+E2E usa `HU08_E2E_PROJECT=inventario-pr6-e2e`, puerto 8083 y base aislada, con retirada
+de cuentas y parada de contenedores al terminar. La evidencia y comandos particulares
+están en [la revisión HU-02](../../../specs/003-gestionar-ubicaciones/validation/pr-review-2026-11-19.md).
+Conteos de HU-04 y las desviaciones operativas SC-005/SC-006 mantienen su alcance declarado.

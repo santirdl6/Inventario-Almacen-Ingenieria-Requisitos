@@ -58,7 +58,9 @@ public sealed class LocationCommands(InventoryOperationExecutor executor)
             var retiresReceiving = location is { Kind: LocationKind.Receiving, IsActive: true }
                 && (!activate || values.Kind == LocationKind.Storage);
             if (retiresReceiving) await context.Locks.ReceivingZonesAsync(token);
-            EntityTags.RequireMatch(ifMatch, location.Version);
+            var currentDetail = await LocationQueries.DetailAsync(db,
+                context.Services.GetRequiredService<ILocationUsage>(), location, token);
+            EntityTags.RequireMatch(ifMatch, LocationEntityTags.Token(currentDetail, location.Version));
 
             var identity = new Dictionary<string, string[]>();
             const string locked = "Forma parte del historial de movimientos y no puede cambiarse.";
@@ -162,7 +164,7 @@ public sealed class LocationCommands(InventoryOperationExecutor executor)
     {
         var usage = context.Services.GetRequiredService<ILocationUsage>();
         var detail = await LocationQueries.DetailAsync(context.Database, usage, location, cancellation);
-        var headers = new Dictionary<string, string> { ["ETag"] = EntityTags.Format(location.Version) };
+        var headers = new Dictionary<string, string> { ["ETag"] = EntityTags.Format(LocationEntityTags.Token(detail, location.Version)) };
         if (status == 201) headers["Location"] = $"/api/v1/locations/{location.Id:D}";
         return OperationResponse.Json(status, new LocationMutation(context.OperationId, detail), location.Id, headers);
     }

@@ -192,10 +192,13 @@ base de A, sin traer la configuración de pruebas de esa rama:
   `MessageService` ni avisos globales.
 - Búsqueda de artículos (US2.1) con `GET /articles?q=` de A; se retira el acceso provisional.
 
-**Excepción documentada**: se mantiene `idempotent-intent.ts`. El `PendingOperationStore` de A
-solo admite rutas de maestros y exige `MasterData.Manage`; ampliarlo cambiaría su contrato.
-Guarda solo la clave y el cuerpo de la ubicación (datos no sensibles) y se borra tras una
-respuesta definitiva. Si A amplía su almacén, se migra en una historia posterior.
+**Revisión de A en PR #6**: las mutaciones usan el transporte común de intenciones,
+ampliado con la ruta locations y Locations.Manage sin conceder ese permiso a maestros.
+La intención conserva actor, cuerpo y ETag originales; se restaura al recargar y bloquea
+una intención diferente mientras sea incierta. Logout retira cuerpo/ETag y conserva
+solo la referencia para consulta. Comprobar consulta GET /operations; un 404 no es fallo
+definitivo y habilita un replay explícito con la misma clave. La UI ya no utiliza las
+funciones de claves de `idempotent-intent.ts`; la clasificación de estados sigue disponible.
 
 **Alternativa**: `VersionConflictComponent` de A para el 412; se mantiene el panel de
 `8377a12` porque ya está probado y A no tiene etiquetas para pasillo, estantería y nivel.

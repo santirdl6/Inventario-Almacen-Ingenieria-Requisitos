@@ -46,7 +46,7 @@ traen ni `AppLocks`, ni `BusinessRuleException`, ni `HttpPreconditions`, ni los 
 
 ## Phase 1: Setup y coordinación
 
-- [ ] T001 Coordinación con A **antes de fusionar** (no bloquea la implementación): pedir revisión en el PR de (1) `InventoryLocks.ReceivingZonesAsync()` —recurso `locations:receiving` en la fase de ubicaciones, después de `location:{id}`, nunca adquirido por `StockCore`— (D-05, FR-021) y (2) los cambios menores en archivos de A: `MasterDataEntity.Location` y el CHECK `CK_MasterDataAudit_Entity` (D-07), y la rama `DuplicateLocationPlace` de `MasterDataProblemMapper` (D-02). Registrar decisión, fecha y revisor en `specs/003-gestionar-ubicaciones/plan.md` § «Estado de la revisión de A». Si A pide otro recurso o fase, ajustar solo T003 y el caso L-11 de T030.
+- [X] T001 Coordinación con A **antes de fusionar** (no bloquea la implementación): pedir revisión en el PR de (1) `InventoryLocks.ReceivingZonesAsync()` —recurso `locations:receiving` en la fase de ubicaciones, después de `location:{id}`, nunca adquirido por `StockCore`— (D-05, FR-021) y (2) los cambios menores en archivos de A: `MasterDataEntity.Location` y el CHECK `CK_MasterDataAudit_Entity` (D-07), y la rama `DuplicateLocationPlace` de `MasterDataProblemMapper` (D-02). Registrar decisión, fecha y revisor en `specs/003-gestionar-ubicaciones/plan.md` § «Estado de la revisión de A». Si A pide otro recurso o fase, ajustar solo T003 y el caso L-11 de T030.
 - [X] T002 Línea base en `b/hu-02-ubicaciones-v2`: confirmar que `backend/src/Inventario.Api/Infrastructure/Persistence/Migrations/` termina en `20261118194940_H0_StockCore`; ejecutar la suite de `backend/Inventario.slnx` (88 pruebas) y `dotnet ef migrations has-pending-model-changes`, y en `frontend/` `npm test` (40) y `npm run build`; todo en verde y sin avisos.
 
 ---
@@ -216,7 +216,7 @@ traen ni `AppLocks`, ni `BusinessRuleException`, ni `HttpPreconditions`, ni los 
 ## Phase 15: Polish y cierre
 
 - [X] T067 Verificación final: suite backend completa, `has-pending-model-changes`, `npm test`, `npm run build` y T063; actualizar en `specs/003-gestionar-ubicaciones/quickstart.md` § «Evidencia» y § «Pendiente por dependencias» el estado de T034 (todos los FR).
-- [ ] T068 Cierre de coordinación con A, **cuando T001 esté aprobado y el PR revisado**: aplicar los diffs de `plan.md` § «Cambios al modelo común pendientes de A» a `.specify/memory/project/data-model.md`, `.specify/memory/project/contracts/api.md` (incluida la paginación con 422 y la fila 409), `.specify/memory/project/contracts/stock-operations.md` (`locations:receiving`) y `.specify/memory/project/quickstart.md` (evidencia de HU-02), ajustados a lo implementado; marcar resuelta la sección de pendientes de `plan.md` con la referencia a la revisión (FR-003, FR-021; AGENTS.md, «Cambios compartidos»).
+- [X] T068 Cierre de coordinación con A, **cuando T001 esté aprobado y el PR revisado**: aplicar los diffs de `plan.md` § «Cambios al modelo común pendientes de A» a `.specify/memory/project/data-model.md`, `.specify/memory/project/contracts/api.md` (incluida la paginación con 422 y la fila 409), `.specify/memory/project/contracts/stock-operations.md` (`locations:receiving`) y `.specify/memory/project/quickstart.md` (evidencia de HU-02), ajustados a lo implementado; marcar resuelta la sección de pendientes de `plan.md` con la referencia a la revisión (FR-003, FR-021; AGENTS.md, «Cambios compartidos»).
 
 ---
 
@@ -330,3 +330,15 @@ Desbloquea a A para elegir destinos activos en HU-01 (`GET /locations?status=act
 - [X] T080 [US1] Pruebas en `backend/tests/Inventario.IntegrationTests/Locations/LocationsCreateTests.cs`: L-16 (alta y corrección rechazadas por campo con espacios interiores, acentos, Ñ, guion bajo y «ı»; minúsculas válidas guardadas en mayúsculas; CHECK con error 547) per US1.6, SC-002
 - [X] T081 [US1] Validador de caracteres y ayuda de cada campo en `frontend/src/app/features/locations/form/location-form.page.ts`, con pruebas en `location-form.page.spec.ts` (caso 2 de la prueba manual, valores válidos en minúsculas, 422 del servidor) per US1.6, FR-019
 - [X] T082 Corregir «NAY - A2» a «NAY-A2» en la base de E2E desde la aplicación antes de desplegar la regla (auditoría `Update`) y demostrar en una base aparte que `HU02_LocationCharacters` se detiene con mensaje claro si quedan valores que incumplen per D-14
+
+## Phase 20: Correcciones de la revisión de A — PR #6
+
+- [X] T083 [US5] Resolver R1 usando el transporte común, restauración de clave/cuerpo/ETag y bloqueo de nuevas intenciones mientras el resultado sea incierto; comprobar operación por GET y ofrecer replay explícito. Regresiones de recarga real, petición inmutable y E2E de respuesta perdida en `location-form.review.spec.ts`, `location-form.conflict.spec.ts` y `frontend/e2e/locations.spec.ts` per FR-018/020.
+- [X] T084 [US5] Resolver R2 ligando la intención al actor y permiso del recurso, retirando payload/ETag al logout y conservando referencia; probar cambio de cuenta sin reutilizar clave en `location-form.review.spec.ts`. Integrar el mismo protocolo en el diálogo de estado y los enlaces de recuperación del layout per FR-010/018/020.
+- [X] T085 [US5] Resolver R3 con ETag fuerte SHA-256 de representación completa + rowversion, GET SNAPSHOT y revalidación bajo bloqueos; probar estabilidad, cambio por Receive y rechazo de token obsoleto en `LocationReviewTests.cs`, manteniendo la protección de última Receiving en `LocationsUpdateTests.cs` per FR-016/017/021.
+- [X] T086 [US2] [US3] Resolver R4 usando totalCount para vacío global y recuperando una página válida cuando cambia el stock; probar ambas pantallas en `article-locations.review.spec.ts` y `location-detail.review.spec.ts` per FR-007/008.
+
+Evidencia: [revisión de A](validation/pr-review-2026-11-19.md): 121 SQL aprobadas,
+1 omitida V-14; 107 frontend; 14 E2E funcionales; build/tipos correctos y EF sin cambios.
+T034 sigue asociada a HU-04; rendimiento y sesiones con operarios mantienen su alcance
+operativo declarado, sin atribuir su aceptación a esta revisión de integración.

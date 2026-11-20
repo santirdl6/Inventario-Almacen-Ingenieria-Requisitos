@@ -3,14 +3,16 @@ import { TestBed } from '@angular/core/testing';
 import { TimeoutError, firstValueFrom } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { asProblem, fieldMessages, isUncertain } from '../shared/operation';
-import { detail, flushNetworkError, flushProblem, httpMock, locationsTestProviders, mutation } from '../testing/locations-testing';
+import { detail, flushNetworkError, flushProblem, httpMock, locationsTestProviders, mutation, signIn } from '../testing/locations-testing';
 import { LocationsApi } from './locations-api.service';
 
 describe('LocationsApi', () => {
   let api: LocationsApi;
 
   beforeEach(() => {
+    sessionStorage.clear();
     TestBed.configureTestingModule({ providers: locationsTestProviders() });
+    signIn(['Inventory.Read', 'Locations.Manage']);
     api = TestBed.inject(LocationsApi);
   });
 
@@ -35,10 +37,10 @@ describe('LocationsApi', () => {
 
   it('create envía Idempotency-Key y devuelve el recurso de la mutación', async () => {
     const body = { code: 'P01', aisle: 'P01', rack: 'E01', level: 'N01', kind: 'Storage' as const };
-    const result = firstValueFrom(api.create(body, 'key-1'));
+    const result = firstValueFrom(api.create(body));
     const request = httpMock().expectOne('/api/v1/locations');
     expect(request.request.method).toBe('POST');
-    expect(request.request.headers.get('Idempotency-Key')).toBe('key-1');
+    expect(request.request.headers.get('Idempotency-Key')).toMatch(/^[0-9a-f-]{36}$/);
     expect(request.request.body).toEqual(body);
     request.flush(mutation(detail({ code: 'P01' })), { status: 201, statusText: 'Created', headers: { ETag: '"V1"' } });
     const created = await result;
@@ -48,11 +50,11 @@ describe('LocationsApi', () => {
 
   it('update envía If-Match e Idempotency-Key, sin reconocimiento de recepción', async () => {
     const body = { code: 'P01', aisle: 'P01', rack: 'E01', level: 'N02', kind: 'Storage' as const, isActive: true };
-    const result = firstValueFrom(api.update('id-1', body, '"V1"', 'key-2'));
-    const request = httpMock().expectOne('/api/v1/locations/id-1');
+    const result = firstValueFrom(api.update(detail().id, body, '"V1"'));
+    const request = httpMock().expectOne(`/api/v1/locations/${detail().id}`);
     expect(request.request.method).toBe('PUT');
     expect(request.request.headers.get('If-Match')).toBe('"V1"');
-    expect(request.request.headers.get('Idempotency-Key')).toBe('key-2');
+    expect(request.request.headers.get('Idempotency-Key')).toMatch(/^[0-9a-f-]{36}$/);
     expect(Object.keys(request.request.body)).not.toContain('acknowledgeNoActiveReceiving');
     request.flush(mutation(detail({ level: 'N02' })), { headers: { ETag: '"V2"' } });
     expect((await result).value.level).toBe('N02');
@@ -66,7 +68,7 @@ describe('LocationsApi', () => {
   });
 
   it('los errores se leen con apiProblem: código, detalle y campos', async () => {
-    const result = firstValueFrom(api.create({ code: 'P01', aisle: 'P01', rack: 'E01', level: 'N01', kind: 'Storage' }, 'k'));
+    const result = firstValueFrom(api.create({ code: 'P01', aisle: 'P01', rack: 'E01', level: 'N01', kind: 'Storage' }));
     flushProblem(httpMock().expectOne('/api/v1/locations'), 409, 'DuplicateCode', 'El código ya existe.',
       { errors: { Code: ['El código ya existe.'] } });
     const problem = asProblem(await result.catch(error => error));

@@ -61,10 +61,14 @@ Los parámetros se leen con `ActivatedRoute`.
   del artículo encima de la tabla, separado de la página; filas por ubicación y lote;
   ubicaciones inactivas con «Inactiva». Sin existencias: «Este artículo no está almacenado
   en ninguna ubicación» (no es un error). Botón «Actualizar» y `asOf` visible.
-- **Envío**: botón deshabilitado mientras confirma; la clave de idempotencia de la intención
-  se guarda en sessionStorage (`idempotent-intent.ts`, excepción documentada en D-11).
-  Timeout o error de red: «Resultado pendiente de comprobar» con botón «Comprobar» que
-  repite la misma petición y clave; nunca se muestra éxito sin 2xx.
+- **Envío**: transporte común y sesión/permiso original; intención inmutable con clave,
+  cuerpo y ETag en sessionStorage, restaurada al recargar. Timeout o error de red:
+  «Resultado pendiente de comprobar». «Comprobar» consulta la operación; si aún no hay
+  resultado, se ofrece «Repetir petición original» explícitamente. No cambia el cuerpo,
+  ETag ni clave para resolver incertidumbre. Logout elimina el payload y conserva solo
+  la referencia para consulta por su identidad original. Nunca se muestra éxito sin 2xx.
+- **Paginación ante movimientos**: una página sin filas con totalCount positivo no significa
+  almacén/ubicación vacíos. Se recarga una página válida conservando la consulta y los totales.
 - **Éxito y avisos**: en la propia página (`role="status"`, o `role="alert"` para errores),
   con el código de la ubicación; después se recarga el detalle desde el servidor.
 
