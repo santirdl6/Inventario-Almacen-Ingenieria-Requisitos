@@ -302,7 +302,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   `errors.externalReference`. Va **antes** de la rama genérica de `_Code`; nada más cambia (D-10).
   **Hecho (2026-11-20)**: una rama de cinco líneas, con su comentario. La prueba que la cubre está en
   `CustomerOrderTests` (T010) y provoca la violación real del índice.
-- [ ] T010 [P] [US2] [INT-HU05-01] [INT-HU05-02] Crear
+- [X] T010 [P] [US2] [INT-HU05-01] [INT-HU05-02] Crear
   `backend/tests/Inventario.IntegrationTests/Stock/CustomerOrderTests.cs`.
   - **Habitual**: S-08 (alta de PED-1001 con ART-01×7 y ART-02×3 → 201 `Open`, servido 0 y
     `IsDefinitionLocked` true; replay con la misma clave → idéntico; GET con `ETag`).
@@ -348,6 +348,39 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     Sin modificar `StockTestHarness`.
 
   (US2, US5.1; FR-009–FR-012.) Depende de T008 y T009.
+
+  **Hecho (2026-11-20)**: `CustomerOrderTests`, 15 pruebas. Rojo previo anotado: las 15 fallaban
+  porque las rutas no existían (404; las carreras agotaban la barrera) y el mapper devolvía `null`.
+  Tras T008 quedaba roja solo la del índice único, que pasó con T009. Resultado: suite 170/1/0
+  (línea base 155/1/0), modelo sin cambios y carreras en verde tres veces.
+  - **Habitual, error y permisos**: S-08 (alta, replay idéntico con `Location` y `ETag`, GET con el
+    mismo `ETag` y cuerpo, definición bloqueada), duplicado « ped-… » → 409, S-09 (422 por línea,
+    cabecera vacía, 1,5 en artículo entero, artículo inexistente, inactivo → 409 con SKU; nada
+    creado), 403 para ResponsableAlmacen y GestorMaestros al crear, 200 al leer, Administrador 403,
+    sin sesión 401, 404 en detalle y contexto.
+  - **ETag**: renombrar y desactivar el artículo no cambia cuerpo ni `ETag`, y el contexto sí lo
+    refleja con `orderVersion` igual. La **salida simulada** (regla 4: `ShippedQuantity` y cabecera
+    en la misma transacción) cambia el `ETag`, y `orderVersion` lo sigue.
+  - **Contrato de escritores**: `PUT` de definición → 409 `ArticleDefinitionLocked`, contexto del
+    artículo con `References`, `DELETE` → 409 `HistoryPreventsDeletion` (sin 503).
+  - **Carreras** en ambos órdenes contra desactivación, `PUT` de definición y `DELETE`.
+  - T009: la violación real del índice se traduce a 409 `DuplicateCode`.
+  - `ICustomerOrderReader` dentro del ejecutor, sin reservas (mínimo de S-18).
+
+  **Desviaciones**:
+  - Alta primero frente a `PUT` de la definición o `DELETE`: la primera referencia renueva la
+    versión del artículo, así que el escritor con el `If-Match` leído antes recibe **412**. Con la
+    versión actual recibe 409 (`ArticleDefinitionLocked` o `HistoryPreventsDeletion`). Es el mismo
+    patrón que `MasterDataLifecycleConcurrencyTests` de A.
+  - En la carrera con la desactivación, un pedido previo fija la definición para que la versión del
+    artículo no cambie. Así la desactivación se decide solo por el bloqueo.
+
+  **Queda para T012/T014** (necesitan reservar o liberar):
+  - T012: el `ETag` cambia tras una reserva real; S-18 con asignaciones.
+  - T014: el `ETag` cambia tras una liberación real; la prueba de la ubicación desactivada (exige
+    una reserva liberada por completo y la ubicación vaciada).
+
+  Las carreras de reserva y liberación ya estaban en T012/T014.
 
 **Checkpoint**: se crean y consultan pedidos; HU-03 dispone del lector.
 
