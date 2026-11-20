@@ -185,12 +185,18 @@ no son números de directorio ni implican que ya existan ocho archivos de especi
 | HU-02 | Gestionar las ubicaciones de los artículos | B | Código único con pasillo, estantería y nivel; artículo en varias ubicaciones; cantidad por artículo y ubicación; consulta de todas las ubicaciones de un artículo. |
 | HU-03 | Registrar la salida de mercancía | B | Vinculación a pedido de cliente; artículos, cantidades y ubicaciones de origen; bloqueo de salidas superiores a lo disponible considerando reservas ajenas; descuento al confirmar; movimiento trazable. |
 | HU-04 | Realizar inventarios cíclicos y ajustar diferencias | B | Selección de una parte del almacén; cantidades contadas comparadas con las teóricas; diferencias visibles; motivo e identidad de quien ajusta; actualización al confirmar conservando el registro. |
-| HU-05 | Consultar existencias y reservas | B | Búsqueda por artículo y filtros por ubicación o lote; distinción entre físico, reservado y disponible; disponible igual a físico menos reservado; resultados que reflejen movimientos y ajustes confirmados. |
+| HU-05 | Consultar existencias y reservas | B | Búsqueda por artículo y filtros por ubicación o lote; distinción entre físico, reservado y disponible; disponible igual a físico menos reservado; resultados que reflejen movimientos y ajustes confirmados. Soporte mínimo acordado: alta/consulta de pedido de cliente y reservar/liberar; HU-03 consume ese pedido para las salidas. |
 | HU-06 | Configurar alertas de stock mínimo | A | Mínimo configurable por artículo; alerta automática al caer el disponible por debajo del mínimo; identificación del artículo, stock y mínimo; cantidad sugerida de compra. |
 | HU-07 | Crear, enviar y seguir pedidos a proveedores | A | Borrador asociado a proveedor; líneas con artículos, cantidades, precios y fecha prevista; envío al proveedor; consulta de estado; estados borrador, enviado, recibido parcialmente y recibido; pendientes y estado actualizados por las recepciones. |
 | HU-08 | Mantener los datos maestros del almacén | A | Crear, consultar y modificar artículos, familias y proveedores; asignar familia; impedir eliminación de artículos con movimientos; desactivar artículos con historial conservando movimientos y consulta de trazabilidad. |
 
 ### Justificación del agrupamiento
+
+La numeración de directorios y los nombres completos confirmados se registran en
+[docs/agrupamiento.md](../../docs/agrupamiento.md): B usa 004–006 para HU-05/HU-03/HU-04
+y A 007–009 para HU-07/HU-01/HU-06, conservando 002/HU-08 y 003/HU-02. No se cambia
+el identificador ni los criterios originales de ninguna historia. El pedido mínimo
+se adelanta a HU-05 por su dependencia con reservas; HU-03 mantiene las salidas.
 
 **Persona A — Abastecimiento y datos maestros: HU-08, HU-07, HU-01 y HU-06.**
 

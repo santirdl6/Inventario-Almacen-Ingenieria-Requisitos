@@ -30,6 +30,9 @@ deberán ajustarse a él. Cambios compartidos requieren revisión A+B.
 - No hay DELETE/PUT/PATCH de saldos ni de movimientos confirmados.
 - Datos comunes de confirmación: `occurredAt`, `reason`, referencia de soporte o explicación
   de no aplicabilidad. Actor y recordedAt siempre los asigna el servidor.
+  La contraparte se indica con `counterpartyReference` o `counterpartyNotApplicableReason`;
+  el núcleo exige evidencia para cada hecho nuevo. La consulta del diario conserva el motivo
+  y distingue información histórica no registrada; protocolo de replay en stock-operations.
 
 ## Sesión, permisos y errores
 
@@ -191,6 +194,11 @@ Receiving.Record. Rechaza compra aún no enviada, artículo inactivo, exceso o f
 Devuelve cantidades aceptadas, pendientes, nuevo estado de compra y movimientos confirmados.
 
 ### HU-03 y HU-05 — B: pedidos de cliente, reservas y salidas
+
+Asignación confirmada 2026-11-19: HU-05 implementa POST/GET de customer-orders y los
+recursos de reservations/release; HU-03 implementa shipments y consume ese mismo pedido
+y sus reservas. Se conservan las rutas y permisos siguientes; el traslado no añade
+edición/cancelación de pedidos ni un módulo comercial.
 
 | Método y ruta | Entrada / salida |
 |---------------|-----------------|

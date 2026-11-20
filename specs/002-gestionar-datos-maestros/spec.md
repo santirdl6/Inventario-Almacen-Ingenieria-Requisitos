@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-12
 
-**Status**: Draft
+**Status**: Closed — entrega técnica y académica, 2026-11-19.
 
 **Input**: User description: "Crea la especificación para La historia de usuario 8 : artículos, familias, proveedores"
 
@@ -24,7 +24,32 @@
 - [Guía de validación](../../.specify/memory/project/quickstart.md): datos compartidos, V-01, V-08, V-12 y criterios transversales de recuperación.
 
 Los enlaces anteriores son referencias normativas; esta especificación describe necesidades
-y resultados de negocio. Las decisiones de implementación corresponden al futuro plan de HU-08.
+y resultados de negocio. Las decisiones de implementación corresponden al [plan de HU-08](plan.md).
+
+## Cierre y responsabilidad del alcance
+
+Por decisión del usuario de 2026-11-19, HU-08 se cierra al entregar los tres catálogos,
+autorización, auditoría, cambios fiables, conservación de identidad/estado e historial de
+los movimientos disponibles. La evidencia está en [aceptación](validation/acceptance.md).
+
+Las reglas sobre documentos, reservas, compras, recepciones, salidas, conteos y alertas son
+contratos que debe satisfacer cada funcionalidad al incorporarse. Su implementación y
+prueba corresponden al módulo que crea esos hechos; no son desarrollo pendiente de HU-08.
+El [backlog receptor](../001-reparto-specs-inventario/integration-tasks.md) conserva criterios,
+responsables e IDs para incorporarlos a las futuras specs. La ausencia de uno de esos
+módulos no reabre esta spec.
+
+| Criterios de integración | Responsable receptor |
+|-------------------------|----------------------|
+| Primera referencia documental, retirada y protección de definición/borrado: FR-009/010/019, US2.8 y US4.2. | HU-01, HU-03, HU-04, HU-05 y HU-07, cada una con sus propios documentos y compromisos. |
+| Conservación de pedidos de proveedor: US3.3/3.4/3.6 y SC-007 documental. | HU-07, con su consumo desde HU-01. |
+| Nuevas operaciones prohibidas y compromisos permitidos de inactivos: FR-013, US4.6. | HU-01/HU-03/HU-04/HU-05/HU-07; HU-08 entrega el estado y conserva consulta/historial. |
+| Reacción de mínimos y alertas a cambios de estado. | HU-06. |
+| SC-006 con gestores y recuperación/aceptación operativa. | H5 de coordinación y puesta en servicio. |
+
+La revisión compartida previa a integrar cambios se registra en COORD-01 del backlog,
+y la aceptación de responsables previa a producción, en H5. Este cierre técnico no
+declara ejecutadas esas revisiones ni modifica las obligaciones de la constitución.
 
 ## Clarifications
 
@@ -325,10 +350,10 @@ simular la pérdida de su respuesta.
   que B termine ubicaciones o el núcleo de stock. A propone identidad, unidades y estado
   del artículo; A y B revisan los acuerdos aplicables antes del desarrollo dependiente.
 - El historial consume los movimientos compartidos, no crea un historial de stock alternativo.
-  La aceptación integrada de FR-009, FR-010, FR-013, FR-014 y FR-019 requiere los documentos,
-  reservas y movimientos pertinentes de HU-01/HU-03/HU-04/HU-05/HU-07. En H1 se comprueban
-  los casos disponibles y se registra evidencia parcial; no se declara aprobada la integración
-  completa por haber utilizado únicamente datos de prueba.
+  HU-08 verifica sus reglas contra los movimientos y consumidores presentes. Cada módulo
+  HU-01/HU-03/HU-04/HU-05/HU-07 incorpora y acepta sus nuevas referencias y operaciones
+  según el backlog receptor, sin trasladar ese desarrollo al catálogo. Las pruebas del
+  núcleo no se presentan como aceptación de documentos de una funcionalidad futura.
 - La conservación de documentos de proveedor de US3.3, US3.4 y US3.6 se contrasta con HU-07
   cuando existan pedidos, además de comprobar los datos propios del proveedor en H1.
 - HU-06 conserva la gestión y evaluación de mínimos y alertas, incluida su reacción al
@@ -385,10 +410,12 @@ Esta especificación define la aceptación; no declara realizadas pruebas ni rev
 - **SC-005**: Con un catálogo de 10.000 artículos y 25 sesiones concurrentes, al menos el
   95 % de las búsquedas paginadas de artículos muestra resultados en 2 segundos o menos,
   conforme a las condiciones de medición de la guía global.
-- **SC-006**: Al menos tres gestores representativos completan, cada uno, el alta de una
+- **SC-006**: Criterio de aceptación operativa H5, excluido del cierre académico/técnico:
+  al menos tres gestores representativos completan, cada uno, el alta de una
   familia, un artículo y un proveedor, la corrección de un campo inválido y la desactivación
   de un artículo sin asistencia técnica y sin errores de registro no detectados. Se documentan
-  los resultados y se corrigen las incidencias antes de aceptar la interfaz.
+  los resultados y se corrigen las incidencias antes de aceptar la interfaz para puesta
+  en servicio; su ejecución se mantiene en H5-01 del backlog receptor.
 - **SC-007**: En el 100 % de los casos de modificación o desactivación revisados, el responsable
   y el momento del cambio son identificables y no varían las cantidades ni las evidencias
   históricas de los documentos y movimientos relacionados.
@@ -412,5 +439,6 @@ Esta especificación define la aceptación; no declara realizadas pruebas ni rev
 - Las consultas de historial pueden no tener resultados en H1. Las comprobaciones de
   conservación y operaciones pendientes se completan con movimientos y documentos válidos
   cuando las historias consumidoras estén disponibles, sin darlas por demostradas anticipadamente.
-- Los objetivos de rendimiento y la muestra de gestores son criterios de aceptación a medir,
-  no resultados obtenidos. Respaldo, restauración y aprobación operativa siguen la guía global.
+- El rendimiento SC-005 corresponde a la entrega técnica. La muestra de gestores SC-006,
+  restauración y aprobación operativa se conservan como criterios H5 de puesta en servicio
+  según la guía global; no se presuponen realizadas por cerrar el módulo.

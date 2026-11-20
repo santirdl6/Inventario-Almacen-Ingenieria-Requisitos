@@ -34,6 +34,7 @@ No hay registro público ni gestión de usuarios nueva.
 | PUT /articles/{id} | ArticleWrite completo | 200 MutationResult y nuevo ETag. |
 | DELETE /articles/{id} | Sin cuerpo | 204; conserva auditoría y resultado recuperable. |
 | GET /articles/{id}/movements | Filtros de historial | 200 Page de movimientos comunes. |
+| GET /articles/{id}/movements/filters | field, q, page, pageSize | 200 Page de opciones legibles presentes en el diario del artículo. |
 | GET /operations/{operationId} | UUID de la intención | 200 OperationOutcome autorizado; independiente de que el maestro siga existiendo. |
 
 No se crean rutas DELETE de familias/proveedores ni endpoints para sobrescribir saldos.
@@ -94,6 +95,19 @@ adivine si tiene saldo.
   contraparte, origen/destino y lote aplicables. No usar la unidad actual para reescribir hechos.
 - Con artículo existente y proveedor de diario integrado sin movimientos: página vacía.
   Artículo inexistente: 404. Diario aún no integrado: 503 DependencyUnavailable.
+
+## Opciones del historial — T098
+
+`GET /articles/{id}/movements/filters` exige Inventory.Read, también para artículos
+inactivos. `field=actor|location|lot` es obligatorio; q tiene la búsqueda literal,
+longitud y paginación comunes. Devuelve `{ items: [{ id, label }], page, pageSize,
+totalCount }`, sin duplicados, orden por etiqueta/ID y conteo/página en SNAPSHOT.
+Solo expone responsables, ubicaciones o lotes ya presentes en las entradas de ese
+artículo; no enumera cuentas ajenas al historial. El lote técnico SIN-LOTE se omite.
+Las ubicaciones muestran código y descripción física; los responsables, su nombre de
+usuario existente. Un artículo ausente devuelve 404; un campo inválido 422; sin lector
+o tablas reales, 503. No hay ETag editable ni mutación de datos. Los parámetros de
+`/movements` siguen usando UUID, resueltos por la selección de estas etiquetas.
 
 ## Precondiciones, idempotencia y resultado incierto
 

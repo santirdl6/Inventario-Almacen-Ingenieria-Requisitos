@@ -25,6 +25,7 @@ public sealed class MasterDataOpenApiTests(IdentityFixture fixture) : IClassFixt
         }
         Assert.True(paths.GetProperty("/api/v1/articles/{id}").TryGetProperty("delete", out _));
         Assert.True(paths.GetProperty("/api/v1/articles/{id}/movements").GetProperty("get").GetProperty("responses").TryGetProperty("503", out _));
+        Assert.True(paths.GetProperty("/api/v1/articles/{id}/movements/filters").TryGetProperty("get", out _));
         Assert.False(paths.TryGetProperty("/api/v1/maintenance/hu08/family-map", out _));
         var schemas = document.GetProperty("components").GetProperty("schemas");
         Assert.Equal("string", schemas.GetProperty("ArticleMovementDto").GetProperty("properties").GetProperty("quantity").GetProperty("type").GetString());

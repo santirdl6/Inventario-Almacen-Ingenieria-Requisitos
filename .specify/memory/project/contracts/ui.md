@@ -13,8 +13,8 @@ Las rutas siguientes son de diseño; no se crean componentes en esta fase.
 | /recepciones | HU-01 | A | Elegir compra enviada, registrar aceptado/diferencias y destinos, confirmar. |
 | /alertas | HU-06 | A | Configurar mínimo y consultar alertas con sugerencia. |
 | /ubicaciones | HU-02 | B | Código único y pasillo/estantería/nivel; cantidades almacenadas. |
-| /existencias | HU-05 | B | Buscar artículo y filtrar por ubicación/lote; físico, reservado y disponible. |
-| /salidas | HU-03 | B | Elegir pedido, origen, lote y cantidad; revisar reserva propia/ajena y confirmar. |
+| /existencias | HU-05 | B | Buscar artículo y filtrar por ubicación/lote; físico, reservado y disponible. Incluye los flujos de alta/consulta del pedido mínimo y reservar/liberar, con rutas particulares definidas en su plan. |
+| /salidas | HU-03 | B | Elegir un pedido existente de HU-05, origen, lote y cantidad; revisar reserva propia/ajena y confirmar la salida. |
 | /inventarios | HU-04 | B | Seleccionar ubicaciones, iniciar conteo, registrar, revisar y autorizar ajustes. |
 
 Inicio de sesión y layout son comunes. La navegación muestra funciones permitidas,

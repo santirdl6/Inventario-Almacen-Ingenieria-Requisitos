@@ -50,7 +50,8 @@ internal sealed class StockTestHarness(IdentityFixture fixture, IServiceProvider
 
     public static StockCommandContext Context(string type, Guid? document = null) =>
         new(new StockDocumentRef(type, document ?? Guid.NewGuid()), DateTimeOffset.UtcNow.AddMinutes(-1),
-            "Prueba del núcleo H0", SupportNotApplicableReason: "Fixture de integración");
+            "Prueba del núcleo H0", SupportNotApplicableReason: "Fixture de integración",
+            CounterpartyNotApplicableReason: "Operación interna de prueba sin contraparte externa");
 
     public static string Permission(StockOperation operation) => operation switch
     {

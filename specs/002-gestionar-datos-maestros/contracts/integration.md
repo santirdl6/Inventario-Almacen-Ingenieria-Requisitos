@@ -179,3 +179,38 @@ diario la registró. El esquema H0 solo guarda la referencia de contraparte. El
 motivo de no aplicabilidad de la contraparte queda pendiente en el modelo común.
 El lector conserva la respuesta 503 si falta la migración, y
 devuelve una página vacía cuando el diario existe y el filtro no encuentra entradas.
+
+## Convergencia implementada, 2026-11-19
+
+El árbol evaluado termina en `20261118194940_H0_StockCore`: no incorpora todavía la
+migración ni endpoints HU-02, aunque existan ensayos previos de combinación con esa entrega.
+`IArticleMovementReader.FiltersAsync` y `ArticleMovementQueries.FiltersAsync` aportan las
+opciones legibles de T098 mediante consultas al mismo diario y snapshot; el contrato HTTP
+particular define sus permisos y paginación. No cambia el modelo ni la cadena de migraciones.
+
+T099 acredita ambos órdenes de primera referencia StockCore/edición de definición con
+espera SQL observada, y T104 conserva diario/saldos en navegador. El auxiliar de preparación
+está en `scripts/prepare-hu08-history.cs` y `Fixtures/Hu08HistoryE2EData.cs`, fuera de la API:
+solo admite InventoryHu08E2E, sus cuentas controladas y el artículo específico del recorrido.
+Las cantidades se generan con StockCore/InventoryOperationExecutor, nunca por DML de saldos.
+
+T097 permanece bloqueada por la reserva del snapshot para B ratificada por el usuario.
+La UI distingue contraparte no registrada, pero el diario aún no conserva su motivo de
+no aplicabilidad. Los lectores/enlaces documentales de T100–T103 y el evaluador de T106
+esperan a los consumidores reales. [Evidencia y bloqueos](../validation/convergence.md).
+
+## Cierre técnico y recepción de nuevas integraciones, 2026-11-19
+
+Este estado sustituye los bloqueos de la continuación anterior: el usuario solicita
+terminar T097 y cerrar HU-08. La cadena termina ahora en
+`20261119171332_HU08MovementCounterparty`, sobre H0_StockCore. CounterpartyNotApplicableReason
+se conserva y proyecta desde el diario. Las filas históricas sin información permanecen
+intactas y distinguibles; las nuevas requieren referencia o motivo. El replay histórico
+se resuelve antes de exigir nueva evidencia. Las pruebas de migración/SQL lo acreditan.
+
+Los módulos consumidores reciben las tareas en
+[integration-tasks.md](../../001-reparto-specs-inventario/integration-tasks.md), con IDs
+INT-HU01/03/04/05/06/07. Cada nuevo escritor integra y prueba su lector/marca/transacción
+en su propio módulo antes de habilitarse; no reabre HU-08. La revisión de los cambios
+compartidos se conserva en COORD-01, y las condiciones operativas, en H5. No se presenta
+su traslado como revisión o prueba realizada.

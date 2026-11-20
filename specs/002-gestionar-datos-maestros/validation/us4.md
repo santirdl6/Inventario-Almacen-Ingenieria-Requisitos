@@ -73,3 +73,21 @@ recepciones (HU-01), pedidos y salidas (HU-03), reservas (HU-05),
 conteos (HU-04) y alertas (HU-06). El núcleo ejercita los efectos de stock
 disponibles. Las ramas publicadas durante el ensayo todavía carecían de esos
 consumidores documentales.
+
+## Convergencia T098/T104, 2026-11-19
+
+El historial ofrece opciones paginadas y buscables de responsables, ubicaciones y lotes
+del diario de ese artículo; permisos y búsqueda literal se verificaron en SQL real.
+La tabla se presenta en español y tiene nombre accesible en su elemento HTML.
+El nuevo recorrido Chrome prepara dos entradas de recepción y una salida por el
+ejecutor/StockCore, desactiva, localiza el inactivo y filtra por período, responsable,
+ubicación y lote. Selecciona responsable mediante teclado. Al reactivar, diario y
+saldos coinciden con el snapshot previo: 1,125 y 3,000 KG físicos, cero reservado.
+Se comprueban unidad histórica, autor, motivo, soporte/contraparte y ubicaciones.
+
+La pasada funcional aprobó los 11 escenarios existentes; el poblado se corrigió y
+aprobó por separado. [Convergencia](convergence.md) detalla incidencias, entorno y
+comandos. El cierre posterior completa T097 con motivo explícito persistido y proyectado;
+la UI conserva «Contraparte no registrada» para la ausencia histórica de evidencia.
+Las historias documentales y el evaluador HU-06 se trasladan a las tareas INT de sus
+módulos en el backlog receptor; no son implementación pendiente del catálogo HU-08.

@@ -175,6 +175,13 @@ OrderedQuantity > 0 y ShippedQuantity entre cero y lo pedido.
 No incluye precios comerciales, facturación ni integración ERP automática.
 Su alta mínima controlada permite vincular y probar las salidas de las historias.
 
+Responsabilidad revisada A+B, 2026-11-19: HU-05 implementa el alta y consulta de este
+pedido junto con reservar/liberar; HU-03 consume las mismas entidades para salidas y
+actualiza ShippedQuantity y el estado derivado en su confirmación atómica. No se crea
+un segundo pedido ni se cambian los estados/identidades por adelantar el soporte a H2.
+Editar/cancelar pedidos no forma parte del alta/consulta mínima de la entrega HU-05;
+Cancelled se conserva en el modelo para evolución posterior.
+
 ### Reservation y ReservationAllocation
 
 Cabecera: Id, CustomerOrderLineId, State (Active/Consumed/Released), Version.
@@ -234,7 +241,16 @@ Movimiento: Id, Kind (Receipt/Shipment/Adjustment/Reservation/Release/Correction
 SourceDocumentType, SourceDocumentId, OriginalMovementId opcional, Reason,
 ActorId, OccurredAt, RecordedAt, OperationId, SupportReference opcional,
 SupportNotApplicableReason cuando no existe soporte externo, CounterpartyReference
-o explicación de no aplicabilidad.
+o CounterpartyNotApplicableReason cuando no hay contraparte externa.
+
+Concreción de cierre HU-08: CounterpartyNotApplicableReason es nvarchar(500) nullable;
+los comandos normalizan vacíos a null y exigen referencia o motivo para movimientos nuevos.
+La migración aditiva `20261119171332_HU08MovementCounterparty` conserva las filas
+confirmadas sin actualizarlas: la CHECK se añade WITH NOCHECK para no validar retroactivamente
+hechos anteriores sin ese dato, pero queda habilitada para todas las inserciones nuevas.
+La ausencia histórica se presenta como «Contraparte no registrada», nunca como un motivo
+inventado. DENY UPDATE/DELETE sigue vigente. La revisión de esta concreción se registra
+en COORD-01 del backlog de integración antes de integrar/fusionar.
 
 Entrada: Id, MovementId, ArticleId, LocationId, LotId, Quantity > 0,
 BaseUnitSnapshot, Effect, PhysicalDelta, ReservedDelta.

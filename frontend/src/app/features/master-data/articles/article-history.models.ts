@@ -8,3 +8,6 @@ export interface ArticleMovement {
 }
 export interface ArticleMovementPage { items: ArticleMovement[]; totalCount: number; page: number; pageSize: number }
 export interface MovementFilters { from: string; to: string; actorId: string; locationId: string; lotId: string }
+export type MovementFilterField = 'actor' | 'location' | 'lot';
+export interface MovementFilterOption { id: string; label: string }
+export interface MovementFilterPage { items: MovementFilterOption[]; totalCount: number; page: number; pageSize: number }

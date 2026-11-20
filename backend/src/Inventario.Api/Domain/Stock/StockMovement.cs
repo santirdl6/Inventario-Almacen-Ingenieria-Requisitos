@@ -35,8 +35,10 @@ public sealed class StockMovement
     internal StockMovement(MovementKind kind, string sourceDocumentType, Guid sourceDocumentId,
         string reason, Guid actorId, DateTimeOffset occurredAt, DateTimeOffset recordedAt,
         Guid operationId, string? supportReference, string? supportNotApplicableReason,
-        string? counterpartyReference)
+        string? counterpartyReference, string? counterpartyNotApplicableReason)
     {
+        if (string.IsNullOrWhiteSpace(counterpartyReference) && string.IsNullOrWhiteSpace(counterpartyNotApplicableReason))
+            throw new ArgumentException("Indica la contraparte o el motivo por el que no aplica.");
         Kind = kind;
         SourceDocumentType = sourceDocumentType;
         SourceDocumentId = sourceDocumentId;
@@ -48,6 +50,7 @@ public sealed class StockMovement
         SupportReference = supportReference;
         SupportNotApplicableReason = supportNotApplicableReason;
         CounterpartyReference = counterpartyReference;
+        CounterpartyNotApplicableReason = counterpartyNotApplicableReason;
     }
 
     public Guid Id { get; private set; } = Guid.NewGuid();
@@ -63,6 +66,7 @@ public sealed class StockMovement
     public string? SupportReference { get; private set; }
     public string? SupportNotApplicableReason { get; private set; }
     public string? CounterpartyReference { get; private set; }
+    public string? CounterpartyNotApplicableReason { get; private set; }
     public IReadOnlyList<StockEntry> Entries => entries;
 
     internal void AddEntry(StockEntry entry) => entries.Add(entry);
