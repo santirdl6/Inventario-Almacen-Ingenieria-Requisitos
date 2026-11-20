@@ -774,7 +774,7 @@ preparadas.
     `ValidateE2ERequest` solo admitía exactamente tres cuentas y ahora acepta una cuarta
     `ResponsableAlmacen` opcional, con los mismos controles. No hay API de alta de usuarios. Pruebas
     en `Stock/E2EProvisioningTests.cs`; rojo previo: la cuarta cuenta se rechazaba.
-- [ ] T019 [US3] Crear `frontend/e2e/stock.spec.ts` con **E2E-01** usando el fixture de A:
+- [X] T019 [US3] Crear `frontend/e2e/stock.spec.ts` con **E2E-01** usando el fixture de A:
   1. Preparar 10 de ART-01/L-001 en N01 con el endpoint de T017.
   2. El responsable abre `/existencias`, elige ART-01 y ve totales y filas.
   3. El operario crea PED-1001 en `/existencias/pedidos/nuevo`.
@@ -783,6 +783,18 @@ preparadas.
   5. Libera 2 con motivo y ve reservado 5 y disponible 5.
 
   Nada más se automatiza en E2E (quickstart E2E-01). Depende de T016 y T018.
+
+  **Hecho (2026-11-20)**: `frontend/e2e/stock.spec.ts` con E2E-01 sobre el fixture de A.
+  - Preparación por API: familia y artículo con lote (gestor), ubicación (operario) y 10 de L-001
+    con la siembra D-17. Los SKU y códigos son únicos por ejecución, no ART-01/PED-1001, para no
+    chocar con datos de ejecuciones anteriores en la misma base E2E.
+  - Recorrido por interfaz con dos contextos de navegador (responsable y operario): totales y filas;
+    alta con revisión; reserva de 7 → disponible 3; liberación de 2 con motivo → reservado 5 y
+    disponible 5.
+  - Rojo previo anotado: la siembra respondía 404 porque el entorno E2E aún no activaba
+    `Testing__EnableStockSeeding`, antes de T018.
+  - Verde a la primera tras T018. Suite Playwright completa sin SC-005: 16/16 (línea base 15/15),
+    sin intermitencias.
 
 ---
 
