@@ -167,7 +167,12 @@ public sealed class StockArticleIntegrationTests(IdentityFixture fixture) : ICla
         var url = path + "/movements";
 
         var receipt = await stock.RunAsync(principal, StockCore.Prepare(StockOperation.Receive,
-            StockTestHarness.Context("receipt") with { SupportReference = "ALB-123", CounterpartyReference = "Proveedor" },
+            StockTestHarness.Context("receipt") with
+            {
+                SupportReference = "ALB-123",
+                CounterpartyReference = "Proveedor",
+                CounterpartyNotApplicableReason = null
+            },
             [new(article.Id, firstLocation.Id, "lote-1", 2.125m), new(article.Id, secondLocation, "lote-2", 3m)]));
         var shipment = await stock.RunAsync(principal, StockCore.PrepareShipment(StockTestHarness.Context("shipment"),
             [new(article.Id, firstLocation.Id, "lote-1", 1m, 0m)]));

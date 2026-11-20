@@ -58,7 +58,8 @@ Un escritor no se habilita sin esa cobertura; HU-08 no necesita reabrirse para a
 
 ## Coordinación e integración compartida — A+B
 
-- [ ] COORD-01 Revisar antes de integrar/fusionar los cambios compartidos de HU-08: IArticleMovementReader.FiltersAsync, campo CounterpartyNotApplicableReason, migración 20261119171332_HU08MovementCounterparty y snapshot, compatibilidad de replay y contratos actualizados. Registrar revisión real de la otra persona; conservar migraciones aplicadas y regenerar únicamente migraciones locales no compartidas si otra entrega adelanta la cadena. El cierre técnico local de HU-08 no certifica esta revisión. Origen T095 y parte de T097/T108; plan global y gobernanza.
+- [x] COORD-01 B aprobó de forma independiente el lector, el campo de contraparte, la migración `20261119171332_HU08MovementCounterparty` y su snapshot, el replay y los contratos en su [revisión del PR #7](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/pull/7#pullrequestreview-5990430106). El PR se fusionó en `a/h0-identity-article` con el commit `c904824`. HU-05 puede regenerar su migración local sobre esa base. Origen T095 y parte de T097/T108.
+- [ ] Coordinar la migración posterior de exclusividad con HU-05 antes de fusionarla. Revisar con B que reservar y liberar envíen un único valor y aplicar la misma regla a recepción, salida y ajustes en sus módulos. Conservar migraciones aplicadas y regenerar únicamente las locales aún sin compartir si cambia el orden de integración.
 
 ## H5 — Aceptación operativa y puesta en servicio — Responsables del proyecto/almacén
 

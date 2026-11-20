@@ -18,7 +18,8 @@ internal sealed class StockMovementConfiguration : IEntityTypeConfiguration<Stoc
             table.HasCheckConstraint("CK_StockMovements_Support",
                 "[SupportReference] IS NOT NULL OR [SupportNotApplicableReason] IS NOT NULL");
             table.HasCheckConstraint("CK_StockMovements_Counterparty",
-                "([CounterpartyReference] IS NOT NULL AND LEN(LTRIM(RTRIM([CounterpartyReference]))) > 0) OR ([CounterpartyNotApplicableReason] IS NOT NULL AND LEN(LTRIM(RTRIM([CounterpartyNotApplicableReason]))) > 0)");
+                "([CounterpartyNotApplicableReason] IS NULL AND [CounterpartyReference] IS NOT NULL AND LEN(LTRIM(RTRIM([CounterpartyReference]))) > 0) " +
+                "OR ([CounterpartyReference] IS NULL AND [CounterpartyNotApplicableReason] IS NOT NULL AND LEN(LTRIM(RTRIM([CounterpartyNotApplicableReason]))) > 0)");
         });
         builder.HasKey(movement => movement.Id);
         builder.Property(movement => movement.Id).ValueGeneratedNever();
