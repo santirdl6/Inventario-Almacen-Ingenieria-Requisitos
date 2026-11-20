@@ -53,8 +53,9 @@ public sealed partial class StockCore
     {
         var database = context.Database;
         // Después del replay del ejecutor: las intenciones históricas siguen siendo recuperables.
-        if (command.CounterpartyReference is null && command.CounterpartyNotApplicableReason is null)
-            throw StockProblems.Validation("counterpartyReference", "Indica la contraparte o explica por qué no aplica.");
+        if (!StockMovement.HasValidCounterpartyEvidence(command.CounterpartyReference, command.CounterpartyNotApplicableReason))
+            throw StockProblems.Validation("counterpartyReference",
+                "Indica la contraparte o explica por qué no aplica. Usa solo uno de los dos campos.");
 
         // 4–6. Documento, ubicaciones y artículos; InventoryLocks ordena cada fase y rechaza saltos.
         await context.Locks.DocumentsAsync([new DocumentLock(command.SourceType, command.SourceId)], cancellationToken);
