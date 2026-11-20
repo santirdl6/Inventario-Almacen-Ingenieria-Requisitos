@@ -243,14 +243,18 @@ ActorId, OccurredAt, RecordedAt, OperationId, SupportReference opcional,
 SupportNotApplicableReason cuando no existe soporte externo, CounterpartyReference
 o CounterpartyNotApplicableReason cuando no hay contraparte externa.
 
-Concreción de cierre HU-08: CounterpartyNotApplicableReason es nvarchar(500) nullable;
-los comandos normalizan vacíos a null y exigen referencia o motivo para movimientos nuevos.
-La migración aditiva `20261119171332_HU08MovementCounterparty` conserva las filas
-confirmadas sin actualizarlas: la CHECK se añade WITH NOCHECK para no validar retroactivamente
-hechos anteriores sin ese dato, pero queda habilitada para todas las inserciones nuevas.
-La ausencia histórica se presenta como «Contraparte no registrada», nunca como un motivo
-inventado. DENY UPDATE/DELETE sigue vigente. La revisión de esta concreción se registra
-en COORD-01 del backlog de integración antes de integrar/fusionar.
+CounterpartyNotApplicableReason es nvarchar(500) nullable. Los comandos normalizan
+vacíos a null. Para movimientos nuevos se exige exactamente un valor: la referencia
+cuando existe contraparte o el motivo cuando no aplica.
+`20261119171332_HU08MovementCounterparty` añadió el motivo. La migración posterior
+`20261120102651_HU08ExclusiveMovementCounterparty` sustituye la CHECK por la versión
+exclusiva y conserva todas las filas confirmadas, incluidas las que guardaron ambos campos.
+
+`WITH NOCHECK` mantiene habilitada la restricción para las inserciones nuevas y deja
+`is_not_trusted = 1` en SQL Server. Revalidar con `WITH CHECK CHECK CONSTRAINT` requiere
+comprobar previamente la compatibilidad de todo el historial y respetar su inmutabilidad.
+La ausencia histórica se presenta como «Contraparte no registrada».
+DENY UPDATE/DELETE sigue vigente.
 
 Entrada: Id, MovementId, ArticleId, LocationId, LotId, Quantity > 0,
 BaseUnitSnapshot, Effect, PhysicalDelta, ReservedDelta.

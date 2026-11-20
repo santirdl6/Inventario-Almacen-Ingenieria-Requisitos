@@ -30,8 +30,8 @@ deberán ajustarse a él. Cambios compartidos requieren revisión A+B.
 - No hay DELETE/PUT/PATCH de saldos ni de movimientos confirmados.
 - Datos comunes de confirmación: `occurredAt`, `reason`, referencia de soporte o explicación
   de no aplicabilidad. Actor y recordedAt siempre los asigna el servidor.
-  La contraparte se indica con `counterpartyReference` o `counterpartyNotApplicableReason`;
-  el núcleo exige evidencia para cada hecho nuevo. La consulta del diario conserva el motivo
+  Cada movimiento nuevo exige que se indique `counterpartyReference` o
+  `counterpartyNotApplicableReason`, de forma excluyente. La consulta del diario conserva el motivo
   y distingue información histórica no registrada; protocolo de replay en stock-operations.
 
 ## Sesión, permisos y errores
