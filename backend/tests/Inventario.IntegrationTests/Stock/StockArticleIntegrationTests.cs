@@ -49,8 +49,10 @@ public sealed class StockArticleIntegrationTests(IdentityFixture fixture) : ICla
         using var factory = fixture.Factory();
         using var scope = factory.Services.CreateScope();
         var database = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-        Assert.Equal(new HashSet<Type> { typeof(Lot), typeof(StockBalance), typeof(StockEntry) },
-            ArticleUsageCoverageValidator.RequiredTypes(database.Model));
+        // Los tipos de stock con FK a Article deben estar siempre cubiertos. Otros consumidores
+        // (HU-05: CustomerOrderLine, ReservationAllocation) fijan su conjunto en sus propias pruebas.
+        Assert.Subset(ArticleUsageCoverageValidator.RequiredTypes(database.Model),
+            new HashSet<Type> { typeof(Lot), typeof(StockBalance), typeof(StockEntry) });
         // Ni la cobertura de uso ni la de primera referencia quedan como 503 DependencyUnavailable.
         scope.ServiceProvider.GetRequiredService<ArticleUsageCoverageValidator>().EnsureCovered();
         scope.ServiceProvider.GetRequiredService<ArticleDefinitionReadiness>().EnsureReady();
