@@ -390,7 +390,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
 **Objetivo**: reservar y consultar compromisos. **Prueba independiente**: S-10.
 
-- [ ] T011 [US3] [INT-HU05-01] Depende de T006 y T008. Crear en
+- [X] T011 [US3] [INT-HU05-01] Depende de T006 y T008. Crear en
   `backend/src/Inventario.Api/Features/Stock/Reservations/` `ReservationCommands.cs` (reservar),
   `ReservationQueries.cs` y `ReservationDtos.cs`.
   - **Reservar** (D-05, D-09), con `OperationRequest(…, "POST", "/api/v1/reservations", "Reservations.Manage", DTO normalizado)`.
@@ -410,6 +410,22 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - Mapear las tres rutas con `Reservations.Manage` o `Inventory.Read`.
 
   (US3.1–US3.8; FR-014–FR-017, FR-020, FR-022, FR-025.)
+
+  **Hecho (2026-11-20)**:
+  - `ReservationCommands.ReserveAsync`, `ReservationQueries` (`GET /reservations/{id}` y
+    `GET /stock/reservations`, en SNAPSHOT) y `ReservationDtos`, con las tres rutas en
+    `StockEndpoints`.
+  - Antes de los bloqueos solo se leen relaciones inmutables: la línea (404 si no existe), su
+    pedido y su artículo, y los lotes. Después se piden `customer-order` y `reservation` en una
+    sola llamada, luego las ubicaciones y por último el artículo.
+  - Tras los bloqueos, en este orden: `If-Match` del pedido, `Open`, lote del artículo (422
+    `allocations[i].lotId`), ubicación activa (422 `allocations[i].locationId`), bucket repetido
+    tras resolver `SIN-LOTE` (422), conteo abierto y pendiente (422 `errors.allocations`). Después,
+    `StockCore` (`ArticleInactive`, `InsufficientStock`).
+  - Un artículo sin seguimiento que aún no tiene `SIN-LOTE` → 409 `InsufficientStock`.
+  - Soporte = referencia externa; contraparte = `CustomerReference`, nunca los dos campos. La
+    cabecera del pedido se renueva marcando `State`; 201 sin `ETag`, con `Location`.
+  - `JsonBody` (en `ReservationDtos.cs`) lee los cuerpos de reservar y liberar.
 - [ ] T012 [P] [US3] [INT-HU05-01] [INT-HU05-02] Crear
   `backend/tests/Inventario.IntegrationTests/Stock/ReservationTests.cs`.
   - **Habitual**: S-10 (reservar 7 de 10 → físico 10, reservado 7, disponible 3 en `GET /stock`;

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Inventario.Api.Features.Locations;
 using Inventario.Api.Features.Stock.CustomerOrders;
 using Inventario.Api.Features.Stock.Queries;
+using Inventario.Api.Features.Stock.Reservations;
 using Inventario.Api.Infrastructure.Http;
 
 namespace Inventario.Api.Features.Stock;
@@ -25,6 +26,8 @@ public static class StockEndpoints
         services.AddScoped<CustomerOrderCommands>();
         services.AddScoped<CustomerOrderQueries>();
         services.AddScoped<ICustomerOrderReader, CustomerOrderReader>();
+        services.AddScoped<ReservationCommands>();
+        services.AddScoped<ReservationQueries>();
         return services;
     }
 
@@ -37,6 +40,11 @@ public static class StockEndpoints
                 int? pageSize, StockQueries queries, CancellationToken token) =>
                 queries.StockAsync(articleId, locationId, lotId, includeEmpty, page, pageSize, token))
             .RequireAuthorization(Read).Produces<StockQueryResult>().ProducesProblem(404).ProducesProblem(422);
+        // T011 (D-12): compromisos por asignación con remanente; su total coincide con totals.reserved.
+        stock.MapGet("/reservations", (string? articleId, string? locationId, string? lotId, int? page, int? pageSize,
+                ReservationQueries queries, CancellationToken token) =>
+                queries.CommitmentsAsync(articleId, locationId, lotId, page, pageSize, token))
+            .RequireAuthorization(Read).Produces<ReservationCommitments>().ProducesProblem(404).ProducesProblem(422);
 
         // T008 (US2, FR-009–FR-013): alta y lectura del pedido de cliente mínimo. Sin PUT, PATCH,
         // DELETE ni cancelación (clarificación 3): esas rutas responden 404 o 405 como el resto.
@@ -65,6 +73,25 @@ public static class StockEndpoints
                 return Results.Ok(found);
             })
             .RequireAuthorization(Read).Produces<CustomerOrderContext>().ProducesProblem(404);
+
+        // T011 (US3, FR-014–FR-017): reservar con el If-Match del pedido; 201 sin ETag (D-08).
+        var reservations = api.MapGroup("/reservations").WithTags("Reservations");
+        reservations.MapPost("", (JsonElement body, HttpContext context, ReservationCommands commands, CancellationToken token) =>
+                commands.ReserveAsync(LocationEndpoints.Key(context), ReservationWrite.Read(body),
+                    context.Request.Headers.IfMatch.ToString(), token))
+            .RequireAuthorization(ReservationCommands.Permission).Accepts<ReservationWrite>("application/json")
+            .Produces<ReservationResult>(201).ProducesProblem(400).ProducesProblem(403).ProducesProblem(404)
+            .ProducesProblem(409).ProducesProblem(412).ProducesProblem(422).ProducesProblem(428).ProducesProblem(503);
+        // Detalle de la reserva: solo datos propios y ETag de Reservation.Version (D-07).
+        reservations.MapGet("/{id:guid}", async (Guid id, ReservationQueries queries, HttpContext context, CancellationToken token) =>
+            {
+                var found = await queries.DetailAsync(id, token);
+                if (found is null) return ApiProblems.Status(404);
+                context.Response.Headers.ETag = EntityTags.Format(found.Value.Version);
+                context.Response.Headers.CacheControl = "no-store";
+                return Results.Ok(found.Value.View);
+            })
+            .RequireAuthorization(Read).Produces<ReservationView>().ProducesProblem(404);
         return api;
     }
 }
