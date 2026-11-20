@@ -214,7 +214,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     página, filtros, `includeEmpty` y totales. Usan `StockApiSupport` de T007, que por eso entra en
     este commit.
   - HU-02 (`LocationQueries.ArticleLocationsAsync`) no cambia: la delegación es T020.
-- [ ] T007 [P] [US1] Crear `backend/tests/Inventario.IntegrationTests/Stock/StockApiSupport.cs` y
+- [X] T007 [P] [US1] Crear `backend/tests/Inventario.IntegrationTests/Stock/StockApiSupport.cs` y
   `StockQueryTests.cs`, sobre `StockTestHarness` sin modificarlo.
   - Soporte: cliente HTTP con sesión real y antiforgery por rol (Operario, ResponsableAlmacen,
     GestorMaestros, Administrador) y existencias preparadas con `StockCore` (Receive/Ship).
@@ -226,6 +226,17 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - **Permisos**: sin sesión → 401; Administrador → 403; GestorMaestros → 200.
 
   (US1, US5.1; FR-001–FR-004, FR-021; SC-001.)
+
+  **Hecho (2026-11-20)**: `StockQueryTests`, 5 pruebas HTTP con sesión real.
+  - **S-01**: filas, filtros `locationId` y `lotId`, páginas 1 y 2 de tamaño 1 con totales 6/0/6.
+  - **Disponible = físico − reservado**: 12/8/4 en la fila y en los totales; `lot.isUntracked`.
+  - **S-05**: la fila a cero se oculta y aparece con `includeEmpty=true`; los totales no cambian.
+  - **S-03**: sin `articleId`, vacío o no UUID → 422; inexistente → 404; ubicación o lote ajenos →
+    200 vacío; `page=0`, `pageSize=0` o `pageSize=101` → 422.
+  - **Permisos**: sin sesión → 401; Administrador → 403; GestorMaestros, Operario y
+    ResponsableAlmacen → 200.
+
+  `StockApiSupport.cs` se subió con T006 porque lo usan sus pruebas.
 
 **Checkpoint**: la consulta funciona con existencias preparadas por el núcleo.
 
