@@ -34,5 +34,5 @@ internal sealed class CustomerOrderArticleUsageContributor : IArticleUsageContri
 public static class CustomerOrderSchema
 {
     // Migración que crea CustomerOrders, CustomerOrderLines, Reservations y ReservationAllocations.
-    public const string Migration = "20261120111847_HU05_CustomerOrdersReservations";
+    public const string Migration = "20261120113458_HU05_CustomerOrdersReservations";
 }

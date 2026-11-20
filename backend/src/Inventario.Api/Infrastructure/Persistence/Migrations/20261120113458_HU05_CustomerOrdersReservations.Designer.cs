@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Inventario.Api.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(InventoryDbContext))]
-    [Migration("20261120111847_HU05_CustomerOrdersReservations")]
+    [Migration("20261120113458_HU05_CustomerOrdersReservations")]
     partial class HU05_CustomerOrdersReservations
     {
         /// <inheritdoc />
@@ -647,7 +647,7 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
 
                     b.ToTable("StockMovements", null, t =>
                         {
-                            t.HasCheckConstraint("CK_StockMovements_Counterparty", "([CounterpartyReference] IS NOT NULL AND LEN(LTRIM(RTRIM([CounterpartyReference]))) > 0) OR ([CounterpartyNotApplicableReason] IS NOT NULL AND LEN(LTRIM(RTRIM([CounterpartyNotApplicableReason]))) > 0)");
+                            t.HasCheckConstraint("CK_StockMovements_Counterparty", "([CounterpartyNotApplicableReason] IS NULL AND [CounterpartyReference] IS NOT NULL AND LEN(LTRIM(RTRIM([CounterpartyReference]))) > 0) OR ([CounterpartyReference] IS NULL AND [CounterpartyNotApplicableReason] IS NOT NULL AND LEN(LTRIM(RTRIM([CounterpartyNotApplicableReason]))) > 0)");
 
                             t.HasCheckConstraint("CK_StockMovements_Reason_NotBlank", "LEN(LTRIM(RTRIM([Reason]))) > 0");
 

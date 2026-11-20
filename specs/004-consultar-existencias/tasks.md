@@ -159,7 +159,11 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     `Articles` no debe dar `DependencyUnavailable`.
 
   **Hecho (2026-11-20, con T003b)**:
-  - Migración `20261120111847_HU05_CustomerOrdersReservations` sobre `HU08MovementCounterparty`,
+  - **Regenerada tras fusionar el PR #8** (4165bee): ahora es
+    `20261120113458_HU05_CustomerOrdersReservations` sobre
+    `20261120102651_HU08ExclusiveMovementCounterparty`, con el mismo `Up` y el `DENY DELETE`. La
+    original, `20261120111847`, era la misma migración sobre `HU08MovementCounterparty`.
+  - Migración original sobre `HU08MovementCounterparty`,
     con `DENY DELETE` en las cuatro tablas. El PR #8 de A no estaba fusionado; al traerlo, repetir
     `has-pending-model-changes` y regenerar la migración solo si la cadena cambia.
   - `StockDocuments.cs`, `CustomerOrderArticleUsageContributor` y `StockEndpoints.cs`
