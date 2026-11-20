@@ -8,11 +8,18 @@ otra lectura del pendiente ni otro cálculo de reserva.
 
 ## 1. Lectura para la pantalla (HTTP)
 
-`GET /api/v1/customer-orders/{id}` (Inventory.Read) devuelve, por línea, `ordered`, `shipped`,
-`pending` y `reservedRemaining`, y por asignación el bucket (`location`, `lot`) y su `remaining`
-([contrato API](stock-api.md#get-customer-ordersid)). Con ella, la pantalla de salidas muestra
-«reservado propio» por bucket. El «reservado ajeno» es `GET /stock` del bucket menos el propio.
-Es información de ayuda: el servidor revalida al confirmar.
+`GET /api/v1/customer-orders/{id}` (Inventory.Read) devuelve, con `ETag`, solo datos propios:
+por línea, `articleId`, `ordered`, `shipped`, `pending` y `reservedRemaining`; por asignación, el
+bucket por ids (`articleId`, `locationId`, `lotId`) y su `remaining`
+([contrato API](stock-api.md#get-customer-ordersid)). Los SKU, nombres, códigos y estados actuales
+salen de `GET /api/v1/customer-orders/{id}/context`, sin `ETag` y con `orderVersion`
+([contrato API](stock-api.md#get-customer-ordersidcontext)). La pantalla de salidas combina ambas
+lecturas, como la de HU-05, y comprueba que `orderVersion` coincide con el `ETag`.
+
+Con ellas, la pantalla de salidas muestra «reservado propio» por bucket. El «reservado ajeno» es
+`GET /stock` del bucket menos el propio. Es información de ayuda: el servidor revalida al
+confirmar. Como la salida cambia `ShippedQuantity` y renueva la versión de la cabecera (regla 4),
+el `ETag` del detalle cambia con cada salida.
 
 ## 2. Lectura dentro del comando de salida (en proceso)
 

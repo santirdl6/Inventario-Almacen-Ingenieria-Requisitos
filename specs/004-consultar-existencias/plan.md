@@ -82,7 +82,7 @@ no impedir la medición posterior, las consultas son paginadas y usan los índic
 - Sin `SaveChanges` dentro de `change` en comandos que escriben diario (FK de
   `StockMovements.OperationId`).
 
-**Scale/Scope**: 8 endpoints, 4 pantallas, casos S-01…S-19 y un E2E. Sin incógnitas abiertas: ver
+**Scale/Scope**: 9 endpoints, 4 pantallas, casos S-01…S-19 y un E2E. Sin incógnitas abiertas: ver
 [research.md](research.md).
 
 ## Constitution Check
@@ -120,7 +120,7 @@ specs/004-consultar-existencias/
 ├── data-model.md               # 4 tablas, invariantes, hechos del diario, migración
 ├── quickstart.md               # S-01…S-19, E2E-01, fuera de alcance, evidencia
 ├── contracts/
-│   ├── stock-api.md            # 8 rutas HTTP
+│   ├── stock-api.md            # 9 rutas HTTP
 │   ├── stock-ui.md             # /existencias y pedidos
 │   └── hu03-integration.md     # lectura del pedido para HU-03
 ├── checklists/requirements.md
@@ -143,7 +143,7 @@ backend/src/Inventario.Api/
 │   │   └── StockDtos.cs
 │   ├── CustomerOrders/
 │   │   ├── CustomerOrderCommands.cs            # alta (D-10)
-│   │   ├── CustomerOrderQueries.cs             # detalle y búsqueda (D-11)
+│   │   ├── CustomerOrderQueries.cs             # detalle propio con ETag, contexto sin ETag y búsqueda (D-11)
 │   │   ├── ICustomerOrderReader.cs             # contrato HU-03
 │   │   ├── CustomerOrderArticleUsage.cs        # contributor de uso del artículo (D-13)
 │   │   └── CustomerOrderDtos.cs
@@ -218,7 +218,9 @@ No se tocan `StockCore`, `InventoryOperationExecutor`, `InventoryLocks`, `Operat
    relee después.
 3. **Consultas**: `StockBalanceReader` y las demás proyecciones usan AsNoTracking en una transacción
    SNAPSHOT (página, totales y `asOf`), con la paginación de `Paging` (422 fuera de rango), como
-   HU-02.
+   HU-02. Los detalles versionados (pedido y reserva) solo llevan datos propios. Los datos actuales
+   de artículos, ubicaciones y lotes se leen en `GET /customer-orders/{id}/context`, sin ETag y con
+   `orderVersion`, como `GET /articles/{id}/context` de HU-08 (D-07, D-11).
 4. **HTTP**: `GET` con `Inventory.Read`; `POST /customer-orders` con `Shipping.Record`; reservar y
    liberar con `Reservations.Manage`. Antiforgery del grupo `/api/v1` y `Key()` como en HU-02.
 5. **Frontend**: servicios tipados; `apiProblem()`; `permissionGuard` en `pedidos/nuevo`;
@@ -270,6 +272,11 @@ Ningún documento común se edita en esta rama hasta la revisión de A en el PR,
 ### P-03 · `contracts/api.md` — tabla «HU-03 y HU-05» y «HU-05 — B: consultas»
 
 ```diff
+-| GET /customer-orders/{id} | Líneas, pedido/servido/pendiente y reservas; Inventory.Read. |
++| GET /customer-orders/{id} | Solo datos propios: líneas con articleId, pedido/servido/pendiente/reservado remanente y reservas con asignaciones por ids; ETag de la cabecera, renovada por cada reserva, liberación o salida; Inventory.Read. |
++| GET /customer-orders/{id}/context | Sin ETag, como GET /articles/{id}/context: orderVersion, datos actuales de los artículos (sku, nombre, unidad, estado), ubicaciones (código, estado) y lotes del pedido y sus reservas; Inventory.Read. |
+-| GET /reservations/{id} | Asignado, consumido, liberado y remanente por bucket. |
++| GET /reservations/{id} | Solo datos propios: asignado, consumido, liberado y remanente por bucket (ids); ETag de la reserva; Inventory.Read. |
 -| POST /reservations/{id}/release | allocations con id y quantity; motivo; Reservations.Manage. No libera más del remanente. |
 +| POST /reservations/{id}/release | releaseId, reason (texto libre obligatorio), allocations con allocationId y quantity; If-Match de la reserva; Reservations.Manage. No libera más del remanente. 200 sin ETag. |
 ```
@@ -284,7 +291,9 @@ Ningún documento común se edita en esta rama hasta la revisión de A en el PR,
 ```
 
 Además: `POST /reservations` responde 201 sin `ETag`, porque el diario impide guardar antes del
-resultado común (research D-08).
+resultado común (research D-08). El detalle propio con ETag y el contexto sin ETag siguen la
+concreción que api.md ya recoge para HU-08 («el detalle de Article con ETag solo incluye datos
+persistidos propios»), aplicada al pedido tras la revisión de A (research D-07 y D-11).
 
 ### P-04 · `contracts/api.md` — nueva fila
 

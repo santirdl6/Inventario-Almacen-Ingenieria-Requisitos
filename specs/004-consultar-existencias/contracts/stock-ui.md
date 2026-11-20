@@ -47,8 +47,17 @@ El área `/existencias` ya está declarada en `operation-areas.ts` con `Inventor
 
 ## Detalle del pedido, reservar y liberar
 
-- Cabecera con referencia, cliente y estado en texto. Por línea: pedido, servido, pendiente y
-  reservado remanente, con la unidad, y las reservas con sus asignaciones.
+- **Dos lecturas combinadas** (research D-11):
+  - `GET /customer-orders/{id}` aporta los datos propios y el `ETag` que usarán los `If-Match`;
+  - `GET /customer-orders/{id}/context` aporta, sin `ETag`, el SKU, nombre, unidad y estado de cada
+    artículo, y el código y estado de cada ubicación y lote.
+
+  La pantalla une ambas por id. Si `context.orderVersion` difiere del `ETag` del detalle, vuelve a
+  leer las dos antes de mostrar o permitir reservar o liberar, igual que la ficha de artículo de
+  HU-08. «Actualizar» repite las dos lecturas.
+- Cabecera con referencia, cliente y estado en texto. Por línea: artículo (SKU y nombre del
+  contexto, con «Inactivo» en texto si procede), pedido, servido, pendiente y reservado remanente,
+  con la unidad del contexto, y las reservas con sus asignaciones (ubicación y lote del contexto).
 - **Reservar** (por línea, con `Reservations.Manage` y el pedido `Open`): diálogo que lista las
   existencias del artículo con `GET /stock` (ubicación, lote y disponible). El responsable escribe
   la cantidad en una o varias filas. Se muestra el máximo reservable, mín(pendiente − reservado,
@@ -57,8 +66,10 @@ El área `/existencias` ya está declarada en `operation-areas.ts` con `Inventor
   asignación y «Motivo» (obligatorio, texto libre). El `releaseId` se genera al abrir el diálogo y
   se conserva con la intención hasta confirmar o descartar. Revisión → confirmar con el `If-Match`
   de la reserva.
-- Tras confirmar se vuelve a leer el pedido, porque no hay `ETag` en la respuesta, y se muestran el
-  identificador de la operación y el nuevo reservado.
+- Tras confirmar se vuelven a leer el pedido y su contexto, porque no hay `ETag` en la respuesta, y
+  se muestran el identificador de la operación y el nuevo reservado. El diálogo de liberar obtiene
+  el `ETag` de la reserva con `GET /reservations/{id}` (solo datos propios) y toma los nombres y
+  códigos del contexto del pedido.
 
 ## Estados de operación (ui.md 1–7) en esta feature
 

@@ -43,7 +43,9 @@ Quién creó el pedido y cuándo constan en su `OperationResult` (`ActorId`, `Re
 - **[P-01]** Unicidad `(CustomerOrderId, ArticleId)`, índice `UX_CustomerOrderLines_Order_Article`
   (clarificación 1: una línea por artículo).
 - Pendiente = `OrderedQuantity − ShippedQuantity` (calculado, no almacenado).
-- Orden de presentación: por SKU del artículo, porque la línea no tiene número.
+- Orden de presentación: por SKU del artículo, porque la línea no tiene número. Lo aplica la
+  interfaz con el SKU de `GET /customer-orders/{id}/context`. El detalle versionado ordena por
+  Id de línea, para que su representación (y su ETag) no dependa de datos de otro agregado.
 
 ## Reservation (tabla `Reservations`)
 
@@ -129,4 +131,5 @@ en `ApplyAsync` y con la CHECK SQL.
 |------------|--------|----------|
 | `StockBuckets` (página + totales + `asOf`) | `StockBalanceReader` sobre StockBalances ⋈ Locations ⋈ Lots, SNAPSHOT | [GET /stock](contracts/stock-api.md#get-stock) y, con su propio DTO, `GET /articles/{id}/locations` de HU-02 |
 | `ReservationCommitments` | ReservationAllocations ⋈ Reservations ⋈ CustomerOrderLines ⋈ CustomerOrders ⋈ Locations ⋈ Lots, remanente > 0 | [GET /stock/reservations](contracts/stock-api.md#get-stockreservations) |
-| `CustomerOrderView` | Pedido, líneas, reservas y asignaciones, SNAPSHOT | [GET /customer-orders/{id}](contracts/stock-api.md#get-customer-ordersid) y [contrato HU-03](contracts/hu03-integration.md) |
+| `CustomerOrderView` | Pedido, líneas, reservas y asignaciones, solo datos propios (ids, cantidades, referencias y estados), SNAPSHOT, con ETag de `CustomerOrder.Version` | [GET /customer-orders/{id}](contracts/stock-api.md#get-customer-ordersid) y [contrato HU-03](contracts/hu03-integration.md) |
+| `CustomerOrderContext` | Articles, Locations y Lots referenciados por las líneas y asignaciones del pedido, SNAPSHOT, sin ETag y con `orderVersion` | [GET /customer-orders/{id}/context](contracts/stock-api.md#get-customer-ordersidcontext) |

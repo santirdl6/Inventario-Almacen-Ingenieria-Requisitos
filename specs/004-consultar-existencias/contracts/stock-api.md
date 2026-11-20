@@ -16,7 +16,8 @@ Las cantidades viajan como cadenas con tres decimales.
 | GET /stock/reservations | Inventory.Read | 200 `ReservationCommitments`. |
 | GET /customer-orders | Inventory.Read | 200 página de `CustomerOrderSummary` (**P-04**, no está en api.md). |
 | POST /customer-orders | Shipping.Record | 201 `CustomerOrderView` + `Location` + `ETag`. |
-| GET /customer-orders/{id} | Inventory.Read | 200 `CustomerOrderView` + `ETag`; 404. |
+| GET /customer-orders/{id} | Inventory.Read | 200 `CustomerOrderView` (solo datos propios) + `ETag`; 404. |
+| GET /customer-orders/{id}/context | Inventory.Read | 200 `CustomerOrderContext` (datos actuales de artículos, ubicaciones y lotes, con `orderVersion`), **sin `ETag`**; 404. |
 | POST /reservations | Reservations.Manage | 201 `ReservationResult` + `Location`, sin `ETag` (D-08). |
 | GET /reservations/{id} | Inventory.Read | 200 `ReservationView` + `ETag`; 404. |
 | POST /reservations/{id}/release | Reservations.Manage | 200 `ReleaseResult`, sin `ETag`. |
@@ -120,18 +121,45 @@ Errores específicos:
 
 ## GET /customer-orders/{id}
 
-`CustomerOrderView`, leído en SNAPSHOT y con `ETag` de `CustomerOrder.Version`:
+`CustomerOrderView`, leído en SNAPSHOT y con `ETag` de `CustomerOrder.Version`. Lleva **solo datos
+propios** del pedido, sus líneas, reservas y asignaciones: identificadores, cantidades, referencias
+y estados. Todos cambian únicamente mediante escritores que renuevan la versión de la cabecera
+(reservar, liberar y, en HU-03, servir), así que el `ETag` fuerte identifica la representación
+entera (research D-07 y D-11):
 
 ```json
 { "id": "…", "externalReference": "PED-1001", "customerReference": "Cliente Norte", "state": "Open",
   "lines": [
-    { "id": "…", "article": { "id": "…", "sku": "ART-01", "name": "…", "baseUnit": "UD", "isActive": true, "tracksLot": true },
+    { "id": "…", "articleId": "…",
       "ordered": "7.000", "shipped": "0.000", "pending": "7.000", "reservedRemaining": "7.000",
       "reservations": [
         { "id": "…", "state": "Active", "allocations": [
-          { "id": "…", "location": { "id": "…", "code": "P01-E01-N01" }, "lot": { "id": "…", "code": "L-001", "isUntracked": false },
+          { "id": "…", "articleId": "…", "locationId": "…", "lotId": "…",
             "allocated": "7.000", "consumed": "0.000", "released": "0.000", "remaining": "7.000" } ] } ] } ] }
 ```
+
+Renombrar un artículo, desactivarlo o cambiar el código de una ubicación **no** cambia esta
+representación ni su `ETag`: esos datos están en el contexto.
+
+## GET /customer-orders/{id}/context
+
+`CustomerOrderContext` con los datos actuales que cambian por su cuenta. Sigue el patrón de
+`GET /articles/{id}/context` de HU-08: va **sin `ETag`**, con `Cache-Control: no-store`, y se lee
+en una transacción SNAPSHOT. Un solo contexto cubre el pedido y todas sus reservas: los artículos
+de las líneas, y las ubicaciones y lotes de todas las asignaciones.
+
+```json
+{ "orderVersion": "\"AAAAAAAAB9E=\"", "asOf": "2026-11-19T10:00:00Z",
+  "articles": [ { "id": "…", "sku": "ART-01", "name": "…", "baseUnit": "UD", "isActive": true,
+                  "tracksLot": true, "allowsFractional": false } ],
+  "locations": [ { "id": "…", "code": "P01-E01-N01", "aisle": "P01", "rack": "E01", "level": "N01", "isActive": true } ],
+  "lots": [ { "id": "…", "articleId": "…", "code": "L-001", "isUntracked": false } ] }
+```
+
+- `orderVersion` es el mismo token que el `ETag` del detalle (`EntityTags.Format`). Si la UI recibe
+  un detalle y un contexto de revisiones distintas, vuelve a leer ambos.
+- Pedido inexistente: 404. No es una precondición: reservar y liberar siguen exigiendo el `If-Match`
+  del detalle versionado.
 
 ## POST /reservations
 
@@ -160,8 +188,10 @@ Cabeceras: `Idempotency-Key` e `If-Match` con el ETag del pedido de la línea.
 
 ## GET /reservations/{id}
 
-`ReservationView`: `{ id, state, customerOrder: { id, externalReference }, customerOrderLineId,
-article, allocations: [ … como en el pedido … ] }`, con `ETag` de `Reservation.Version`.
+`ReservationView`: `{ id, state, customerOrderId, customerOrderLineId, articleId,
+allocations: [ … como en el pedido, solo con ids y cantidades … ] }`, con `ETag` de
+`Reservation.Version`. Solo lleva datos propios. Los nombres y códigos actuales salen de
+`GET /customer-orders/{customerOrderId}/context`, que cubre también las reservas del pedido.
 
 ## POST /reservations/{id}/release
 

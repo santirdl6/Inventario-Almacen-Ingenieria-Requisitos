@@ -156,15 +156,24 @@ cabecera, una reserva o salida ajena no invalidaría el ETag y US5.4 no se cumpl
 que cambia el modelo y complica la precondición; b) una columna `Revision`, que también cambia el
 modelo. Se descartan.
 
-**Revisado tras `/speckit-analyze` (M1)**: se mantiene esta decisión y no se pasa al digest de
-HU-02 (`LocationEntityTags`). Todo escritor del pedido o de la reserva (HU-05 al reservar y
-liberar, HU-03 al servir) actualiza la cabecera, así que el ETag fuerte cambia con cada cambio de
-los datos que protege.
+**Revisado en la revisión de A (M1)**: un ETag fuerte debe identificar la representación
+**entera** (es el defecto R3 de HU-02). Por eso:
 
-Los datos de artículo, ubicación y lote incluidos en la representación son informativos. El
-comando los vuelve a comprobar bajo bloqueo: `ArticleInactive`, ubicación inactiva y disponible.
-La precondición `If-Match` no depende de ellos. T012 y T014 prueban que reservar y liberar
-renuevan el ETag.
+- Los detalles versionados (`GET /customer-orders/{id}` y `GET /reservations/{id}`) llevan
+  **solo datos propios**: identificadores, cantidades, referencias del pedido y estados. Todos
+  cambian únicamente mediante escritores que tocan la cabecera.
+- Los datos que cambian por su cuenta salen del detalle y van a `GET /customer-orders/{id}/context`,
+  sin ETag (D-11): SKU, nombre, unidad y estado del artículo; código y estado de la ubicación; código
+  del lote.
+- La renovación de la cabecera se mantiene: todo escritor del pedido o de la reserva (HU-05 al
+  reservar y liberar, HU-03 al servir) la actualiza, así que el ETag cambia con cada cambio de los
+  datos propios. T012 y T014 lo prueban al reservar y liberar. T010 prueba que **no** cambia al
+  renombrar el artículo ni al cambiar el código de la ubicación, y que el contexto sí lo refleja.
+
+Se descarta la redacción anterior, «datos informativos revalidados bajo bloqueo», porque dejaba un
+ETag fuerte idéntico para representaciones distintas. También el digest de HU-02
+(`LocationEntityTags`), porque obligaría a recalcularlo bajo bloqueo en cada `If-Match`. Se sigue
+el precedente de HU-08 (`GET /articles/{id}/context`).
 
 ## D-08. Respuestas de reservar y liberar sin `ETag`
 
@@ -230,11 +239,12 @@ bajo bloqueo y se informan por línea.
 **Sin edición ni cancelación** (clarificación 3): no existen `PUT`, `DELETE` ni `/cancel`. Las
 rutas no definidas devuelven 404 o 405, como el resto de la API.
 
-## D-11. Lectura de pedidos: detalle y búsqueda mínima
+## D-11. Lectura de pedidos: detalle, contexto y búsqueda mínima
 
 **Decisión**: `GET /customer-orders/{id}` (Inventory.Read) devuelve la cabecera, las líneas (pedido,
 servido, pendiente y reservado remanente) y las reservas con sus asignaciones, en una transacción
-`SNAPSHOT`, más el `ETag`. Se añade `GET /customer-orders?search=&state=&page=&pageSize=`, que
+`SNAPSHOT`, más el `ETag`. Solo lleva datos propios; los datos actuales de artículos, ubicaciones y
+lotes van en `GET /customer-orders/{id}/context` (ver más abajo). Se añade `GET /customer-orders?search=&state=&page=&pageSize=`, que
 busca por prefijo de referencia externa y no figura en api.md. Sin ella, la pantalla no puede
 encontrar un pedido para reservarlo.
 
@@ -243,6 +253,31 @@ es solo lectura y no crea otra fuente de verdad.
 
 **Alternativas**: navegar solo por el enlace del alta. Se descarta porque un pedido creado por otra
 persona no sería alcanzable. Diff P-04 a api.md.
+
+**Detalle propio y contexto actual (revisión de A, M1)**: la lectura de un pedido se hace en dos
+rutas, con el patrón de `GET /articles/{id}/context` de HU-08 (api.md común y
+`specs/002-gestionar-datos-maestros/contracts/api.md`):
+
+- `GET /customer-orders/{id}`: `CustomerOrderView` con datos propios y `ETag`
+  de `CustomerOrder.Version`. Por línea, `articleId`, `ordered`, `shipped`, `pending` y
+  `reservedRemaining`. Por asignación, `articleId`, `locationId`, `lotId` y las cantidades.
+  `GET /reservations/{id}` sigue la misma regla con `Reservation.Version`.
+- `GET /customer-orders/{id}/context`: `CustomerOrderContext` sin `ETag` y con
+  `Cache-Control: no-store`, leído en una transacción `SNAPSHOT`:
+  - `orderVersion`: el mismo token que el `ETag` del detalle, con `EntityTags.Format`;
+  - `asOf`;
+  - los artículos de las líneas: `sku`, `name`, `baseUnit`, `isActive`, `tracksLot` y
+    `allowsFractional`;
+  - las ubicaciones de todas las asignaciones del pedido: `code`, pasillo, estantería, nivel e
+    `isActive`;
+  - sus lotes: `code` e `isUntracked`.
+
+  Un solo contexto cubre el pedido y todas sus reservas.
+- La UI combina ambas lecturas. Si `orderVersion` no coincide con el `ETag` del detalle, ha leído
+  dos revisiones distintas y vuelve a cargar, como `articles-api.service.ts` de HU-08.
+
+**Alternativa descartada**: incluir esos datos en el detalle, que deja el ETag fuerte igual cuando la
+representación cambia (R3 de HU-02).
 
 ## D-12. Compromisos por artículo
 

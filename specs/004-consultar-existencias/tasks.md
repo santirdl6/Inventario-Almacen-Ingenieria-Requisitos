@@ -197,11 +197,27 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
       artículo inexistente (422) o inactivo (409 `ArticleInactive`) → fracciones (422) →
       `ArticleReferenceTracker.MarkAsync` → `Add` → `SaveChangesAsync` → 201 con
       `Location` y `ETag`.
-  - **Detalle** `GET /customer-orders/{id}` (SNAPSHOT, `ETag`) con pedido, servido, pendiente y
-    remanente por línea, y reservas con sus asignaciones; líneas por SKU.
+  - **Detalle** `GET /customer-orders/{id}` (SNAPSHOT, `ETag` de `CustomerOrder.Version`), con DTO
+    `CustomerOrderView` de **solo datos propios** (research D-07, D-11):
+    - por línea, `articleId`, pedido, servido, pendiente y remanente;
+    - reservas con asignaciones por ids (`articleId`, `locationId`, `lotId`) y cantidades.
+
+    Orden estable por Id de línea, sin SKU: el SKU es de otro agregado y cambiaría la
+    representación sin cambiar el ETag. La UI ordena por el SKU del contexto. El alta devuelve el
+    mismo DTO con su `ETag`.
+  - **Contexto** `GET /customer-orders/{id}/context` (SNAPSHOT, **sin `ETag`**,
+    `Cache-Control: no-store`), con DTO `CustomerOrderContext`:
+    - `orderVersion = EntityTags.Format(order.Version)` y `asOf`;
+    - artículos de las líneas: `sku`, `name`, `baseUnit`, `isActive`, `tracksLot` y
+      `allowsFractional`;
+    - ubicaciones de todas las asignaciones: `code`, pasillo, estantería, nivel e `isActive`;
+    - lotes: `code` e `isUntracked`.
+
+    Igual que `GET /articles/{id}/context` de HU-08 ([contrato](contracts/stock-api.md#get-customer-ordersidcontext)).
   - **Lector** `ICustomerOrderReader` del [contrato HU-03](contracts/hu03-integration.md).
-  - Mapear `POST /customer-orders` (`Shipping.Record`) y `GET /customer-orders/{id}`
-    (`Inventory.Read`) en `StockEndpoints.cs`, con `Key(context)` como HU-02.
+  - Mapear `POST /customer-orders` (`Shipping.Record`), `GET /customer-orders/{id}` y
+    `GET /customer-orders/{id}/context` (`Inventory.Read`) en `StockEndpoints.cs`, con `Key(context)`
+    como HU-02. `GET /reservations/{id}` (T011) sigue la misma regla de solo datos propios.
 
   (US2.1–US2.4; FR-009–FR-013.)
 - [ ] T009 [P] ⚑ commit aparte (archivo de A). En
@@ -216,6 +232,24 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     artículo repetido, 1,5 en artículo entero → 422 por línea; artículo inactivo → 409; nada
     creado).
   - **Permisos**: ResponsableAlmacen y GestorMaestros POST → 403; GestorMaestros GET → 200.
+  - **ETag de la representación entera** (revisión de A, research D-07):
+    - Tras renombrar el artículo de una línea (`PUT /articles/{id}`), `GET /customer-orders/{id}`
+      devuelve el **mismo** cuerpo y el **mismo** `ETag`. `GET /customer-orders/{id}/context` sí
+      refleja el nombre nuevo, sin `ETag` y con `orderVersion` igual al `ETag`.
+    - Ubicación: HU-02 no deja cambiar el código ni el tipo de una ubicación con movimientos
+      (`LocationIdentityLocked`), y toda ubicación con una asignación los tiene. Por eso la prueba usa
+      el dato de ubicación que sí cambia:
+      1. con la reserva liberada por completo y la ubicación vaciada con `StockCore` (Ship desde
+         `StockTestHarness`), se toma el `ETag`;
+      2. se desactiva la ubicación (`PUT /locations/{id}`);
+      3. el detalle conserva cuerpo y `ETag`, y `context.locations[].isActive` pasa a `false`.
+
+      Si HU-02 llegara a permitir corregir el código con movimientos, se añadiría el mismo caso con
+      `code`.
+    - Tras una reserva, una liberación o una salida, el `ETag` **cambia** y `orderVersion` lo sigue.
+      Reserva y liberación se ejecutan aquí con los comandos de T011/T013. La salida de HU-03, que
+      aún no existe, se simula renovando la versión de la cabecera como exige
+      [hu03-integration.md](contracts/hu03-integration.md), regla 4.
   - **Contrato de escritores** (INT-HU05-01; incluye S-19 y no se delega en la suite de HU-08):
     - Tras la primera línea de pedido, el `PUT` de unidad, lote o fracciones del artículo → 409, y
       `GET /articles/{id}/context` muestra la definición bloqueada.
@@ -378,8 +412,14 @@ veces; evidencia registrada.
 
   (US1; FR-001–FR-008, FR-028.)
 - [ ] T016 [US2] Depende de T008, T011, T013 y T015.
-  - Crear `frontend/src/app/features/stock/data/customer-orders-api.service.ts`. Detalle con
-    `observe: 'response'` para el `ETag`. Las tres mutaciones van con
+  - Crear `frontend/src/app/features/stock/data/customer-orders-api.service.ts`. Su `detail(id)` hace
+    **dos lecturas**, como `articles-api.service.ts` de HU-08:
+    - `GET /customer-orders/{id}` con `observe: 'response'` para el `ETag` (datos propios);
+    - `GET /customer-orders/{id}/context` (datos actuales, sin `ETag`).
+
+    Si `context.orderVersion !== etag`, error «El pedido cambió durante la consulta» y nueva
+    lectura. `GET /reservations/{id}` solo para obtener el `ETag` de la reserva. Las tres
+    mutaciones van con
     `MasterDataMutationsService.mutate()`, como `locations-api.service.ts` de HU-02:
     - `POST /api/v1/customer-orders`;
     - `POST /api/v1/reservations` con el `ETag` del pedido;
@@ -402,7 +442,9 @@ veces; evidencia registrada.
     elegirse dos veces; revisión antes de confirmar; errores por línea conservando datos; al
     confirmar, navegación al detalle.
   - Crear `orders/order-detail.page.ts`: pedido, servido, pendiente y reservado por línea, y
-    reservas con asignaciones.
+    reservas con asignaciones. SKU, nombre, unidad, «Inactivo», códigos de ubicación y de lote se
+    toman del contexto, uniendo por id y ordenando las líneas por SKU. «Actualizar» y cada
+    confirmación repiten las dos lecturas.
   - Crear `orders/reserve-dialog.ts`, que lista `GET /stock` del artículo con el máximo
     reservable.
   - Crear `orders/release-dialog.ts`: motivo obligatorio y `releaseId` generado al abrir. Viaja en
@@ -413,8 +455,12 @@ veces; evidencia registrada.
     `OperationStatusComponent`, `check()` y `retry()`; 409 y 412.
   - Rutas `pedidos/nuevo` (`permissionGuard`, `data: { permission: 'Shipping.Record' }`) y
     `pedidos/:id`, leyendo `id` con `ActivatedRoute`.
-  - Specs unitarias: habitual (alta, reservar y liberar envían las cabeceras), error (409 conserva
-    las cantidades) y permisos (sin `Reservations.Manage` no hay botones).
+  - Specs unitarias:
+    - habitual: alta, reservar y liberar envían las cabeceras; el detalle combina las dos lecturas y
+      muestra el nombre del contexto;
+    - error: 409 conserva las cantidades; con `orderVersion` distinto del `ETag` se vuelve a leer y
+      no se habilita reservar con un `ETag` mezclado;
+    - permisos: sin `Reservations.Manage` no hay botones.
 
   (US2–US4; FR-009, FR-013, FR-018, FR-026–FR-028.)
 
