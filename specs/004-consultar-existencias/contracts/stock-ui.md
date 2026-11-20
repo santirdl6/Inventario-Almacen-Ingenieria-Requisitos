@@ -68,6 +68,7 @@ El área `/existencias` ya está declarada en `operation-areas.ts` con `Inventor
 | Conflicto 409 | `InsufficientStock` y `ReservedStockConflict` muestran el `detail` del servidor, que nombra el disponible o el remanente, y ofrecen «Ver existencias actuales». |
 | `VersionConflict` 412 | «Otra persona cambió el pedido o la reserva»; recargar sin perder las cantidades escritas. |
 | Respuesta perdida | «Resultado pendiente de comprobar», mostrado con `OperationStatusComponent`, también tras recargar; botones «Comprobar resultado» (`check()`, `GET /operations/{id}`) y «Repetir la misma intención» (`retry()`, con la clave, el cuerpo y el `If-Match` originales). |
+| Otra reserva con una pendiente | El almacén común identifica la intención por recurso y todas las reservas son `POST /api/v1/reservations`. Mientras una reserva del usuario esté pendiente de comprobar, **no puede enviar otra reserva**, ni siquiera de otro pedido. Se explica con texto («Comprueba la reserva pendiente antes de reservar de nuevo») y el enlace «Revisar esta operación pendiente» del layout. Así no se duplica un compromiso. Las liberaciones (`/reservations/{id}/release`) se bloquean solo por reserva. |
 | 403 | Mensaje de permiso; las acciones no permitidas no se muestran, aunque el servidor es la barrera. |
 
 ## Accesibilidad

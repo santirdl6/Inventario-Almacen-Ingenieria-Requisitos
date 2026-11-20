@@ -113,7 +113,7 @@ en `ApplyAsync` y con la CHECK SQL.
 ## Migración
 
 `<timestamp>_HU05_CustomerOrdersReservations`, generada después de
-`20261119163347_HU02_LocationCharacters`:
+`20261119171332_HU08MovementCounterparty` (PR #7 de A; no se genera hasta su fusión):
 
 - Crea `CustomerOrders`, `CustomerOrderLines`, `Reservations` y `ReservationAllocations` con las PK,
   FK restrictivas, CHECK, índices únicos [P-01]/[P-02] y la columna calculada anteriores.

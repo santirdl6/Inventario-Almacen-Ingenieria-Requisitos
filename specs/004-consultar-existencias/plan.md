@@ -57,7 +57,8 @@ dependencias nuevas. El UUID v5 de D-04 se calcula con `System.Security.Cryptogr
 - Tablas nuevas: `CustomerOrders`, `CustomerOrderLines`, `Reservations` y `ReservationAllocations`.
 - Se consumen sin cambios: `Articles`, `Locations`, `Lots`, `StockBalances`, `StockMovements`,
   `StockEntries` y `OperationResults`.
-- La cadena parte de `20261119163347_HU02_LocationCharacters`, la última integrada.
+- La cadena parte de `20261119171332_HU08MovementCounterparty` (PR #7 de A). La migración de HU-05
+  no se genera hasta que #7 se fusione (tasks T004).
 
 **Testing**: xUnit + `IdentityFixture` contra SQL Server real, reutilizando `StockTestHarness` y
 `FailAfterSaveInterceptor`, con la receta Docker del [quickstart](quickstart.md#pruebas-automatizadas-backend)
@@ -231,7 +232,8 @@ No se tocan `StockCore`, `InventoryOperationExecutor`, `InventoryLocks`, `Operat
 |-------------|--------|------------|
 | Revisión de A de los diffs P-01…P-08 y de los cambios en sus archivos | Bloquea la fusión, no la implementación. | Cambios aditivos; si A rechaza P-04 (búsqueda), la UI navega solo desde el alta y los enlaces de «Reservas». |
 | HU-01 recepciones por HTTP | Sin existencias reales para el vídeo. | Endpoint de preparación desactivado por defecto (D-17); se retira cuando exista HU-01. |
-| HU-04 conteos | `CountScopeFrozen` al reservar. | `ILocationUsage.IsInOpenCountAsync` devuelve `false` hasta HU-04. Liberar nunca lo comprueba. |
+| HU-04 conteos | `CountScopeFrozen` al reservar. | `ILocationUsage.IsInOpenCountAsync` devuelve `false` hasta HU-04. Liberar nunca lo comprueba. La prueba del 409 queda pendiente de INT-HU04-03. |
+| PR #7 de A (cierre de HU-08) | Última migración de la cadena (`HU08MovementCounterparty`), regla de contraparte y backlog INT-HU05-01/02. | T004 (migración) y T017 esperan a su fusión. Las pruebas de INT-HU05 están en T010, T012 y T014. |
 | HU-03 salidas | Consumo de reservas y servido. | Contrato [hu03-integration.md](contracts/hu03-integration.md) y prueba S-18. |
 | HU-06 alertas | La regla común reevalúa el mínimo al reservar o liberar. | Sin alertas integradas no hay nada que evaluar. Cuando HU-06 exista, se engancha en el mismo commit bajo `article:{id}`, como prevé el protocolo. |
 | Otra migración integrada antes | Snapshot obsoleto. | Regenerar `HU05_CustomerOrdersReservations` local (plan global §5). |
@@ -360,4 +362,5 @@ fusión.
 | SC-007 sin validación con trabajadores (constitución III y «Revisión y criterios de aceptación»). | Requiere sesiones con operarios que no caben en esta entrega. HU-05 se integra, pero queda **sin aceptar**. | Validar con el equipo, que no cumple el principio III. | Persona B, antes de la aceptación, con el guion del [quickstart](quickstart.md#fuera-de-alcance-de-esta-entrega). |
 | SC-006 sin medición de rendimiento (p95 ≤ 2 s con 10.000 artículos, 1.000.000 de entradas y 25 sesiones). | Necesita datos sintéticos y carga. El diseño paginado e indexado no lo impide. | Medir con datos mínimos, que no son representativos. | Persona B, antes de la aceptación. |
 | `Cancelled` y el comando de modificación del pedido del modelo común, sin implementar. | Clarificación 3: alta y consulta bastan; liberar reservas resuelve compromisos innecesarios. | Implementar la cancelación, que amplía el alcance y las pruebas sin necesidad para HU-03. | Anotado en P-01; una historia posterior lo implementa con el protocolo común. |
+| FR-020 cubierto solo en la API (`GET /stock/reservations`), sin la pestaña «Reservas». | No sale en el vídeo y no cabe en el presupuesto; los compromisos de cada pedido sí se ven en su detalle. | Una lista mínima sin filtros, que tampoco cabe. | Persona B; pestaña S2 de tasks.md. |
 | Endpoint de preparación de existencias solo para pruebas (D-17). | El vídeo necesita existencias y HU-01 aún no ofrece recepciones por HTTP. | Escribir saldos directamente, prohibido por la constitución IV y la guía común. | Persona B; se retira cuando HU-01 integre recepciones. |

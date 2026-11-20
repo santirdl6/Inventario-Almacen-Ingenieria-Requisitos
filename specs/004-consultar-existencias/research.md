@@ -156,6 +156,16 @@ cabecera, una reserva o salida ajena no invalidaría el ETag y US5.4 no se cumpl
 que cambia el modelo y complica la precondición; b) una columna `Revision`, que también cambia el
 modelo. Se descartan.
 
+**Revisado tras `/speckit-analyze` (M1)**: se mantiene esta decisión y no se pasa al digest de
+HU-02 (`LocationEntityTags`). Todo escritor del pedido o de la reserva (HU-05 al reservar y
+liberar, HU-03 al servir) actualiza la cabecera, así que el ETag fuerte cambia con cada cambio de
+los datos que protege.
+
+Los datos de artículo, ubicación y lote incluidos en la representación son informativos. El
+comando los vuelve a comprobar bajo bloqueo: `ArticleInactive`, ubicación inactiva y disponible.
+La precondición `If-Match` no depende de ellos. T012 y T014 prueban que reservar y liberar
+renuevan el ETag.
+
 ## D-08. Respuestas de reservar y liberar sin `ETag`
 
 **Decisión**: `POST /reservations` responde 201 con `Location: /api/v1/reservations/{id}` y el cuerpo
@@ -254,7 +264,8 @@ cubrir toda FK a `Articles`; sin el contributor, HU-08 respondería `DependencyU
 ## D-14. Migración `HU05_CustomerOrdersReservations`
 
 **Decisión**: una migración aditiva, generada con `dotnet ef migrations add` sobre
-`20261119163347_HU02_LocationCharacters` (última integrada en la rama). Crea las cuatro tablas del
+`20261119171332_HU08MovementCounterparty`, la del PR #7 de A, que cierra la cadena común (revisado
+tras `/speckit-analyze`, H3). No se genera hasta que #7 se fusione. Crea las cuatro tablas del
 modelo común con las restricciones de [data-model.md](data-model.md#migración) y
 `DENY DELETE` para `inventory_runtime` en las cuatro, porque en esta entrega nada se borra (como
 `StockBalances`). No modifica migraciones anteriores. Si otra migración se integra antes, se

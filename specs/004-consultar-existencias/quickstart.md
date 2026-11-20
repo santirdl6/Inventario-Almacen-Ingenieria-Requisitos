@@ -9,7 +9,7 @@ Contratos: [API](contracts/stock-api.md), [UI](contracts/stock-ui.md) e
 ## Prerrequisitos
 
 1. Rama `b/hu-05-consultar-existencias`, con HU-02 y la base común de A integradas.
-2. Migración `HU05_CustomerOrdersReservations` aplicada sobre `HU02_LocationCharacters` y
+2. Migración `HU05_CustomerOrdersReservations` aplicada sobre `HU08MovementCounterparty` (PR #7) y
    `dotnet ef migrations has-pending-model-changes` sin cambios.
 3. Datos comunes §5 (ART-01 con lote L-001 y unidad UD sin fracciones; ubicaciones P01-E01-N01 y
    P01-E01-N02), más ART-02 sin seguimiento de lote. Mientras no exista HU-01, las existencias se

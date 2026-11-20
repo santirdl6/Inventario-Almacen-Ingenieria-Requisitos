@@ -59,6 +59,9 @@ cuándo se puede llamar.
    a `Fulfilled`.
 4. **Tocar versiones**: marca como modificadas la cabecera del pedido y la de cada reserva cuyo
    consumo cambie (research D-07), para que los `If-Match` de HU-05 detecten la salida.
+   HU-03 también debe actualizar la cabecera del pedido en **toda** salida, aunque no consuma
+   reservas, porque cambia `ShippedQuantity`. El ETag fuerte de `GET /customer-orders/{id}` solo
+   es válido si todo escritor del pedido lo renueva.
 5. **Remanente sobrante**: si tras servir el remanente activo de la línea supera su nuevo pendiente,
    rechaza con `ReservedStockConflict`, como dice el contrato común. HU-05 aporta la liberación
    explícita para resolverlo. HU-03 no libera en silencio.

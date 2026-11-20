@@ -13,7 +13,9 @@ description: "Lista de tareas de HU-05 — Consultar existencias y reservas"
 (T001–T020). Lo recortado está al final, en «Si hay tiempo», fuera de la numeración.
 
 **Pruebas**: solo recorrido habitual, error y permisos, más **V-05** (S-12), la **extensión de V-04**
-(liberaciones parciales repetidas, S-14) y **V-08** (S-16), en SQL Server real con la receta Docker
+(liberaciones parciales repetidas, S-14), **V-08** (S-16) y el contrato de escritores de
+**INT-HU05-01/02** (carreras, borrado, desactivación y conciliación, dentro de T010, T012 y T014),
+en SQL Server real con la receta Docker
 del [quickstart](quickstart.md#pruebas-automatizadas-backend), porque no hay SDK .NET local. E2E solo
 del recorrido **E2E-01** del vídeo. Sin tareas de rendimiento (SC-006) ni de validación con
 operarios (SC-007): ver «Desviaciones registradas».
@@ -28,6 +30,9 @@ respetar el límite de tareas.
 - **[Story]**: historia de la spec (US1–US5).
 - **⚑ commit aparte**: toca archivos de A o comunes, o HU-02. Va en su propio commit para
   separarlo en la revisión del PR.
+- **[INT-HU05-01] / [INT-HU05-02]**: tarea receptora del backlog de integración del PR #7
+  (`specs/001-reparto-specs-inventario/integration-tasks.md`), como exige AGENTS.md. **COORD-01**:
+  revisión cruzada de los cambios compartidos.
 
 ## Path Conventions
 
@@ -39,8 +44,11 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
 ## Phase 1: Coordinación con A (pendiente explícita, no se aplica ahora)
 
-- [ ] T001 ⏸ **PENDIENTE: solicitar la revisión de A en el PR**, sin bloquear la implementación, de:
-  - (a) los diffs P-01…P-08 de [plan.md § Cambios al modelo común](plan.md#cambios-al-modelo-común-pendientes-de-a);
+- [ ] T001 ⏸ **PENDIENTE: solicitar la revisión de A en el PR** (COORD-01), sin bloquear la
+  implementación, de:
+  - (a) los diffs pendientes de [plan.md § Cambios al modelo común](plan.md#cambios-al-modelo-común-pendientes-de-a):
+    P-01 (solo lo que falta tras #7), P-02…P-06 y P-08. P-07 ya está aplicado y aprobado en el
+    PR #7 de A;
   - (b) los cambios en archivos de A y comunes de T005, T009, T016 (`mutationPermission()` y
     `OperationStatusComponent.route()`) y T018;
   - (c) la alternativa `ReservationRelease` de research D-06;
@@ -48,12 +56,13 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
   Registrar decisión, fecha y revisor en `specs/004-consultar-existencias/plan.md` § «Estado de la
   revisión de A». Si A rechaza algo, ajustar solo las tareas afectadas.
-- [ ] T002 ⏸ **PENDIENTE, bloqueada por T001: aplicar los diffs aprobados P-01…P-08** en
-  `.specify/memory/project/data-model.md`, `.specify/memory/project/contracts/api.md`,
-  `.specify/memory/project/contracts/stock-operations.md`, `.specify/memory/project/research.md`
-  (R-10), `specs/001-reparto-specs-inventario/plan.md` (línea 114) y
-  `.specify/memory/project/quickstart.md` (evidencia, tras T014). **No se aplican hasta la
-  aprobación de A** (AGENTS.md, «Cambios compartidos»). ⚑ commit aparte.
+- [ ] T002 ⏸ **PENDIENTE, bloqueada por T001 y por la fusión de #7: aplicar los diffs aprobados**
+  P-01 (lo que falta), P-02…P-06 y P-08 en `.specify/memory/project/data-model.md`,
+  `.specify/memory/project/contracts/api.md`, `.specify/memory/project/contracts/stock-operations.md`
+  y `.specify/memory/project/quickstart.md` (evidencia, tras T014). **No toca** `research.md` (R-10)
+  ni `specs/001-reparto-specs-inventario/plan.md`, que ya cambió #7 (P-07). **No se aplican hasta la
+  aprobación de A** (AGENTS.md, «Cambios compartidos»). Al tener evidencia, marcar INT-HU05-01 e
+  INT-HU05-02 en `specs/001-reparto-specs-inventario/integration-tasks.md` (#7). ⚑ commit aparte.
 
 ---
 
@@ -90,10 +99,12 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - `IX_ReservationAllocations_Bucket (ArticleId, LocationId, LotId) INCLUDE (RemainingQuantity)`.
 
   (data-model; FR-009–FR-013, FR-015–FR-019.)
-- [ ] T004 Depende de T003.
+- [ ] T004 [INT-HU05-01] Depende de T003 y, **para la migración**, de la fusión del PR #7 de A.
   - Generar `dotnet ef migrations add HU05_CustomerOrdersReservations` en
     `backend/src/Inventario.Api/Infrastructure/Persistence/Migrations/`, sobre
-    `20261119163347_HU02_LocationCharacters`.
+    `20261119171332_HU08MovementCounterparty` (#7), la última migración de la cadena común. No se
+    genera antes de que #7 se fusione: hacerlo obligaría a regenerarla (plan global, §5). El resto
+    de T004 (`StockDocuments.cs`, el contributor y `StockEndpoints.cs`) puede adelantarse.
   - Añadir `DENY DELETE ON OBJECT::dbo.{CustomerOrders,CustomerOrderLines,Reservations,ReservationAllocations} TO inventory_runtime` (P-02). `Down` revierte en orden inverso.
   - Crear `backend/src/Inventario.Api/Features/Stock/StockDocuments.cs`: tipos canónicos
     `customer-order-reference`, `customer-order`, `reservation-release` y `reservation`, y el UUID
@@ -102,7 +113,8 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - Crear `backend/src/Inventario.Api/Features/Stock/CustomerOrders/CustomerOrderArticleUsage.cs`:
     `IArticleUsageContributor` e `IArticleFirstReferenceContributor` para `CustomerOrderLine` y
     `ReservationAllocation` (con filas ⇒ `HasReferences`), y «sin uso» solo si la migración no
-    está aplicada, como `StockArticleUsageContributor` (D-13).
+    está aplicada, como `StockArticleUsageContributor` (D-13). Es el lector autoritativo que exige
+    el contrato de escritores de INT-HU05-01.
   - Crear `backend/src/Inventario.Api/Features/Stock/StockEndpoints.cs` con `AddStock()`
     (contributor y servicios) y `MapStockEndpoints()` vacío.
   - Verificar con la receta Docker `has-pending-model-changes`, la cadena desde cero y
@@ -159,7 +171,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
 **Objetivo**: alta y detalle del pedido. **Prueba independiente**: S-08.
 
-- [ ] T008 [US2] Depende de T004. Crear en `backend/src/Inventario.Api/Features/Stock/CustomerOrders/`
+- [ ] T008 [US2] [INT-HU05-01] Depende de T004. Crear en `backend/src/Inventario.Api/Features/Stock/CustomerOrders/`
   `CustomerOrderCommands.cs`, `CustomerOrderQueries.cs`, `CustomerOrderDtos.cs` e
   `ICustomerOrderReader.cs`.
   - **Alta** (D-10), con `OperationRequest(…, "POST", "/api/v1/customer-orders", "Shipping.Record", DTO normalizado)`.
@@ -181,13 +193,32 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   `backend/src/Inventario.Api/Infrastructure/Http/MasterDataProblemMapper.cs`, añadir una rama:
   2601/2627 cuyo mensaje contenga `UX_CustomerOrders_ExternalReference` → 409 `DuplicateCode` con
   `errors.externalReference`. Va **antes** de la rama genérica de `_Code`; nada más cambia (D-10).
-- [ ] T010 [P] [US2] Crear `backend/tests/Inventario.IntegrationTests/Stock/CustomerOrderTests.cs`.
+- [ ] T010 [P] [US2] [INT-HU05-01] [INT-HU05-02] Crear
+  `backend/tests/Inventario.IntegrationTests/Stock/CustomerOrderTests.cs`.
   - **Habitual**: S-08 (alta de PED-1001 con ART-01×7 y ART-02×3 → 201 `Open`, servido 0 y
     `IsDefinitionLocked` true; replay con la misma clave → idéntico; GET con `ETag`).
   - **Error**: S-08 (« ped-1001 » con otra clave → 409 `DuplicateCode`) y S-09 (cantidad 0,
     artículo repetido, 1,5 en artículo entero → 422 por línea; artículo inactivo → 409; nada
     creado).
   - **Permisos**: ResponsableAlmacen y GestorMaestros POST → 403; GestorMaestros GET → 200.
+  - **Contrato de escritores** (INT-HU05-01; incluye S-19 y no se delega en la suite de HU-08):
+    - Tras la primera línea de pedido, el `PUT` de unidad, lote o fracciones del artículo → 409, y
+      `GET /articles/{id}/context` muestra la definición bloqueada.
+    - `DELETE /articles/{id}` con solo una línea de pedido (sin movimientos ni saldo) → rechazo por
+      referencias, sin `DependencyUnavailable`.
+    - «Bloqueo tras retirar referencias»: **no aplica**. HU-05 no retira líneas ni asignaciones (sin
+      edición ni cancelación y con `DENY DELETE`), así que la referencia nunca se retira. Se anota
+      en la prueba.
+  - **Carreras** (INT-HU05-01/02), con conexiones independientes y barreras como
+    `MasterDataLifecycleConcurrencyTests` de A, en **ambos órdenes**:
+    - alta frente a desactivación: alta primero → 201 y la desactivación respeta el compromiso;
+      desactivación primero → alta 409 `ArticleInactive`;
+    - alta frente a `PUT` de la definición: alta primero → `PUT` 409; `PUT` primero → alta con la
+      definición nueva;
+    - alta frente a `DELETE` del artículo: alta primero → `DELETE` rechazado; `DELETE` primero →
+      alta 422 por artículo inexistente.
+
+    Sin modificar `StockTestHarness`.
 
   (US2, US5.1; FR-009–FR-012.) Depende de T008 y T009.
 
@@ -199,7 +230,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
 **Objetivo**: reservar y consultar compromisos. **Prueba independiente**: S-10.
 
-- [ ] T011 [US3] Depende de T006 y T008. Crear en
+- [ ] T011 [US3] [INT-HU05-01] Depende de T006 y T008. Crear en
   `backend/src/Inventario.Api/Features/Stock/Reservations/` `ReservationCommands.cs` (reservar),
   `ReservationQueries.cs` y `ReservationDtos.cs`.
   - **Reservar** (D-05, D-09), con `OperationRequest(…, "POST", "/api/v1/reservations", "Reservations.Manage", DTO normalizado)`.
@@ -219,18 +250,38 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - Mapear las tres rutas con `Reservations.Manage` o `Inventory.Read`.
 
   (US3.1–US3.8; FR-014–FR-017, FR-020, FR-022, FR-025.)
-- [ ] T012 [P] [US3] Crear `backend/tests/Inventario.IntegrationTests/Stock/ReservationTests.cs`.
+- [ ] T012 [P] [US3] [INT-HU05-01] [INT-HU05-02] Crear
+  `backend/tests/Inventario.IntegrationTests/Stock/ReservationTests.cs`.
   - **Habitual**: S-10 (reservar 7 de 10 → físico 10, reservado 7, disponible 3 en `GET /stock`;
-    `GET /stock/reservations` muestra el pedido y el bucket).
+    `GET /stock/reservations` muestra el pedido y el bucket). El `ETag` de
+    `GET /customer-orders/{id}` después de reservar **es distinto** del anterior (D-07).
   - **Error**: S-10 (superar el pendiente → 422; sin `If-Match` → 428; ETag obsoleto → 412;
     ubicación vacía → 409 `InsufficientStock`) y S-11 (dos asignaciones con una insuficiente →
     ninguna asignación ni movimiento).
+  - **Idempotencia** (FR-023): misma clave y mismo cuerpo → replay idéntico con un solo movimiento;
+    misma clave con otra cantidad → 409 `IdempotencyConflict` sin efectos.
   - **Permisos**: Operario → 403.
+  - **Desactivación** (INT-HU05-02, US3.7): reservar con el artículo desactivado → 409
+    `ArticleInactive` sin cambios.
+  - **Conteo abierto** (US3.7, FR-016): **pendiente de INT-HU04-03**. `IsInOpenCountAsync`
+    devuelve `false` hasta que HU-04 integre los conteos; la prueba de 409 `CountScopeFrozen` se
+    añade entonces.
+  - **Carreras** (INT-HU05-01/02), con conexiones independientes y barreras, en **ambos órdenes**:
+    - reserva frente a desactivación: reserva primero → 201 y el compromiso queda; desactivación
+      primero → 409 `ArticleInactive`;
+    - reserva frente a `PUT` de la definición: la definición ya está bloqueada por la línea, así
+      que el `PUT` → 409 en ambos órdenes y la reserva no se ve afectada;
+    - reserva frente a `DELETE` del artículo: `DELETE` rechazado en ambos órdenes y reserva 201.
   - **V-05** (S-12): físico 10, dos conexiones reservan 7 para pedidos distintos, 20 repeticiones
-    → exactamente una 201 y una 409 `InsufficientStock`; reservado nunca 14;
-    `AssertJournalMatchesBalanceAsync`.
+    → exactamente una 201 y una 409 `InsufficientStock`; reservado nunca 14.
+  - **Conciliación documental, diario y saldo** (INT-HU05-02, núcleo de S-07), tras S-10 y V-05:
+    `AssertJournalMatchesBalanceAsync` y, por bucket, Σ `RemainingQuantity` de
+    `ReservationAllocations` = `StockBalances.Reserved`.
+  - **Publicación para HU-03** (INT-HU05-01, mínimo de S-18): `ICustomerOrderReader` dentro del
+    ejecutor, tras bloquear el pedido, da el mismo pendiente y remanente por bucket que
+    `GET /customer-orders/{id}`.
 
-  (US3, US5.1; FR-016, FR-022, FR-024, FR-025; SC-003, SC-004.) Depende de T011.
+  (US3, US5.1; FR-016, FR-022–FR-025; SC-003, SC-004, SC-005.) Depende de T011.
 
 **Checkpoint**: reservas confirmadas visibles en la consulta; V-05 en verde.
 
@@ -256,17 +307,30 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - Mapear `POST /reservations/{id}/release`.
 
   (US4.1–US4.6; FR-017–FR-019, FR-022, FR-023.)
-- [ ] T014 [P] [US4] Crear `backend/tests/Inventario.IntegrationTests/Stock/ReleaseTests.cs` y
+- [ ] T014 [P] [US4] [INT-HU05-02] Crear `backend/tests/Inventario.IntegrationTests/Stock/ReleaseTests.cs` y
   `StockReliabilityTests.cs`.
   - **Extensión de V-04** (S-14): R1 libera 2 con motivo → 200; R2 libera 2 → 200; R1 con su clave
     → replay idéntico; R1 con otra clave → 409 `DocumentAlreadyConfirmed`; 5 sobre un remanente de
     3 → 409 `ReservedStockConflict`; sin motivo → 422; ETag obsoleto → 412. Al final: reservado 3,
-    físico sin cambios y dos movimientos `Release` con motivo y actor.
-  - **Habitual**: S-15 (liberar con el artículo desactivado → 200; liberar todo → `Released`).
+    físico sin cambios y dos movimientos `Release` con motivo, actor y `CounterpartyReference` del
+    cliente.
+  - **ETag** (D-07): tras cada liberación, el `ETag` de `GET /reservations/{id}` y el de
+    `GET /customer-orders/{id}` **son distintos** de los anteriores.
+  - **Idempotencia** (FR-023): la clave de R1 con otro motivo o cantidad → 409 `IdempotencyConflict`
+    sin efectos (el replay con el mismo cuerpo ya está en S-14).
+  - **Habitual**: S-15 (liberar con el artículo desactivado → 200, permitido por INT-HU05-02;
+    liberar todo → `Released`). Tras liberarlo todo, `DELETE /articles/{id}` **sigue rechazado**
+    porque las líneas del pedido permanecen (INT-HU05-01).
+  - **Carreras** (INT-HU05-02), con conexiones independientes y barreras, en **ambos órdenes**:
+    liberación frente a desactivación → ambas 200, en cualquier orden; liberación frente a `PUT` de
+    la definición → `PUT` 409 y liberación 200; liberación frente a `DELETE` → `DELETE` rechazado y
+    liberación 200.
   - **Permisos**: Operario → 403; sin antiforgery → 400.
   - **V-08** (S-16): `StockTestHarness.FailingFactory` y `FailAfterSaveInterceptor` armado en
     alta, reserva y liberación → ningún pedido, reserva, movimiento ni `OperationResult`; repetir
     con la misma clave → un solo efecto.
+  - **Conciliación documental, diario y saldo** (INT-HU05-02) al final de S-14 y tras V-08: la misma
+    comprobación que en T012.
   - Después, ejecutar la suite completa tres veces con la receta Docker y registrar fecha,
     entorno, número de pruebas y resultado en `specs/004-consultar-existencias/quickstart.md`
     § «Evidencia».
@@ -403,17 +467,22 @@ preparadas.
   interfaz). El endpoint sí entra en T011 y se prueba en T012.
 - ~~S3~~ **Retirada** tras `/speckit-analyze` (C1). HU-05 usa el transporte común de A
   (D-15), así que no hay nada que trasladar. El identificador S3 queda sin uso para no renumerar.
-- **S4** Pruebas no exigidas en esta entrega: S-04 (borrador no cuenta), S-06 (artículo
-  inactivo), S-13 (dos reservas de la misma línea), S-18 (contrato HU-03, que HU-03 cubrirá),
-  S-19 (uso del artículo, cubierto indirectamente por la suite de HU-08 en T004) y S-07
-  (conciliación completa más allá de `AssertJournalMatchesBalanceAsync`).
+- **S4** Pruebas no exigidas en esta entrega: S-04 (borrador no cuenta), la parte de consulta de
+  S-06 (artículo inactivo visible en `/stock`), S-13 (dos reservas de la misma línea) y S-18
+  completo (HU-03 lo amplía). **No se aplazan**, porque INT-HU05-01/02 exigen que cada módulo pruebe
+  sus propios escritores y no basta la suite de HU-08:
+  - S-19 (definición bloqueada y borrado rechazado): en T010.
+  - Reservar con el artículo inactivo: en T012.
+  - El núcleo de S-07 (conciliación documental, diario y saldo): en T012 y T014.
+  - El mínimo de S-18: en T012.
 
 ---
 
 ## Dependencies & Execution Order
 
 ```text
-T001 ⏸ ─▶ T002 ⏸            (coordinación; no bloquea nada)
+T001 ⏸ ─▶ T002 ⏸            (coordinación; no bloquea nada; T002 espera además a #7)
+PR #7 de A (fusión) ─▶ T004 (migración) y T017
 T003 ─▶ T004 ─▶ T005 ─▶ T006 ─▶ T007
                   │      └──────────────▶ T015 ─┐
                   ├─▶ T008 ─▶ T010 (T009 ∥)     │
@@ -456,6 +525,8 @@ siempre en commit propio. Nunca `git add -A`.
 |------------|--------|--------------|
 | SC-006 (rendimiento: p95 ≤ 2 s con 10.000 artículos, 1.000.000 de entradas y 25 sesiones) sin medir. | Presupuesto de unas 50 h para cuatro historias; requiere datos sintéticos y carga. | HU-05 se integra, pero no se da por aceptada ([plan § Complexity Tracking](plan.md#complexity-tracking)). |
 | SC-007 (validación con trabajadores, constitución III) sin realizar. | Requiere sesiones con operarios fuera de esta entrega. | Igual que la anterior; guion en el [quickstart](quickstart.md#fuera-de-alcance-de-esta-entrega). |
-| Pruebas limitadas a habitual, error, permisos, V-05, V-04 ampliada y V-08. | Recorte de presupuesto. | S-04, S-06, S-07 (completa), S-13, S-18 y S-19 pasan a «Si hay tiempo» (S4). |
+| Pruebas limitadas a habitual, error, permisos, V-05, V-04 ampliada, V-08 y el contrato de escritores de INT-HU05-01/02. | Recorte de presupuesto. | S-04, la consulta de S-06, S-13 y S-18 completo pasan a «Si hay tiempo» (S4). S-19, la conciliación de S-07 y el mínimo de S-18 están en T010/T012/T014. |
+| FR-020 («mostrar las reservas activas de un artículo») cubierto solo en la API: `GET /stock/reservations` en T011, probado en T012. | La pestaña «Reservas» (S2) no sale en el vídeo y no cabe en el presupuesto. Los compromisos de cada pedido sí se ven en su detalle (T016). | La consulta por artículo se hace con la API hasta que se implemente S2 ([plan § Complexity Tracking](plan.md#complexity-tracking)). |
+| Congelación por conteo abierto al reservar (US3.7, FR-016) sin prueba. | `IsInOpenCountAsync` devuelve `false` hasta que HU-04 integre los conteos. | Pendiente de INT-HU04-03 (backlog de integración del PR #7); allí se prueba 409 `CountScopeFrozen`. |
 | Selector de artículo propio en lugar de `article-search` de HU-02 (recogido en research D-15). | El de HU-02 enlaza fijo a `/ubicaciones/articulo/:id`; reutilizarlo exigiría tocar HU-02. | Un componente pequeño duplicado; se unifica en una historia posterior. |
 | Búsqueda de pedidos (P-04) y pestaña «Reservas» recortadas. | No salen en el vídeo. | El E2E abre el pedido por URL; S1 y S2 si hay tiempo. |
