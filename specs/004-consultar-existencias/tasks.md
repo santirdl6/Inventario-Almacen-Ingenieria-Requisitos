@@ -296,10 +296,12 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     El contexto ordena artículos por SKU y ubicaciones y lotes por código.
   - `ICustomerOrderReader` lee sin seguimiento en la transacción del ejecutor y no toma bloqueos.
     Las pruebas están en T010.
-- [ ] T009 [P] ⚑ commit aparte (archivo de A). En
+- [X] T009 [P] ⚑ commit aparte (archivo de A). En
   `backend/src/Inventario.Api/Infrastructure/Http/MasterDataProblemMapper.cs`, añadir una rama:
   2601/2627 cuyo mensaje contenga `UX_CustomerOrders_ExternalReference` → 409 `DuplicateCode` con
   `errors.externalReference`. Va **antes** de la rama genérica de `_Code`; nada más cambia (D-10).
+  **Hecho (2026-11-20)**: una rama de cinco líneas, con su comentario. La prueba que la cubre está en
+  `CustomerOrderTests` (T010) y provoca la violación real del índice.
 - [ ] T010 [P] [US2] [INT-HU05-01] [INT-HU05-02] Crear
   `backend/tests/Inventario.IntegrationTests/Stock/CustomerOrderTests.cs`.
   - **Habitual**: S-08 (alta de PED-1001 con ART-01×7 y ART-02×3 → 201 `Open`, servido 0 y
