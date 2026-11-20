@@ -99,3 +99,16 @@ el proyecto `inventario-hu08-e2e`, conservando volúmenes y actores históricos.
 No se declara aceptación completa de FR-009/019 ni del conjunto HU-08. Continúan pendientes
 referencias reales y sus carreras, proveedores, retirada/historial, fiabilidad completa,
 rendimiento, SC-006 humana, recuperación y revisión A+B. No se recibió aprobación de B.
+
+## Convergencia T099, 2026-11-19
+
+`MasterDataLifecycleConcurrencyTests.Definition_and_first_stock_reference_serialize_in_both_orders`
+pasó ambos órdenes de commit con StockCore real, conexiones independientes, barrera y
+espera de applock observada. Referencia primero: el ETag previo se rechaza con 412 y
+el vigente con 409; la definición permanece. Edición primero: el stock revalida KG,
+fracciones y lote, y su entrada conserva KG/1,125. Marca, auditoría y conciliación
+comprobadas. Suite SQL completa: 97 aprobadas, 1 omitida V-14; regresión final de las
+áreas afectadas: 16/16. [Comandos y evidencia](convergence.md).
+El caso de referencia documental creada y retirada de T100 se asigna a los receptores
+INT-HU01/03/04/05/07-01 del backlog de integración; esta prueba no sustituye sus documentos
+ni mantiene abierta la implementación propia de HU-08.

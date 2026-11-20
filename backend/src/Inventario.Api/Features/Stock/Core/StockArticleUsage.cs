@@ -41,6 +41,7 @@ public static class StockSchema
 {
     // Migración que crea Locations, Lots, StockBalances, StockMovements y StockEntries.
     public const string Migration = "20261118194940_H0_StockCore";
+    public const string CounterpartyMigration = "20261119171332_HU08MovementCounterparty";
 }
 
 public static class StockCoreRegistration

@@ -6,6 +6,10 @@ T091 · [SC-006](../spec.md#success-criteria-mandatory) · [guía de validación
 El proyecto de clase carece de tres gestores representativos. SC-006 queda sin
 evidencia de sesiones, y se conserva este guion para una posible validación operativa.
 
+**Responsable receptor al cierre técnico**: H5-01 en el
+[backlog de puesta en servicio](../../001-reparto-specs-inventario/integration-tasks.md).
+T091/T105 salen del backlog local de HU-08; este guion se reutiliza en ese ejercicio.
+
 ## Preparación de la sesión
 
 Usar una base de pruebas separada con los cambios de HU-08. Asignar a cada persona

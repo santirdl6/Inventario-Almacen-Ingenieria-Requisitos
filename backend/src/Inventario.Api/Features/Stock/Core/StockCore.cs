@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Inventario.Api.Domain.Locations;
 using Inventario.Api.Domain.MasterData;
@@ -51,6 +52,9 @@ public sealed partial class StockCore
         CancellationToken cancellationToken = default)
     {
         var database = context.Database;
+        // Después del replay del ejecutor: las intenciones históricas siguen siendo recuperables.
+        if (command.CounterpartyReference is null && command.CounterpartyNotApplicableReason is null)
+            throw StockProblems.Validation("counterpartyReference", "Indica la contraparte o explica por qué no aplica.");
 
         // 4–6. Documento, ubicaciones y artículos; InventoryLocks ordena cada fase y rechaza saltos.
         await context.Locks.DocumentsAsync([new DocumentLock(command.SourceType, command.SourceId)], cancellationToken);
@@ -87,7 +91,7 @@ public sealed partial class StockCore
         var recordedAt = DateTimeOffset.UtcNow;
         var movement = new StockMovement(kind, command.SourceType, command.SourceId, command.Reason, context.ActorId,
             command.OccurredAt, recordedAt, context.OperationId, command.SupportReference,
-            command.SupportNotApplicableReason, command.CounterpartyReference);
+            command.SupportNotApplicableReason, command.CounterpartyReference, command.CounterpartyNotApplicableReason);
         database.Add(movement);
 
         foreach (var line in resolved)
@@ -220,6 +224,8 @@ public sealed partial class StockCore
             throw StockProblems.Validation("supportReference", "Indica la referencia de soporte o por qué no aplica.");
         var counterparty = Optional(context.CounterpartyReference, StockMovement.ReferenceMaxLength,
             "counterpartyReference");
+        var counterpartyNotApplicable = Optional(context.CounterpartyNotApplicableReason, StockMovement.ReasonMaxLength,
+            "counterpartyNotApplicableReason");
         var occurredAt = context.OccurredAt.ToUniversalTime();
         if (occurredAt == default || occurredAt > DateTimeOffset.UtcNow + AllowedClockSkew)
             throw StockProblems.Validation("occurredAt", "La fecha del hecho no puede ser futura.");
@@ -252,7 +258,7 @@ public sealed partial class StockCore
             .Any(group => group.Count() > 1))
             throw StockProblems.Validation("lines", "Cada artículo, ubicación y lote debe aparecer una sola vez.");
 
-        var body = JsonSerializer.SerializeToElement(new
+        var bodyObject = JsonSerializer.SerializeToNode(new
         {
             operation = operation.ToString(),
             sourceType,
@@ -270,10 +276,13 @@ public sealed partial class StockCore
                 quantity = Format(line.Quantity),
                 ownReservedToConsume = Format(line.OwnReserved)
             })
-        }, OperationResponse.JsonOptions);
+        }, OperationResponse.JsonOptions)!.AsObject();
+        // Omitir el campo nuevo cuando es null conserva las huellas anteriores a esta ampliación.
+        if (counterpartyNotApplicable is not null) bodyObject["counterpartyNotApplicableReason"] = counterpartyNotApplicable;
+        var body = JsonSerializer.SerializeToElement(bodyObject, OperationResponse.JsonOptions);
 
         return new StockCommand(operation, sourceType, context.Source.Id, occurredAt, reason, support, notApplicable,
-            counterparty, normalized, body);
+            counterparty, counterpartyNotApplicable, normalized, body);
     }
 
     private static string? Optional(string? value, int maximumLength, string field)
@@ -302,6 +311,7 @@ public sealed class StockCommand
 {
     internal StockCommand(StockOperation operation, string sourceType, Guid sourceId, DateTimeOffset occurredAt,
         string reason, string? supportReference, string? supportNotApplicableReason, string? counterpartyReference,
+        string? counterpartyNotApplicableReason,
         IReadOnlyList<StockLine> lines, JsonElement normalizedBody)
     {
         Operation = operation;
@@ -312,6 +322,7 @@ public sealed class StockCommand
         SupportReference = supportReference;
         SupportNotApplicableReason = supportNotApplicableReason;
         CounterpartyReference = counterpartyReference;
+        CounterpartyNotApplicableReason = counterpartyNotApplicableReason;
         Lines = lines;
         NormalizedBody = normalizedBody;
     }
@@ -324,6 +335,7 @@ public sealed class StockCommand
     public string? SupportReference { get; }
     public string? SupportNotApplicableReason { get; }
     public string? CounterpartyReference { get; }
+    public string? CounterpartyNotApplicableReason { get; }
     internal IReadOnlyList<StockLine> Lines { get; }
     public JsonElement NormalizedBody { get; }
 }

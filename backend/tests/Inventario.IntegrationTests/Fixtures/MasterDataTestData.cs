@@ -14,7 +14,8 @@ public static class MasterDataTestData
     public const string E2EDatabase = "InventoryHu08E2E";
     private static readonly string[] E2ERoles = ["GestorMaestros", "Operario", "Administrador"];
 
-    public static ServiceProvider BootstrapServices(IConfiguration configuration, string connection, string keysDirectory)
+    public static ServiceProvider BootstrapServices(IConfiguration configuration, string connection, string keysDirectory,
+        Action<IServiceCollection>? configure = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -23,6 +24,7 @@ public static class MasterDataTestData
         services.AddInventoryIdentity(new IdentityFixture.TestEnvironment());
         services.AddDbContext<InventoryDbContext>(options => options.UseSqlServer(
             connection, sql => sql.EnableRetryOnFailure()));
+        configure?.Invoke(services);
         return services.BuildServiceProvider();
     }
 

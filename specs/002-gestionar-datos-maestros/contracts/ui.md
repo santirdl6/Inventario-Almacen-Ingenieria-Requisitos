@@ -81,3 +81,15 @@ al cerrar diálogos. Mensajes de estado con texto además de color; no depender 
 Tres gestores completan los recorridos SC-006 sin asistencia técnica ni errores no detectados;
 registrar participantes por rol, tareas, resultados, incidencias y correcciones. Las suites
 automatizadas aportan evidencia complementaria, no sustituyen esa aceptación.
+
+### Convergencia del historial, 2026-11-19
+
+Responsable, ubicación y lote se eligen por etiquetas en selectores nativos, con búsqueda
+por nombre/código y paginación de opciones; no se solicita escribir UUID. Las opciones
+proceden únicamente del diario del artículo. Al buscar otra página se conserva la opción
+seleccionada; un fallo conserva las opciones anteriores y permite repetir la búsqueda.
+Los tipos de movimiento/documento se presentan en español; el identificador documental
+permanece disponible al desplegar su detalle. La tabla HTML tiene nombre accesible.
+La falta de evidencia histórica de contraparte se expresa como «Contraparte no registrada»;
+no se interpreta como no aplicabilidad acreditada. T097 incorpora ya la persistencia y
+proyección del motivo explícito para hechos nuevos; la ausencia histórica sigue distinguida.

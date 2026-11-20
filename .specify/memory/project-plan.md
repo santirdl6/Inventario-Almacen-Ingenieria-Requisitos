@@ -67,7 +67,8 @@ aprobación y restauración demostrada antes de producción. La base H0 incluye 
 de estado y arranque Compose; la implementación del inventario corresponde a las ocho specs.
 
 **Scale/Scope**: una pyme, un almacén inicial con varias ubicaciones, dos desarrolladores,
-ocho futuras specs. Pedidos de cliente y reservas mínimos como soporte de HU-03/HU-05;
+ocho futuras specs. Alta/consulta del pedido de cliente mínimo y reservas en HU-05,
+consumidos por las salidas de HU-03 (reparto confirmado 2026-11-19);
 sin facturación, módulo comercial completo ni reservas automáticas.
 
 ## Constitution Check
@@ -290,6 +291,23 @@ La parte B del núcleo de stock y la revisión conjunta de H0
 se coordinan con el [plan de reparto](../../specs/001-reparto-specs-inventario/plan.md).
 
 ### Sincronización con las futuras specs
+
+La reserva de numeración se mantiene en [docs/agrupamiento.md](../../docs/agrupamiento.md):
+B 004–006 (HU-05/HU-03/HU-04), A 007–009 (HU-07/HU-01/HU-06). El acuerdo adelanta el
+pedido mínimo a HU-05 sin cambiar modelo, estados, permisos ni cálculo de stock;
+HU-03 consume el mismo pedido y las reservas para confirmar salidas y actualizar servido.
+
+El cierre técnico de HU-08 asigna las integraciones de nuevos escritores al
+[backlog receptor por HU](../../specs/001-reparto-specs-inventario/integration-tasks.md).
+Sus tareas se incorporan a cada spec consumidora al crearla; no bloquean la entrega del
+catálogo ya implementado. La revisión de cambios compartidos se conserva en COORD-01
+y las condiciones de puesta en servicio en H5, con las mismas obligaciones constitucionales.
+
+La ampliación `20261119171332_HU08MovementCounterparty` añade al diario
+CounterpartyNotApplicableReason opcional y exige contraparte o motivo en cada hecho nuevo.
+Conserva filas y huellas históricas; detalle en el modelo y protocolo comunes. Se prepara
+localmente por la solicitud del usuario de terminar HU-08, con revisión cruzada antes de
+integrar/fusionar registrada en COORD-01; no se presume una aprobación de B.
 
 1. Cada futura spec y plan enlaza este plan, la constitución vigente y las secciones
    de contratos/modelo que consume. Identifica HU original y responsable principal.

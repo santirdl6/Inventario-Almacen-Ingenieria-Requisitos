@@ -185,7 +185,8 @@ Para validar los tres catálogos, retirada y recuperación en navegador, instala
 `npx --no-install playwright install chromium` y `npm run test:e2e` desde frontend.
 El login común y /maestros/familias, /maestros/articulos y /maestros/proveedores están
 implementados. /maestros redirige a artículos. El borrado de artículos sin uso conserva
-auditoría y resultado; movimientos explica la integración pendiente del diario de stock.
+auditoría y resultado. El historial consulta el diario real de StockCore, incluso para
+inactivos, con filtros seleccionables por nombres/códigos y tipos en español.
 
 E2E arranca el proyecto dedicado `inventario-hu08-e2e` en 8082/8026 y prepara sus cuentas
 en InventoryHu08E2E mediante Identity, sin API pública de usuarios. Las retira al terminar
@@ -194,6 +195,10 @@ HTTP reales y recorridos Chromium de catálogos, retirada y fiabilidad.
 La suite SC-005 prepara además 10.000 artículos auditados y 25 sesiones; para ejecutar solo
 regresión funcional, usar `npm run test:e2e -- --grep-invert SC-005`.
 Preparación, opciones y alcance en el [quickstart HU-08](specs/002-gestionar-datos-maestros/quickstart.md).
+El recorrido poblado se ejecuta con `npm run test:e2e -- e2e/master-data-lifecycle.spec.ts`:
+prepara stock por el núcleo real en la base E2E y comprueba su conservación. La
+[evidencia de convergencia](specs/002-gestionar-datos-maestros/validation/convergence.md)
+recoge los resultados y bloqueos de la fase 9.
 
 ## Persistencia
 
@@ -231,8 +236,9 @@ el contrato que utiliza B y los resultados de validación.
 
 La base común añade OperationResult/ejecutor/applocks y auditoría append-only compartidos.
 La cadena incorpora H0OperationProtocol → HU08AuditInfrastructure → HU08Families →
-HU08MasterDataExpand → HU08RequireArticleFamily → HU08Suppliers, conservando las anteriores.
-B debe consumir esta base y generar su migración sobre el snapshot integrado.
+HU08MasterDataExpand → HU08RequireArticleFamily → HU08Suppliers → H0_StockCore →
+HU08MovementCounterparty, conservando las anteriores. StockCore consume el ejecutor y
+el resultado comunes; cada hecho nuevo conserva contraparte o motivo de no aplicabilidad.
 El endpoint GET /api/v1/operations/{id} permite comprobar resultados autorizados aunque el
 recurso ya no exista; los tres catálogos usan ETag/If-Match e Idempotency-Key con guardado atómico.
 El detalle propio de Article lleva ETag; su contexto auxiliar contiene familia, mínimo y
@@ -242,6 +248,13 @@ marca de primer uso antes de habilitar escritores. Evidencia H1: 64 pruebas back
 La continuación del 2026-11-18 y sus comprobaciones están en
 [aceptación técnica](specs/002-gestionar-datos-maestros/validation/acceptance.md).
 
+**HU-08 cerrada técnicamente (2026-11-19)**: 101 pruebas SQL, 41 frontend y 12 E2E
+funcionales aprobadas; build correcto y modelo EF sin diferencias. No quedan tareas de
+implementación propias. Los futuros módulos reciben sus integraciones en el
+[backlog por HU](specs/001-reparto-specs-inventario/integration-tasks.md), y la validación
+operativa común se conserva en H5. La revisión compartida de cambios antes de integrar
+se registra en COORD-01.
+
 **Si la base contiene artículos H0**, preparar explícitamente su mapa de familias entre
 expansión y cierre: no ejecutar el inicializador completo esperando una familia automática.
 El [procedimiento HU-08](specs/002-gestionar-datos-maestros/quickstart.md#1-preparación-y-estado-esperado)
@@ -250,9 +263,8 @@ Una base nueva vacía conserva el arranque normal de un comando.
 
 La autenticación por cookie,
 antiforgery, la sesión y el catálogo inicial de roles se incluyen en H0; los endpoints y
-permisos de negocio se completarán en sus specs. El diario y worker SMTP se añadirán después.
-Al crear el diario,
-su migración debe restringir UPDATE/DELETE al usuario de ejecución según el contrato común.
+permisos de negocio se completarán en sus specs. El diario ya está integrado, con DENY
+UPDATE/DELETE para el rol de ejecución; el worker SMTP pertenece al corte de compras.
 Los permisos de DDL permanecen en el inicializador, no en la API.
 
 Para desarrollo fuera de Docker, consultar los comandos del

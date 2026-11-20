@@ -7,6 +7,13 @@
 **Input**: HU-08 y aclaración de primera referencia, Persona A, inicio en H1.
 **Alcance del comando**: investigación y diseño Phase 0–1; las tareas se generan después.
 
+**Estado final, 2026-11-19**: implementación técnica de HU-08 cerrada por solicitud del
+usuario. Catálogos, historial real, concurrencia y evidencia explícita de contraparte
+verificados; [aceptación](validation/acceptance.md). Los criterios exclusivos de nuevos
+escritores se asignan a sus módulos en el [backlog receptor](../001-reparto-specs-inventario/integration-tasks.md).
+SC-006 y aceptación operativa pertenecen a H5; COORD-01 conserva la revisión compartida
+previa a integrar/fusionar. Los estados fechados anteriores son evidencia histórica.
+
 **Estado de ejecución, 2026-11-17**: base común, sesión/layout, familias y catálogo Article H1
 verificados localmente: 64 pruebas backend, 22 unitarias frontend y 7 E2E aprobadas.
 [Foundation](validation/foundation.md), [US1](validation/us1.md) y [US2](validation/us2.md)
@@ -49,10 +56,9 @@ delgadas y handlers por DI, sin mediador obligatorio ni repositorios genéricos.
 aditivas en la cadena común, rowversion, UUID, UTC y precisión global. Nuevas entidades de
 maestros y auditoría; StockPolicy/OperationResult son las mismas entidades compartidas.
 
-**Testing**: xUnit 2.9.3 con MVC Testing 10.0.13 y SQL real aislado del proyecto existente.
-Configurar Vitest 5.1.0 + coverage-v8 5.1.0 + jsdom 31.0.0 y Playwright Test 1.65.0,
-versiones elegibles investigadas y pendientes de instalar/fijar en lockfile. Angular Build
-22.2.3 admite Vitest ^4.0.8 o ^5.0.0. No existen aún target test ni suites frontend.
+**Testing**: xUnit 2.9.3 con MVC Testing 10.0.13 y SQL real aislado; Vitest/coverage-v8
+5.1.0, jsdom 31.0.0 y Playwright Test 1.65.0 fijados en lockfile. Target test, suites
+frontend y recorridos E2E implementados; comandos y resultados finales en aceptación.
 
 **Target Platform**: navegador en español Chrome/Edge vigentes; API y SPA en mismo origen;
 Compose de desarrollo y despliegue con HTTPS según base global. SQL x64 real, incluida
@@ -186,8 +192,9 @@ antes de exponer la nueva API de artículos.
    conservación y estados cruzados. Medir SC-005 y validar SC-006.
 
 Esto define precedencias, no tareas ni estimaciones comprometidas. La implementación puede
-comenzar en H1; el cierre íntegro de FR-009/010/013/014/019 requiere los consumidores de
-HU-01/HU-03/HU-04/HU-05/HU-07 y la reacción de HU-06 cuando esté integrada.
+comenzar en H1. HU-08 entrega sus contratos y comportamiento contra consumidores presentes;
+las nuevas integraciones de FR-009/010/013/019 y la reacción HU-06 se implementan/aceptan
+en sus módulos mediante las tareas receptoras. No son condición para mantener HU-08 abierta.
 
 La descomposición ejecutable está en [tasks.md](tasks.md). La expansión de esquema se
 divide en incrementos seriales de familias, artículos y proveedores para mantener el MVP
@@ -206,6 +213,27 @@ resultado reproducible, auditoría y bloqueos de maestros; A+B deben revisar eso
 antes de fusionar. El estado pendiente de revisión no se presenta como aprobación realizada.
 
 ## Complexity Tracking
+
+### Concreción de convergencia, 2026-11-19
+
+T098 añade `GET /articles/{id}/movements/filters` como consulta auxiliar del mismo diario:
+opciones paginadas de responsables, ubicaciones y lotes presentes en el artículo, buscables
+por etiquetas, con Inventory.Read y lectura SNAPSHOT. No introduce catálogo de cuentas,
+entidades ni migración. La UI conserva los UUID de la API, pero selecciona por etiquetas
+y traduce tipos; el nombre accesible se aplica a la tabla HTML mediante el pass-through
+de PrimeNG. T099 verifica la carrera de definición con StockCore y T104 incorpora un
+recorrido poblado preparado por un auxiliar E2E que usa el ejecutor común con conexión
+de ejecución. Detalles y resultados en [convergencia](validation/convergence.md).
+
+La solicitud posterior del usuario de completar y cerrar la spec habilita terminar T097
+con la migración aditiva `20261119171332_HU08MovementCounterparty`. Añade motivo explícito
+nullable al diario, exige evidencia en hechos nuevos y conserva sin cambios las filas y
+huellas antiguas; la CHECK se habilita sin validar retroactivamente las filas históricas.
+La validación obligatoria se ejecuta después del replay común; se omite el campo nuevo de
+la huella si es null para conservar compatibilidad. SQL comprueba rechazo, persistencia,
+consulta de inactivos, replay histórico, migración y permisos. Modelo/protocolo globales
+actualizados; revisión compartida en COORD-01. Las integraciones futuras y H5 están
+asignadas en el backlog receptor, sin implementación pendiente dentro de HU-08.
 
 No hay violaciones constitucionales que justificar. La marca de primer uso conserva una
 decisión ya aclarada; el registro de lectores evita omitir referencias al integrar módulos;

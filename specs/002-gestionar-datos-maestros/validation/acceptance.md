@@ -1,12 +1,14 @@
 # HU-08 — Estado de validación técnica
 
-**Fecha**: 2026-11-18. **Estado**: corte H1; aceptación integrada pendiente.
+**Fecha de cierre**: 2026-11-19. **Estado**: HU-08 cerrada — entrega técnica/académica.
+El [cierre final](#cierre-final-de-hu-08-2026-11-19) sustituye los estados intermedios
+conservados debajo como historial de validación. No quedan tareas de implementación locales.
 **Rama**: `a/h0-identity-article`, cambios locales sin publicar.
 Fuentes: [constitución](../../../.specify/memory/constitution.md),
 [plan global](../../../.specify/memory/project-plan.md), [spec](../spec.md),
 [plan](../plan.md), [tareas](../tasks.md) y [quickstart](../quickstart.md).
 
-## Comprobaciones ejecutadas
+## Comprobaciones del corte histórico, 2026-11-18
 
 | Comprobación | Resultado |
 |--------------|-----------|
@@ -45,7 +47,7 @@ terminó correctamente. Se añadió la opción de usar Chrome instalado con perf
 sin alterar el navegador predeterminado de Playwright. La ejecución funcional usa Chrome
 158.0.8127.36. Este fallo de preparación no se cuenta como aprobación de pruebas.
 
-## Cobertura y límites
+## Cobertura y límites del corte histórico H1
 
 | Requisitos/criterios | Evidencia | Estado |
 |---------------------|-----------|--------|
@@ -113,3 +115,96 @@ La aceptación operativa y sus criterios siguen regidos por la
 [constitución](../../../.specify/memory/constitution.md). El ensayo V-14 de clase
 sirve de evidencia técnica para esa revisión posterior. Los estados de las tareas
 constan en el [cierre académico](../tasks.md#cierre-de-la-entrega-académica-2026-11-19).
+
+## Convergencia implementada, 2026-11-19
+
+T098/T099/T104 verificadas; [evidencia de la continuación](convergence.md).
+
+| Requisitos/criterios | Evidencia nueva | Estado |
+|---------------------|-----------------|--------|
+| FR-014/020; US4.4–US4.5; Q-09/Q-10; principio III | Opciones legibles paginadas, tipos en español, tabla accesible y recorrido poblado por teclado. | T098/T104 completadas para el diario real presente. |
+| FR-019; Q-05/Q-07; principio V | Carrera primera referencia/edición con StockCore, ambos órdenes y espera SQL real, conservando unidad histórica y conciliación. | T099 completada; T100 conserva el caso documental retirado. |
+| FR-014; principio IV | La UI distingue ausencia de información de no aplicabilidad explícita. | T097 pendiente por reserva del snapshot; no se declara remediada la persistencia de ese motivo. |
+| FR-009/010/013/019; SC-003/004/007 | Se mantiene evidencia StockCore y se identifican los consumidores ausentes. | T100–T103/T106 pendientes de integraciones reales. |
+| SC-006 y validación operativa | Guion humano y ensayo técnico de restauración previos conservados. | T105/T107 pendientes de participantes, documentos y responsables. |
+| Revisión final de contratos/cadena y aceptación | Comandos, documentación, matriz y bloqueos actualizados. | T108 parcial; faltan revisiones A+B/de responsables. |
+
+SQL: 97 aprobadas, 1 omitida (V-14 específica), y regresión final 16/16. Vitest: 41/41;
+historial final 3/3. Build Docker de frontend/API y tipos E2E correctos; EF sin cambios
+de modelo. Los 11 E2E previos y el nuevo poblado tienen evidencia aprobada en pasadas
+separadas; no se declara una pasada única 12/12. SC-005 no se volvió a medir.
+El snapshot y los demás archivos reservados para B permanecen intactos. Este trabajo
+no amplía la aprobación académica previa a una aceptación integrada u operativa.
+
+## Cierre final de HU-08, 2026-11-19
+
+El usuario solicita completar el trabajo propio y cerrar esta spec, asignando al módulo
+consumidor lo que necesita su implementación posterior. **HU-08 queda cerrada técnicamente
+y para su entrega académica.** T097/T098/T099/T104/T108 están completadas. Las siete tareas
+T100–T103/T105–T107 se han trasladado, con IDs y responsables, al
+[backlog receptor](../../001-reparto-specs-inventario/integration-tasks.md). Su traslado
+no es una prueba superada ni una exclusión de las reglas que deben cumplir los consumidores.
+
+### Última corrección y migración
+
+`20261119171332_HU08MovementCounterparty`, sobre H0_StockCore, incorpora motivo explícito
+de no aplicabilidad de contraparte al diario. El núcleo valida referencia o motivo antes
+de crear efectos, después del replay común. La huella solo incorpora el motivo si existe,
+conservando compatibilidad de intenciones antiguas. La migración no actualiza filas:
+la CHECK habilitada exige evidencia a cada inserción nueva y conserva los datos históricos
+sin atribuirles un motivo inventado. El historial de inactivos proyecta el motivo persistido.
+
+Las cuatro pruebas `StockCounterpartyTests` acreditan rechazo sin efectos parciales,
+normalización/persistencia, replay/conflicto, proyección de inactivos, migración de filas
+históricas sin evidencia, replay de su huella anterior, CHECK en nuevas inserciones y
+DENY de modificación del diario con el rol de ejecución y 503 mientras falta aplicar
+la nueva migración. Las regresiones de fallos,
+concurrencia y stock conservan las garantías previas.
+
+### Matriz final del alcance propio y sus contratos receptores
+
+| Requisitos / criterios | Evidencia propia | Resultado / receptor |
+|------------------------|------------------|----------------------|
+| FR-001/005/006, US1, SC-001/002 | Familias SQL/formularios/E2E, normalización, filtros, estado y referencias de artículos. | Implementado y verificado. |
+| FR-002/003/008, US2.1–US2.7 | Artículos, familia obligatoria, StockPolicy cero, edición y migración H0. | Implementado y verificado. |
+| FR-004, US3, SC-001/002 | Proveedores, contacto opcional/validación, identidad y estados. | Implementado; documentos futuros en INT-HU07-02/INT-HU01-02. |
+| FR-007/015/016/017/018/021, US5, SC-004 | Roles reales/CSRF, auditoría y resultado atómicos, ETag, rollback/replay y recuperación de intención. | Implementado y verificado. |
+| FR-009/010/011/019, SC-003/004 | Marca monotónica, lectores/gate, borrado real con/sin stock y carreras de familia/estado/borrado/primera referencia. | Implementado con consumidores presentes. Nuevos escritores: INT-HU01/03/04/05/07-01. |
+| FR-012/013, US4, SC-003/007 | Estados sin cascadas ni cambios de cantidades, historial conservado y operaciones de stock permitidas/prohibidas. | Implementado en HU-08/StockCore; documentos en las tareas INT de cada HU y evaluador en INT-HU06-01. |
+| FR-014, US4.4–US4.5, SC-003/007 | Diario real de inactivos, filtros paginados legibles, unidad histórica, responsable, soporte/contraparte o motivos; T097/T098/T104. | Implementado y verificado. |
+| FR-020, Q-10 | Español, etiquetas, conservación de datos, revisión de estado/borrado y recorrido por teclado en navegador. | Implementado y verificado. SC-006 humano se conserva en H5-01 por su alcance operativo. |
+| SC-005 | 10.000 artículos, 25 sesiones, p95 1,677 s y 193/200 en ≤2 s, sin errores, en la medición registrada. | Verificado; el cierre no cambia las consultas de catálogo. |
+| Recuperación y revisión compartidas | Ensayo técnico V-14 previo, revisión local de código/contratos y pruebas finales. | Ejercicio operativo/aceptación en H5-02/H5-03; revisión A+B antes de integrar/fusionar en COORD-01. |
+
+### Comprobaciones finales del mismo estado productivo
+
+| Comprobación | Resultado |
+|--------------|-----------|
+| SQL Server real, suite completa | **101 aprobadas**, 0 fallidas; V-14 específica omitida por requerir su entorno independiente. |
+| Vitest | **41 aprobadas**, 16 archivos; cobertura de líneas 88,37 % en los archivos ejercitados. |
+| Playwright funcional | **12/12 aprobadas en una sola pasada**, Chrome real, incluyendo historial poblado y conservación de saldos. |
+| Build Docker | Frontend con Node 24 y publicación API Release correctos. |
+| Tipos E2E | Correctos. |
+| EF 10.0.13 | Modelo y snapshot sin diferencias. |
+
+Comandos SQL/Vitest/EF en [convergencia](convergence.md); la pasada funcional final usa
+`HU08_E2E_BROWSER_CHANNEL=chrome npm run test:e2e -- --grep-invert SC-005` desde frontend,
+reconstruyendo la imagen actual y aplicando la migración en InventoryHu08E2E. Cuentas
+retiradas y proyecto E2E detenido al terminar. No se modifica InventoryDev.
+
+La reserva anterior del snapshot queda sustituida por esta finalización de T097 solicitada
+por el usuario. El snapshot refleja solo la migración aditiva de contraparte; los otros
+archivos reservados permanecen intactos. La revisión de la otra persona y las condiciones
+constitucionales de producción siguen asignadas fuera de este módulo, sin certificarlas
+como realizadas por este cierre técnico.
+
+## Publicación y base integrada de HU-02
+
+El [PR #6](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/pull/6)
+se ha aprobado y fusionado tras resolver R1–R4. El cierre de HU-08 y la coordinación
+están publicados en el [PR #7](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/pull/7),
+actualizado sobre esa base y con revisión solicitada a B para COORD-01.
+La verificación conjunta pasa **127 SQL**, **108 frontend** y **15 E2E**, con build/tipos
+correctos y modelo sin diferencias. [Detalle y comandos](pr-publication.md).
+La revisión de B sigue siendo una condición externa de integración, no una tarea de
+implementación que reabra HU-08 ni una aprobación que este registro dé por recibida.

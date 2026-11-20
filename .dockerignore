@@ -31,3 +31,5 @@ specs
 **/*.key
 **/.keys
 **/.DS_Store
+**/.idea
+**/.vscode

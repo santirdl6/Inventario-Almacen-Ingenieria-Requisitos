@@ -41,6 +41,11 @@ internal static class ArticleEndpoints
             int? page, int? pageSize, ArticleMovementQueries queries, CancellationToken token) =>
                 queries.ReadAsync(id, ArticleMovementOptions.Parse(from, to, actorId, locationId, lotId, page, pageSize), token))
             .RequireAuthorization("Inventory.Read").Produces<PageResult<ArticleMovementDto>>().ProducesProblem(400).ProducesProblem(404).ProducesProblem(422).ProducesProblem(503);
+        articles.MapGet("/{id}/movements/filters", (Guid id, string field, string? q, int? page, int? pageSize,
+            ArticleMovementQueries queries, CancellationToken token) =>
+                queries.FiltersAsync(id, field, MasterDataQueryOptions.Parse(q, null, page, pageSize), token))
+            .RequireAuthorization("Inventory.Read").Produces<PageResult<MovementFilterOption>>()
+            .ProducesProblem(404).ProducesProblem(422).ProducesProblem(503);
     }
     private static Guid Key(HttpContext context) => Guid.TryParse(context.Request.Headers["Idempotency-Key"].ToString(), out var key)
         && key != Guid.Empty ? key : throw new InventoryProblemException(400, "InvalidRequest", "Idempotency-Key debe ser un UUID no vacío.");

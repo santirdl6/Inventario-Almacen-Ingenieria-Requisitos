@@ -21,7 +21,8 @@ public sealed record StockCommandContext(
     string Reason,
     string? SupportReference = null,
     string? SupportNotApplicableReason = null,
-    string? CounterpartyReference = null);
+    string? CounterpartyReference = null,
+    string? CounterpartyNotApplicableReason = null);
 
 // Asignación explícita a un bucket. LotCode omitido equivale a SIN-LOTE en artículos sin seguimiento.
 public sealed record StockAllocation(Guid ArticleId, Guid LocationId, string? LotCode, decimal Quantity);

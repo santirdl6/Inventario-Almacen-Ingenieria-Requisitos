@@ -9,7 +9,9 @@ type Me = { id: string; email: string; roles: string[]; permissions: string[] };
 export type Session = { request: APIRequestContext; csrfToken: string; me: Me };
 type Environment = { baseURL: string; accounts: Record<AccountKey, Account> };
 type WorkerFixtures = { environment: Environment };
-type TestFixtures = { gestor: Session; lector: Session; administrador: Session };
+type HistorySnapshot = { actorId: string; actorName: string; balances: unknown[]; entries: unknown[] };
+type TestFixtures = { gestor: Session; lector: Session; administrador: Session;
+  historyData: (mode: 'prepare' | 'snapshot', articleId: string) => HistorySnapshot };
 type RequestFactory = PlaywrightWorkerArgs['playwright']['request'];
 
 const repositoryRoot = resolve(__dirname, '../../..');
@@ -97,6 +99,25 @@ async function useSession(factory: RequestFactory, environment: Environment, key
 }
 
 export const test = base.extend<TestFixtures, WorkerFixtures>({
+  historyData: async ({ environment }, use) => {
+    await use((mode, articleId) => {
+      if (!/^[0-9a-f-]{36}$/i.test(articleId)) throw new Error('Artículo E2E inválido.');
+      const { env } = configuration();
+      const output = execFileSync('docker', ['compose', '--project-name', project, '--file',
+        resolve(repositoryRoot, 'docker-compose.yml'), '--profile', 'test', 'run', '--no-deps', '--rm',
+        '--volume', `${repositoryRoot}:/workspace`, '--workdir', '/workspace',
+        '--env', 'HU08_E2E_PROVISION', '--env', 'HU08_E2E_DATABASE', '--env', 'HU08_E2E_USERS_JSON',
+        '--env', 'SQL_APP_USER', '--env', 'SQL_APP_PASSWORD', '--entrypoint', 'sh', 'tests', '-c',
+        `dotnet run --file scripts/prepare-hu08-history.cs -- ${mode} ${articleId}`], {
+        cwd: repositoryRoot, env: { ...env, HU08_E2E_PROVISION: '1', HU08_E2E_DATABASE: 'InventoryHu08E2E',
+          HU08_E2E_USERS_JSON: JSON.stringify(Object.values(environment.accounts)) },
+        encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], timeout: 180_000, maxBuffer: 8 * 1024 * 1024
+      });
+      const line = output.split('\n').find(value => value.startsWith('HU08_HISTORY_JSON:'));
+      if (!line) throw new Error('No se recibió la evidencia del núcleo de stock.');
+      return JSON.parse(line.slice('HU08_HISTORY_JSON:'.length)) as HistorySnapshot;
+    });
+  },
   environment: [async ({ playwright }, use) => {
     const { baseURL, env } = configuration();
     const run = randomUUID().replaceAll('-', '');

@@ -17,6 +17,8 @@ internal sealed class StockMovementConfiguration : IEntityTypeConfiguration<Stoc
             table.HasCheckConstraint("CK_StockMovements_Reason_NotBlank", "LEN(LTRIM(RTRIM([Reason]))) > 0");
             table.HasCheckConstraint("CK_StockMovements_Support",
                 "[SupportReference] IS NOT NULL OR [SupportNotApplicableReason] IS NOT NULL");
+            table.HasCheckConstraint("CK_StockMovements_Counterparty",
+                "([CounterpartyReference] IS NOT NULL AND LEN(LTRIM(RTRIM([CounterpartyReference]))) > 0) OR ([CounterpartyNotApplicableReason] IS NOT NULL AND LEN(LTRIM(RTRIM([CounterpartyNotApplicableReason]))) > 0)");
         });
         builder.HasKey(movement => movement.Id);
         builder.Property(movement => movement.Id).ValueGeneratedNever();
@@ -27,6 +29,7 @@ internal sealed class StockMovementConfiguration : IEntityTypeConfiguration<Stoc
         builder.Property(movement => movement.SupportReference).HasMaxLength(StockMovement.ReferenceMaxLength);
         builder.Property(movement => movement.SupportNotApplicableReason).HasMaxLength(StockMovement.ReasonMaxLength);
         builder.Property(movement => movement.CounterpartyReference).HasMaxLength(StockMovement.ReferenceMaxLength);
+        builder.Property(movement => movement.CounterpartyNotApplicableReason).HasMaxLength(StockMovement.ReasonMaxLength);
         // Un mismo hecho documental (confirmación, reserva, liberación) se aplica una sola vez.
         builder.HasIndex(movement => new { movement.SourceDocumentType, movement.SourceDocumentId, movement.Kind })
             .IsUnique();
