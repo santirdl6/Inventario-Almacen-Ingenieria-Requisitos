@@ -50,6 +50,17 @@ public sealed record ReservationAllocationSnapshot(Guid AllocationId, Guid Reser
 La forma exacta de los records se fija al implementar HU-05. Este contrato fija su contenido y
 cuándo se puede llamar.
 
+**Construido (T008, `7378daf`)**:
+
+- Los records son exactamente los de arriba, en
+  `backend/src/Inventario.Api/Features/Stock/CustomerOrders/ICustomerOrderReader.cs`, junto a la
+  implementación `CustomerOrderReader`, registrada en `AddStock()`.
+- El lector lee el estado guardado sin seguimiento, en la transacción del ejecutor, y no toma
+  bloqueos.
+- Las líneas y las asignaciones van ordenadas por Id. `ActiveAllocations` solo incluye las
+  asignaciones de reservas `Active` con remanente mayor que cero.
+- Para modificar, HU-03 carga sus propias entidades después de los bloqueos.
+
 ## 3. Reglas que HU-03 debe respetar
 
 1. **Bloqueos**: en la fase de documentos, una sola llamada con
@@ -84,5 +95,8 @@ cuándo se puede llamar.
 ## 5. Pruebas de contrato
 
 HU-05 incluye S-18, que llama a `ICustomerOrderReader` dentro del ejecutor tras bloquear el pedido y
-comprueba pendiente y remanente por bucket. HU-03 añadirá sus pruebas de salida (V-04) sobre este
+comprueba pendiente y remanente por bucket. **Construido**:
+
+- `CustomerOrderTests`, sin reservas y con un pedido inexistente (null);
+- `ReservationTests.S18_…`, con asignaciones en dos buckets, comparado con `GET /customer-orders/{id}`. HU-03 añadirá sus pruebas de salida (V-04) sobre este
 contrato.

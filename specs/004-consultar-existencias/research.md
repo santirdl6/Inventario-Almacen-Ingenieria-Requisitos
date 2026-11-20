@@ -44,6 +44,12 @@ modelo común (`StockBalance.Available` y la suma tras agregar). No se crea otro
 **Alternativas**: a) redirigir HU-02 a `/stock`, que rompería su contrato y sus pruebas L-05/L-06
 ya escritas; b) dos consultas paralelas, que duplican el agregado y es lo que el enunciado prohíbe.
 
+**Construido (T006, T020; `358a9d4`, `fd1b246`)**: el lector gana el parámetro opcional
+`activeLocationsOnly`, que filtra filas y totales y equivale a `includeInactiveLocations=false`. El
+filtro de HU-02 (físico ≠ 0 o reservado ≠ 0) equivale a `includeEmpty=false` porque
+0 ≤ reservado ≤ físico. El orden añade el Id de ubicación como desempate. Las pruebas de HU-02
+(`ArticleLocationsTests`, `LocationReviewTests`) siguen sin cambios, y S-02 compara las dos rutas.
+
 ## D-03. Filas a cero ocultas con opción de mostrarlas
 
 **Decisión**: parámetro `includeEmpty` (por defecto `false`). Con `false` se filtra `Physical > 0`.
@@ -169,6 +175,24 @@ modelo. Se descartan.
   reservar y liberar, HU-03 al servir) la actualiza, así que el ETag cambia con cada cambio de los
   datos propios. T012 y T014 lo prueban al reservar y liberar. T010 prueba que **no** cambia al
   renombrar el artículo ni al cambiar el código de la ubicación, y que el contexto sí lo refleja.
+
+**Construido**: la prueba de la ubicación usa su desactivación, porque HU-02 no deja cambiar el
+código de una ubicación con movimientos. La hace T014, tras liberar todo y vaciar la ubicación. T010
+prueba además una salida simulada que renueva la cabecera (regla 4 del contrato HU-03).
+
+**Concurrencia con los escritores del artículo (INT-HU05-01, T010, T012)**: la primera referencia a
+un artículo (la primera línea de pedido) marca `IsDefinitionLocked` y, con ello, renueva la versión
+del artículo. Por eso, en una carrera en la que el alta gana a un `PUT` de definición o a un `DELETE`
+preparados antes, el escritor del artículo recibe **412** por su `If-Match` obsoleto. Al repetir con
+la versión actual recibe 409 (`ArticleDefinitionLocked` o `HistoryPreventsDeletion`). Es el mismo
+patrón que `MasterDataLifecycleConcurrencyTests` de A.
+
+Con la definición ya fijada, una reserva o una liberación no renuevan la versión del artículo y el
+escritor recibe directamente el 409.
+
+Con la ubicación ocurre algo parecido. La revisión de HU-02 cubre las capacidades derivadas de sus
+totales: la primera reserva en una ubicación cambia esa revisión (412 si la reserva gana a una
+desactivación), y una liberación parcial no la cambia (409 `LocationNotEmpty`).
 
 Se descarta la redacción anterior, «datos informativos revalidados bajo bloqueo», porque dejaba un
 ETag fuerte idéntico para representaciones distintas. También el digest de HU-02
@@ -300,7 +324,9 @@ cubrir toda FK a `Articles`; sin el contributor, HU-08 respondería `DependencyU
 
 **Decisión**: una migración aditiva, generada con `dotnet ef migrations add` sobre
 `20261119171332_HU08MovementCounterparty`, la del PR #7 de A, que cierra la cadena común (revisado
-tras `/speckit-analyze`, H3). No se genera hasta que #7 se fusione. Crea las cuatro tablas del
+tras `/speckit-analyze`, H3). **Construido**: al fusionar después el PR #8, se regeneró como
+`20261120113458_HU05_CustomerOrdersReservations` sobre `20261120102651_HU08ExclusiveMovementCounterparty`
+(`939a88f`), con el mismo `Up`. No se genera hasta que #7 se fusione. Crea las cuatro tablas del
 modelo común con las restricciones de [data-model.md](data-model.md#migración) y
 `DENY DELETE` para `inventory_runtime` en las cuatro, porque en esta entrega nada se borra (como
 `StockBalances`). No modifica migraciones anteriores. Si otra migración se integra antes, se
@@ -312,8 +338,10 @@ regenera la local según el plan global §5.
 
 - `''`: consulta de existencias, con un selector de artículo propio (SKU o nombre, incluidos
   inactivos) y la pestaña «Reservas». No se reutiliza `article-search` de HU-02 porque enlaza fijo
-  a `/ubicaciones/articulo/:id` (desviación registrada en tasks.md).
-- `pedidos`: búsqueda de pedidos.
+  a `/ubicaciones/articulo/:id` (desviación registrada en tasks.md). **Construido sin la pestaña
+  «Reservas»** (S2 de tasks.md, fuera de las 20 tareas).
+- `pedidos`: búsqueda de pedidos. **No construida** (S1 de tasks.md, fuera de las 20 tareas): al
+  pedido se llega desde el alta o por URL.
 - `pedidos/nuevo`: alta (`permissionGuard` con `Shipping.Record`).
 - `pedidos/:id`: detalle, reservar y liberar. Los botones solo se muestran con
   `SessionService.has('Reservations.Manage')`.
@@ -351,6 +379,22 @@ commit aparte:
 **Alternativas**: a) mantener `idempotent-intent.ts`, que reintroduce R1 y R2 y se descarta;
 b) un almacén propio de HU-05, que duplicaría el transporte común. También se descarta.
 
+**Construido (T016)**:
+
+- `mutationPermission()` vive en `pending-operation.store.ts`, no en
+  `master-data-mutations.service.ts`. Se amplía allí (`e491a28`).
+- `appRoute` (`f867b61`): `begin()` lo acepta, el cierre de sesión lo conserva y `restore()` solo
+  admite `^/existencias/pedidos/(nuevo|{uuid})$`.
+- `OperationStatusComponent.route()` devuelve `appRoute` y el panel muestra «Abrir pedido»
+  (`013d429`).
+- `MasterDataMutationsService.mutate()` **no se modificó**. `customer-orders-api.service.ts` llama
+  a `pending.begin(…, appRoute)` y después a `send()`, que es exactamente lo que hace `mutate()`
+  añadiendo el campo nuevo.
+- La distinción entre error definitivo (4xx) y resultado incierto (red, timeout o 5xx) es un
+  `isUncertain()` propio de HU-05, sin `idempotent-intent.ts`.
+- Las pruebas de los cambios en archivos de A están en specs nuevas de B
+  (`features/stock/data/*-hu05.spec.ts`), sin editar las specs de A.
+
 ## D-16. Pruebas
 
 **Decisión**: xUnit con SQL Server real, sobre `IdentityFixture`, `StockTestHarness` y
@@ -362,6 +406,12 @@ Sin SDK local, se usa la receta Docker de la [guía común](../../.specify/memor
 
 E2E Playwright solo del recorrido del vídeo (quickstart E2E-01). Rendimiento (SC-006) y validación
 con trabajadores (SC-007) quedan fuera de la entrega (Complexity Tracking).
+
+**Construido**: además de `SaveBarrier` de A (alta de pedido, T010), las carreras de reservar y
+liberar usan una barrera nueva de B, `Stock/LockBarrier.cs` (T012). Retiene la primera lectura EF de
+la fila del artículo o de la ubicación justo después de obtener su bloqueo de aplicación, porque
+`InventoryLocks` pide `sp_getapplock` con un comando ADO.NET fuera de los interceptores de EF. Así
+sirve también para escritores que rechazan sin guardar.
 
 ## D-17. Existencias para el E2E sin HU-01
 
@@ -387,3 +437,17 @@ existencias. Los fixtures E2E de A solo preparan sesión.
 **Alternativas**: a) INSERT directo de saldos, prohibido; b) esperar a HU-01, que bloquea el vídeo;
 c) E2E sin existencias, que no muestra disponible ni reservas. Se retira el endpoint cuando HU-01
 ofrezca la recepción, y su registro en `Program.cs` (archivo común) se revisa con A.
+
+**Construido (T017, T018)**:
+
+- `Features/Stock/Testing/StockSeedingEndpoints.cs` se mapea desde `MapStockEndpoints`, sin tocar
+  `Program.cs`. Solo existe si `Testing:EnableStockSeeding` es true **y** el entorno no es
+  Production: en Production devuelve 404 aunque la opción esté activa (decisión de B, `3b24957`).
+- Cuerpo `{ articleId, locationId, lotCode?, quantity }`; la huella es el cuerpo normalizado, porque
+  `OccurredAt` lo fija el servidor, como en D-05. Lleva `SupportNotApplicableReason` y
+  `CounterpartyNotApplicableReason` con el motivo, y nunca `CounterpartyReference`.
+- `docker-compose.yml` pasa `Testing__EnableStockSeeding: ${TESTING_ENABLE_STOCK_SEEDING:-false}`
+  (`4659302`), y el fixture E2E de A solo lo activa en su proyecto Compose (`110df1a`).
+- E2E-01 necesita una cuenta con `Reservations.Manage`. El aprovisionamiento E2E de A solo admitía
+  tres cuentas, así que `MasterDataTestData.ValidateE2ERequest` admite ahora una cuarta
+  `ResponsableAlmacen` opcional (`ef296cc`, autorizado por B y pendiente de la revisión de A).

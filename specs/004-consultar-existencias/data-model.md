@@ -25,7 +25,7 @@ están marcadas **[P-xx]** y se proponen como diff en el [plan](plan.md#cambios-
 | ExternalReference | nvarchar(64), CI_AS | Obligatoria y recortada; única entre todos los pedidos sin distinguir mayúsculas (índice `UX_CustomerOrders_ExternalReference`). |
 | CustomerReference | nvarchar(200) | Obligatoria y recortada; texto libre. |
 | State | nvarchar(16) | `Open`, `Fulfilled` o `Cancelled` (CHECK). HU-05 solo crea `Open`. HU-03 pasa a `Fulfilled`. **`Cancelled` no es alcanzable** (clarificación 3; desviación anotada en el plan). |
-| Version | rowversion | ETag del pedido. Se **toca** en cada cambio de sus reservas o de lo servido (research D-07). |
+| Version | rowversion | ETag del pedido. Se **toca** en cada cambio de sus reservas o de lo servido (research D-07). El comando marca `State` como modificado: el dominio no tiene `Touch()`. |
 
 Quién creó el pedido y cuándo constan en su `OperationResult` (`ActorId`, `RecordedAt`,
 `SourceDocumentId = Id`). No se añaden columnas de auditoría.
@@ -115,7 +115,9 @@ en `ApplyAsync` y con la CHECK SQL.
 ## Migración
 
 `<timestamp>_HU05_CustomerOrdersReservations`, generada después de
-`20261119171332_HU08MovementCounterparty` (PR #7 de A; no se genera hasta su fusión):
+`20261119171332_HU08MovementCounterparty` (PR #7 de A; no se genera hasta su fusión).
+**Construida**: `20261120113458_HU05_CustomerOrdersReservations`, regenerada sobre
+`20261120102651_HU08ExclusiveMovementCounterparty` al fusionar el PR #8 (`939a88f`):
 
 - Crea `CustomerOrders`, `CustomerOrderLines`, `Reservations` y `ReservationAllocations` con las PK,
   FK restrictivas, CHECK, índices únicos [P-01]/[P-02] y la columna calculada anteriores.

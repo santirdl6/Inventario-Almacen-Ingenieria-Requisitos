@@ -4,7 +4,9 @@
 
 **Created**: 2026-11-19
 
-**Status**: Draft
+**Status**: Implementada en `b/hu-05-consultar-existencias` (T003–T020, 2026-11-20). Pendiente de la
+revisión de A (T001, T002) y de la aceptación (SC-006 y SC-007 sin medir). Cobertura de cada FR/SC en
+[validation/converge-1.md](validation/converge-1.md).
 
 **Input**: User description: "HU-05: consultar existencias y reservas. Alcance: consulta de existencias de un artículo (exige artículo; filtros opcionales por ubicación y lote; físico, reservado y disponible = físico − reservado; totales del filtro completo; solo movimientos confirmados; artículos inactivos visibles y marcados); pedido de cliente mínimo (alta y consulta, sin precios ni módulo comercial); reservar y liberar existencias (permiso Reservations.Manage; consulta con Inventory.Read; alta de pedido con Shipping.Record). Fuera de alcance: salidas (HU-03), conteos (HU-04), alertas (HU-06). Reutiliza OperationResult, InventoryOperationExecutor, InventoryLocks y StockCore; no redefine el cálculo de disponible."
 
@@ -353,6 +355,15 @@ simular la pérdida de la respuesta tras confirmar.
   conservan en los acuerdos comunes para una historia posterior, sin redefinirlos aquí.
 - Mientras no existan recepciones reales (HU-01), las existencias de prueba se preparan mediante
   el núcleo común; la aceptación integrada con recepciones y salidas se completa en H3.
+- Estado de la entrega (reconciliado con `/speckit-converge`, 2026-11-20). Los requisitos no
+  cambian; estas partes quedan sin cubrir en esta entrega, con su justificación en el
+  [plan](plan.md#complexity-tracking):
+  - FR-020 solo en la API (`GET /stock/reservations`), sin la pestaña «Reservas».
+  - La búsqueda de pedidos (US2.4 por URL o desde el alta).
+  - La congelación por conteo abierto de FR-016, hasta HU-04.
+  - SC-006 y SC-007, sin medir.
+  - La comprobación de borradores de FR-005 y SC-002 (S-04), porque aún no hay documentos en
+    borrador (HU-01).
 
 ### Principios constitucionales y evidencia de aceptación
 

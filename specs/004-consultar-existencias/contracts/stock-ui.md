@@ -10,8 +10,8 @@ El área `/existencias` ya está declarada en `operation-areas.ts` con `Inventor
 
 | Ruta | Guard adicional | Pantalla | Spec |
 |------|-----------------|----------|------|
-| `/existencias` | — | Consulta de existencias de un artículo, con las pestañas «Existencias» y «Reservas». | US1, US3.8 |
-| `/existencias/pedidos` | — | Búsqueda de pedidos de cliente por referencia externa y estado. | US2.4 |
+| `/existencias` | — | Consulta de existencias de un artículo, con las pestañas «Existencias» y «Reservas». **Construida sin la pestaña «Reservas»** (S2). | US1, US3.8 |
+| `/existencias/pedidos` | — | Búsqueda de pedidos de cliente por referencia externa y estado. **No construida** (S1): al pedido se llega desde el alta o por URL. | US2.4 |
 | `/existencias/pedidos/nuevo` | `permissionGuard`, `Shipping.Record` | Alta de pedido. | US2.1–2.3 |
 | `/existencias/pedidos/:id` | — | Detalle del pedido; reservar y liberar si `has('Reservations.Manage')`. | US2.4, US3, US4 |
 
@@ -22,7 +22,8 @@ El área `/existencias` ya está declarada en `operation-areas.ts` con `Inventor
   Hasta elegir un artículo no se consulta, y se muestra «Elige un artículo para ver sus
   existencias» (US1.4).
 - Filtros opcionales «Ubicación» y «Lote». El de lote solo aparece si el artículo tiene
-  seguimiento (caso límite).
+  seguimiento (caso límite). **Construido**: las opciones se toman de la consulta del artículo sin
+  filtros (solo su primera página, 25 filas) y se conservan al filtrar.
 - Casilla «Mostrar ubicaciones sin existencias» (`includeEmpty`), desmarcada por defecto
   (clarificación 2).
 - Totales (físico, reservado y disponible, con la unidad) en un bloque separado de la tabla, con la
@@ -32,7 +33,7 @@ El área `/existencias` ya está declarada en `operation-areas.ts` con `Inventor
 - Texto «Datos a las {asOf}» y botón «Actualizar» (US1.8).
 - Si el artículo está inactivo, etiqueta textual «Inactivo» junto al nombre (US1.6, FR-007).
 - Con totales a cero se muestra «No hay existencias para esta selección» (US1.7, FR-008).
-- Pestaña «Reservas»: compromisos activos por pedido, ubicación y lote con asignado, consumido,
+- Pestaña «Reservas» (**no construida**, S2; la API `GET /stock/reservations` sí existe): compromisos activos por pedido, ubicación y lote con asignado, consumido,
   liberado y remanente, y enlace a cada pedido (US3.8).
 
 ## Alta de pedido
@@ -59,7 +60,8 @@ El área `/existencias` ya está declarada en `operation-areas.ts` con `Inventor
   contexto, con «Inactivo» en texto si procede), pedido, servido, pendiente y reservado remanente,
   con la unidad del contexto, y las reservas con sus asignaciones (ubicación y lote del contexto).
 - **Reservar** (por línea, con `Reservations.Manage` y el pedido `Open`): diálogo que lista las
-  existencias del artículo con `GET /stock` (ubicación, lote y disponible). El responsable escribe
+  existencias del artículo con `GET /stock` (ubicación, lote y disponible). **Construido**: solo la
+  primera página (25 filas) de `GET /stock`. El responsable escribe
   la cantidad en una o varias filas. Se muestra el máximo reservable, mín(pendiente − reservado,
   disponible), como ayuda, y el servidor revalida. Revisión → confirmar con el `If-Match` del pedido.
 - **Liberar** (por reserva activa): diálogo con las asignaciones y su remanente, la cantidad por
@@ -96,7 +98,10 @@ está ligada al usuario (`actorId`) y sobrevive a la recarga. Al cerrar sesión 
 | Cuerpo e `If-Match` | Intención original. | **No** (se retiran, R2) |
 
 Hace falta el campo nuevo porque ni el recurso de reservar (`/api/v1/reservations`) ni el de
-liberar (`/api/v1/reservations/{reservationId}/release`) contienen el id del pedido. El
+liberar (`/api/v1/reservations/{reservationId}/release`) contienen el id del pedido. **Construido**
+(`f867b61`, `013d429`): `restore()` solo admite `/existencias/pedidos/(nuevo|{uuid})`, y HU-05 abre
+la intención con `PendingOperationStore.begin(…, appRoute)` seguida de
+`MasterDataMutationsService.send()`, sin modificar `mutate()`. El
 `customerOrderLineId` del cuerpo desaparece al cerrar sesión. `appRoute` es una ruta de la
 aplicación, sin datos del cuerpo. Se fija al abrir la intención y nunca se usa para enviar nada.
 
@@ -116,6 +121,7 @@ operaciones:
 ## Accesibilidad
 
 Todos los estados se comunican con texto (y con icono cuando lo haya), nunca solo con color.
-Tablas con encabezados y nombre accesible. El foco va al primer error tras rechazo. Los diálogos se
+Tablas con encabezados y nombre accesible. El foco va al primer error tras rechazo
+(**pendiente**: no implementado en el alta ni en los diálogos; ver validation/converge-1.md, G1). Los diálogos se
 operan con teclado, tienen el foco atrapado y cierran con Escape. Las etiquetas están en español y
 la unidad acompaña a cada cantidad.

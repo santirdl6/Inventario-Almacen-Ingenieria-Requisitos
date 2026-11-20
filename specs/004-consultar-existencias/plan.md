@@ -58,7 +58,9 @@ dependencias nuevas. El UUID v5 de D-04 se calcula con `System.Security.Cryptogr
 - Se consumen sin cambios: `Articles`, `Locations`, `Lots`, `StockBalances`, `StockMovements`,
   `StockEntries` y `OperationResults`.
 - La cadena parte de `20261119171332_HU08MovementCounterparty` (PR #7 de A). La migración de HU-05
-  no se genera hasta que #7 se fusione (tasks T004).
+  no se genera hasta que #7 se fusione (tasks T004). **Construido**: tras fusionar también el PR #8,
+  la migración es `20261120113458_HU05_CustomerOrdersReservations` sobre
+  `20261120102651_HU08ExclusiveMovementCounterparty` (`939a88f`).
 
 **Testing**: xUnit + `IdentityFixture` contra SQL Server real, reutilizando `StockTestHarness` y
 `FailAfterSaveInterceptor`, con la receta Docker del [quickstart](quickstart.md#pruebas-automatizadas-backend)
@@ -129,57 +131,82 @@ specs/004-consultar-existencias/
 
 ### Source Code (repository root)
 
+Estructura **construida** (reconciliada en `/speckit-converge`, 2026-11-20). Las diferencias con
+el diseño inicial se explican debajo del árbol.
+
 ```text
 backend/src/Inventario.Api/
 ├── Domain/Stock/
-│   ├── CustomerOrder.cs                        # CustomerOrder + CustomerOrderLine (Create, Touch)
-│   └── Reservation.cs                          # Reservation + ReservationAllocation (Release, DeriveState, Touch)
+│   ├── CustomerOrder.cs                        # CustomerOrder + CustomerOrderLine (Create; sin Touch, ver nota)
+│   └── Reservation.cs                          # Reservation + ReservationAllocation (Release, DeriveState)
 ├── Features/Stock/
-│   ├── StockEndpoints.cs                       # AddStock(), MapStockEndpoints(), Key()
+│   ├── StockEndpoints.cs                       # AddStock(), MapStockEndpoints() (usa LocationEndpoints.Key de HU-02)
 │   ├── StockDocuments.cs                       # tipos canónicos y UUID v5 de la referencia (D-04)
 │   ├── Queries/
-│   │   ├── StockBalanceReader.cs               # agregado único por artículo (D-02)
-│   │   ├── StockQueries.cs                     # GET /stock, GET /stock/reservations
+│   │   ├── StockBalanceReader.cs               # agregado único por artículo (D-02), con activeLocationsOnly
+│   │   ├── StockQueries.cs                     # GET /stock
 │   │   └── StockDtos.cs
 │   ├── CustomerOrders/
 │   │   ├── CustomerOrderCommands.cs            # alta (D-10)
-│   │   ├── CustomerOrderQueries.cs             # detalle propio con ETag, contexto sin ETag y búsqueda (D-11)
-│   │   ├── ICustomerOrderReader.cs             # contrato HU-03
+│   │   ├── CustomerOrderQueries.cs             # detalle propio con ETag y contexto sin ETag (D-11)
+│   │   ├── ICustomerOrderReader.cs             # contrato HU-03 y su implementación CustomerOrderReader
 │   │   ├── CustomerOrderArticleUsage.cs        # contributor de uso del artículo (D-13)
 │   │   └── CustomerOrderDtos.cs
 │   ├── Reservations/
 │   │   ├── ReservationCommands.cs              # reservar (D-05, D-09) y liberar (D-06)
-│   │   ├── ReservationQueries.cs
-│   │   └── ReservationDtos.cs
-│   └── Testing/StockSeedingEndpoints.cs        # solo con Testing:EnableStockSeeding (D-17)
+│   │   ├── ReservationQueries.cs               # GET /reservations/{id} y GET /stock/reservations
+│   │   └── ReservationDtos.cs                  # también JsonBody, lector común de cuerpos
+│   └── Testing/StockSeedingEndpoints.cs        # solo con Testing:EnableStockSeeding y fuera de Production (D-17)
 ├── Features/Locations/Queries/LocationQueries.cs   # (B, HU-02) ArticleLocationsAsync delega en StockBalanceReader
 ├── Infrastructure/
 │   ├── Http/MasterDataProblemMapper.cs             # (A) + UX_CustomerOrders_ExternalReference → DuplicateCode
 │   ├── Persistence/Configurations/{CustomerOrder,CustomerOrderLine,Reservation,ReservationAllocation}Configuration.cs
-│   └── Persistence/Migrations/<ts>_HU05_CustomerOrdersReservations.cs
-└── Program.cs                                      # (común) AddStock(); api.MapStockEndpoints()
+│   └── Persistence/Migrations/20261120113458_HU05_CustomerOrdersReservations.cs
+└── Program.cs                                      # (común) using, AddStock() y api.MapStockEndpoints()
 
-backend/tests/Inventario.IntegrationTests/Stock/
-├── StockQueryTests.cs              # S-01…S-07
-├── CustomerOrderTests.cs           # S-08, S-09, S-19
-├── ReservationTests.cs             # S-10, S-11
-├── ReleaseTests.cs                 # S-14, S-15
-├── ReservationConcurrencyTests.cs  # S-12, S-13
-├── StockReliabilityTests.cs        # S-16, S-17
-└── CustomerOrderReaderTests.cs     # S-18
+backend/tests/Inventario.IntegrationTests/
+├── Stock/
+│   ├── Hu05DomainTests.cs, Hu05SchemaTests.cs   # dominio y esquema (T003, T004)
+│   ├── StockApiSupport.cs                       # sesión HTTP, pedidos, reservas, escritores y conciliación
+│   ├── StockBalanceReaderTests.cs               # lector y filtro de ubicaciones activas (T006, T020)
+│   ├── StockQueryTests.cs                       # S-01, S-02, S-03, S-05, permisos y siembra D-17
+│   ├── CustomerOrderTests.cs                    # S-08, S-09, S-19, ETag, carreras del alta, lector sin reservas
+│   ├── ReservationTests.cs                      # S-10, S-11, S-12 (V-05), S-18, carreras de reservar
+│   ├── ReleaseTests.cs                          # S-14, S-15, carreras de liberar, permisos
+│   ├── StockReliabilityTests.cs                 # S-16 (V-08)
+│   ├── LockBarrier.cs                           # barrera de carreras para escritores que rechazan sin guardar
+│   ├── E2EProvisioningTests.cs                  # cuarta cuenta E2E (T018)
+│   └── StockArticleIntegrationTests.cs          # (A) aserción a Subset para nuevos consumidores de Article
+├── Fixtures/MasterDataTestData.cs               # (A) admite la cuenta E2E ResponsableAlmacen
+└── MasterDataFirstReferenceTests.cs             # (A) aserción a Subset
 
 frontend/src/app/
-├── core/operations/pending-operation.store.ts           # (A) mutationPermission() + rutas de HU-05 (D-15)
-├── core/operations/operation-status.component.ts        # (A) route() hacia /existencias/pedidos (D-15)
+├── core/operations/pending-operation.store.ts           # (A) mutationPermission() y appRoute (D-15)
+├── core/operations/operation-status.component.ts        # (A) route() con appRoute y «Abrir pedido» (D-15)
+├── operation-areas.spec.ts                              # (B, H0) existencias pasa a área desarrollada
 └── features/stock/
-    ├── stock.routes.ts                     # sustituye el placeholder
+    ├── stock.routes.ts                     # '', pedidos/nuevo y pedidos/:id
+    ├── stock.css
     ├── data/{stock.models,stock-api.service,customer-orders-api.service}.ts
-    ├── query/stock-query.page.ts           # existencias y pestaña de reservas
-    ├── orders/{order-list.page,order-form.page,order-detail.page}.ts
+    ├── data/{pending-operation-hu05,operation-status-hu05}.spec.ts   # pruebas de los cambios en archivos de A
+    ├── query/stock-query.page.ts           # existencias (sin pestaña «Reservas», S2)
+    ├── orders/{order-form.page,order-detail.page}.ts   # sin order-list.page (S1)
     └── orders/{reserve-dialog,release-dialog}.ts
 frontend/e2e/stock.spec.ts                  # E2E-01
+frontend/e2e/fixtures/master-data.fixture.ts  # (A) siembra solo en el proyecto E2E y cuenta responsable
 docker-compose.yml                          # (común) pasa TESTING_ENABLE_STOCK_SEEDING, false por defecto
 ```
+
+Diferencias con el diseño inicial, todas verificables en los commits indicados:
+
+- `Touch()` no está en el dominio: el comando marca `State` como modificado con
+  `db.Entry(x).Property(v => v.State).IsModified = true`, como `ArticleCommands` de A (T003).
+- `GET /stock/reservations` vive en `ReservationQueries`, no en `StockQueries` (`ad64a17`).
+- No hay `ReservationConcurrencyTests` ni `CustomerOrderReaderTests`: las carreras y S-18 están en
+  `CustomerOrderTests`, `ReservationTests` y `ReleaseTests` (`188b32f`, `0d847e3`, `113ab4d`).
+- No se crearon `order-list.page` (S1) ni la pestaña «Reservas» (S2): siguen en «Si hay tiempo».
+- La siembra D-17 se mapea en `MapStockEndpoints`, no en `Program.cs`, y además se excluye en
+  Production (`3b24957`).
 
 La preparación E2E de D-17 indica `SupportNotApplicableReason` y `CounterpartyNotApplicableReason`
 (constitución IV; regla de contraparte del PR #7).
@@ -191,7 +218,11 @@ en el PR:
 - De A:
   - `MasterDataProblemMapper.cs` (una rama);
   - en frontend, `mutationPermission()` de `pending-operation.store.ts` y `route()` de
-    `operation-status.component.ts`, ampliados con los recursos de HU-05 (D-15).
+    `operation-status.component.ts`, ampliados con los recursos de HU-05 (D-15);
+  - **añadidos al implementar**: el campo `appRoute` de `pending-operation.store.ts`, el fixture
+    E2E `master-data.fixture.ts`, `Fixtures/MasterDataTestData.cs` (cuarta cuenta E2E) y dos
+    pruebas de A que fijaban la lista de consumidores de Article (`StockArticleIntegrationTests`,
+    `MasterDataFirstReferenceTests`, a `Subset`). Ver «Cambios en archivos de A y comunes».
 - Comunes: `Program.cs` (registro) y `docker-compose.yml` (variable con valor `false`).
 - De B: `LocationQueries.cs` de HU-02 (delegación sin cambio de contrato). No se trasladan archivos
   de frontend de HU-02: la intención usa el transporte común (D-15).
@@ -353,8 +384,8 @@ la [matriz S](quickstart.md#pruebas-automatizadas-backend).
 - `MasterDataProblemMapper`: 2601/2627 de `UX_CustomerOrders_ExternalReference` → 409
   `DuplicateCode` con `errors.externalReference` (defensa; el caso normal lo resuelve el bloqueo
   de la referencia).
-- `Program.cs`: `AddStock()` y `api.MapStockEndpoints()`. El endpoint de D-17 solo se mapea con
-  `Testing:EnableStockSeeding`.
+- `Program.cs`: `AddStock()` y `api.MapStockEndpoints()` (`1d02e97`). El endpoint de D-17 lo mapea
+  `MapStockEndpoints` solo con `Testing:EnableStockSeeding` y fuera de Production (`3b24957`).
 - `docker-compose.yml`: `Testing__EnableStockSeeding: ${TESTING_ENABLE_STOCK_SEEDING:-false}`
   en el servicio `app`.
 - `frontend/src/app/core/operations/pending-operation.store.ts` (A): en `mutationPermission()`,
@@ -365,6 +396,28 @@ la [matriz S](quickstart.md#pruebas-automatizadas-backend).
 - `frontend/src/app/core/operations/pending-operation.store.ts` (A): campo opcional `appRoute` en
   `PendingOperation`, conservado al cerrar sesión (research D-15; stock-ui, «Navegación y
   recuperación de una operación pendiente»). Va en otro commit aparte.
+- `frontend/e2e/fixtures/master-data.fixture.ts` (A): `TESTING_ENABLE_STOCK_SEEDING=true` solo en
+  el proyecto Compose E2E y una cuenta `responsable` (`ResponsableAlmacen`).
+- `backend/tests/Inventario.IntegrationTests/Fixtures/MasterDataTestData.cs` (A):
+  `ValidateE2ERequest` admite una cuarta cuenta E2E `ResponsableAlmacen` opcional. No hay API de
+  alta de usuarios y E2E-01 necesita `Reservations.Manage`. Autorizado por B el 2026-11-20.
+- `StockArticleIntegrationTests.cs` y `MasterDataFirstReferenceTests.cs` (A): la aserción que fijaba
+  exactamente {Lot, StockBalance, StockEntry} pasa a `Subset`, para admitir los consumidores de HU-05.
+
+**Commits de cada cambio**, todos aparte y citados en tasks.md:
+
+- `ce3fce3`: el mapper.
+- `9cb266f` y `a32a8b6`: las dos pruebas a `Subset`.
+- `1d02e97`: `Program.cs`.
+- `e491a28`: `mutationPermission()`.
+- `f867b61`: `appRoute`.
+- `013d429`: `route()` y «Abrir pedido».
+- `ef296cc`: `MasterDataTestData.cs`.
+- `4659302`: `docker-compose.yml`.
+- `110df1a`: el fixture E2E.
+
+`MasterDataMutationsService.mutate()` no se modificó: HU-05 llama a `pending.begin(…, appRoute)` y
+después a `send()`, que es lo que hace `mutate()` (D-15).
 
 ### Estado de la revisión de A
 
@@ -372,6 +425,9 @@ la [matriz S](quickstart.md#pruebas-automatizadas-backend).
   documentos comunes y a `docs/agrupamiento.md`. Está pendiente solo de que #7 se fusione.
 - **Resto (P-01 en lo que falta, P-02…P-06, P-08 y archivos de A)**: **PENDIENTE** (2026-11-20).
   No bloquea la implementación de HU-05 ni las pruebas S. Bloquea la fusión.
+- **Tras `/speckit-converge` (2026-11-20)**: T001 y T002 siguen sin marcar. Los cambios en archivos
+  de A del apartado anterior están implementados y probados, cada uno en su commit, a la espera de
+  la revisión de A (COORD-01). Los documentos comunes no se han editado.
 
 ## Complexity Tracking
 
@@ -381,4 +437,7 @@ la [matriz S](quickstart.md#pruebas-automatizadas-backend).
 | SC-006 sin medición de rendimiento (p95 ≤ 2 s con 10.000 artículos, 1.000.000 de entradas y 25 sesiones). | Necesita datos sintéticos y carga. El diseño paginado e indexado no lo impide. | Medir con datos mínimos, que no son representativos. | Persona B, antes de la aceptación. |
 | `Cancelled` y el comando de modificación del pedido del modelo común, sin implementar. | Clarificación 3: alta y consulta bastan; liberar reservas resuelve compromisos innecesarios. | Implementar la cancelación, que amplía el alcance y las pruebas sin necesidad para HU-03. | Anotado en P-01; una historia posterior lo implementa con el protocolo común. |
 | FR-020 cubierto solo en la API (`GET /stock/reservations`), sin la pestaña «Reservas». | No sale en el vídeo y no cabe en el presupuesto; los compromisos de cada pedido sí se ven en su detalle. | Una lista mínima sin filtros, que tampoco cabe. | Persona B; pestaña S2 de tasks.md. |
-| Endpoint de preparación de existencias solo para pruebas (D-17). | El vídeo necesita existencias y HU-01 aún no ofrece recepciones por HTTP. | Escribir saldos directamente, prohibido por la constitución IV y la guía común. | Persona B; se retira cuando HU-01 integre recepciones. |
+| Endpoint de preparación de existencias solo para pruebas (D-17). | El vídeo necesita existencias y HU-01 aún no ofrece recepciones por HTTP. | Escribir saldos directamente, prohibido por la constitución IV y la guía común. | Persona B; se retira cuando HU-01 integre recepciones. Además de la opción, no existe en Production (`3b24957`). |
+| Búsqueda de pedidos `GET /customer-orders` (P-04) y pantalla `/existencias/pedidos`, sin implementar. | No salen en el vídeo; al pedido se llega desde el alta o por URL. | — | Persona B; S1 de tasks.md. |
+| Congelación por conteo abierto al reservar (FR-016, US3.7), sin prueba. | `IsInOpenCountAsync` devuelve `false` hasta HU-04. | — | INT-HU04-03. |
+| Cuarta cuenta E2E `ResponsableAlmacen` en el aprovisionamiento de A. | E2E-01 necesita `Reservations.Manage` y no hay API de alta de usuarios. | Reservar por API en el E2E, que no muestra la interfaz del vídeo. | Autorizado por B; pendiente de la revisión de A (`ef296cc`). |

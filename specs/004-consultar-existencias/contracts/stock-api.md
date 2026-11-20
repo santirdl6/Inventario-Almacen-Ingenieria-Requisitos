@@ -14,7 +14,7 @@ Las cantidades viajan como cadenas con tres decimales.
 |---------------|---------|-----------|
 | GET /stock | Inventory.Read | 200 `StockQueryResult`. |
 | GET /stock/reservations | Inventory.Read | 200 `ReservationCommitments`. |
-| GET /customer-orders | Inventory.Read | 200 página de `CustomerOrderSummary` (**P-04**, no está en api.md). |
+| GET /customer-orders | Inventory.Read | 200 página de `CustomerOrderSummary` (**P-04**, no está en api.md). **No implementada en esta entrega** (S1 de tasks.md). |
 | POST /customer-orders | Shipping.Record | 201 `CustomerOrderView` + `Location` + `ETag`. |
 | GET /customer-orders/{id} | Inventory.Read | 200 `CustomerOrderView` (solo datos propios) + `ETag`; 404. |
 | GET /customer-orders/{id}/context | Inventory.Read | 200 `CustomerOrderContext` (datos actuales de artículos, ubicaciones y lotes, con `orderVersion`), **sin `ETag`**; 404. |
@@ -23,7 +23,8 @@ Las cantidades viajan como cadenas con tres decimales.
 | POST /reservations/{id}/release | Reservations.Manage | 200 `ReleaseResult`, sin `ETag`. |
 
 Las mutaciones exigen antiforgery (`X-XSRF-TOKEN`) e `Idempotency-Key` (UUID no vacío; si falta o
-no es válido, 400 `InvalidRequest`). Responden con `Cache-Control: no-store`. No existen `PUT`,
+no es válido, 400 `InvalidRequest`). La ruta de preparación de pruebas de research D-17 se describe
+al final; no forma parte de la API de producción. Responden con `Cache-Control: no-store`. No existen `PUT`,
 `PATCH` ni `DELETE` de pedidos o reservas (clarificación 3).
 
 ## GET /stock
@@ -90,6 +91,8 @@ ubicación y lote, junto con `totals.remaining` del filtro completo y `asOf`.
 
 ## GET /customer-orders
 
+**Estado**: no implementada en esta entrega (S1). Se conserva el diseño para cuando se haga.
+
 Parámetros:
 
 - `search`: prefijo de la referencia externa, sin distinguir mayúsculas.
@@ -118,6 +121,13 @@ Errores específicos:
 | 409 | DuplicateCode | Referencia externa ya usada, comparada sin mayúsculas ni espacios extremos. | `errors.externalReference` |
 | 409 | ArticleInactive | Alguna línea con artículo desactivado. | `detail` nombra el SKU |
 | 422 | ValidationFailed | Referencias vacías o largas; 0 o más de 100 líneas; cantidad no positiva, con más de tres decimales o fraccionaria en un artículo entero; artículo inexistente; artículo repetido. | `errors["lines[i].articleId"]`, `errors["lines[i].quantity"]`, … |
+
+Como se construyó (T008, `7378daf`):
+
+- La validación de forma se hace dentro del ejecutor, después de autorizar, así que un rol sin
+  `Shipping.Record` recibe 403 antes que un 422.
+- `ArticleInactive` también trae `errors["lines[i].articleId"]`.
+- En `resource`, las líneas van ordenadas por Id.
 
 ## GET /customer-orders/{id}
 
@@ -184,6 +194,14 @@ Cabeceras: `Idempotency-Key` e `If-Match` con el ETag del pedido de la línea.
 | 409 | IdempotencyConflict | Misma clave con otro cuerpo, recurso o actor. |
 | 412 / 428 | VersionConflict / PreconditionRequired | `If-Match` obsoleto o ausente. |
 | 422 | ValidationFailed | Sin asignaciones o más de 100; cantidad inválida; bucket repetido; lote ajeno al artículo o ausente si el artículo lo exige; ubicación inactiva; Σ asignaciones + remanente activo de la línea > pendiente (`errors.allocations`). |
+
+Como se construyó (T011, `ad64a17`):
+
+- Los errores por asignación usan `errors["allocations[i].locationId"]` (ubicación inexistente o
+  inactiva, bucket repetido) y `errors["allocations[i].lotId"]` (lote ajeno o ausente).
+- El bucket repetido se detecta después de resolver `lotId: null` como `SIN-LOTE`.
+- Un artículo sin seguimiento que nunca tuvo existencias (sin lote `SIN-LOTE`) responde 409
+  `InsufficientStock`.
 | 503 | LockTimeout | Bloqueo no obtenido en 5 s; comprobar `operationId` antes de repetir. |
 
 ## GET /reservations/{id}
@@ -217,6 +235,13 @@ Resultado: 200 con `{ operationId, reservationId, releaseId, movementId, state }
 | 409 | IdempotencyConflict | Misma clave con otro contenido. |
 | 412 / 428 | VersionConflict / PreconditionRequired | `If-Match` de la reserva obsoleto o ausente. |
 | 422 | ValidationFailed | Sin motivo (`errors.reason`); `releaseId` vacío; `allocationId` ajeno a la reserva o repetido; cantidad inválida. |
+
+Como se construyó (T013, `de9ff61`):
+
+- `errors["allocations[i].allocationId"]` señala la asignación repetida (forma) o ajena (tras los
+  bloqueos).
+- El `releaseId` ya aplicado con otra clave lo rechaza el núcleo (409 `DocumentAlreadyConfirmed`),
+  después del `If-Match` y del remanente.
 | 503 | LockTimeout | Igual que al reservar. |
 
 ## Huella idempotente
@@ -224,3 +249,18 @@ Resultado: 200 con `{ operationId, reservationId, releaseId, movementId, state }
 Para cada mutación, el ejecutor común calcula la huella con el método, la ruta canónica y el JSON
 normalizado del DTO (research D-05). La misma clave con la misma intención reproduce el resultado
 guardado, incluidas `Location` y, en el alta, `ETag`, aunque el `If-Match` ya esté obsoleto.
+
+## POST /testing/stock-receipts (solo pruebas, research D-17)
+
+Existe solo si `Testing:EnableStockSeeding` es `true` (variable de entorno
+`Testing__EnableStockSeeding`, `false` por defecto en `docker-compose.yml`) **y** el entorno no es
+Production. En cualquier otro caso la ruta no existe (404). Permiso `Receiving.Record`, antiforgery e
+`Idempotency-Key` como el resto.
+
+```json
+{ "articleId": "…", "locationId": "…", "lotCode": "L-001", "quantity": "10" }
+```
+
+Ejecuta `StockCore` (`Receive`) con el documento `test-receipt`, el motivo «Preparación de pruebas
+E2E» y ese mismo texto en `SupportNotApplicableReason` y `CounterpartyNotApplicableReason`.
+Responde 200 con el resultado del núcleo. Se retira cuando HU-01 ofrezca la recepción.
