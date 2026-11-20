@@ -10,6 +10,9 @@ const KEY = 'inventario.pending-operations';
 export function mutationPermission(resource: string): string | null {
   if (/^\/api\/v1\/(families|articles|suppliers)(\/[0-9a-f-]{36})?$/i.test(resource)) return 'MasterData.Manage';
   if (/^\/api\/v1\/locations(\/[0-9a-f-]{36})?$/i.test(resource)) return 'Locations.Manage';
+  // HU-05: alta de pedido, reservar y liberar.
+  if (/^\/api\/v1\/customer-orders$/i.test(resource)) return 'Shipping.Record';
+  if (/^\/api\/v1\/reservations(\/[0-9a-f-]{36}\/release)?$/i.test(resource)) return 'Reservations.Manage';
   return null;
 }
 
