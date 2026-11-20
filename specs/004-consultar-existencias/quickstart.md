@@ -99,3 +99,7 @@ integrarse, pero no darse por aceptada sin ellos.
 Al ejecutar, registrar aquí la fecha, el entorno (imagen del SDK y de SQL Server), el número de
 pruebas, el resultado por caso y las incidencias. Después, llevar un resumen al quickstart común
 (diff P-08 del plan).
+
+| Fecha | Entorno | Qué se ejecutó | Resultado |
+|-------|---------|----------------|-----------|
+| 2026-11-20 | `mcr.microsoft.com/dotnet/sdk:10.0` sobre `mssql/server:2025-latest` (Compose, red `inventario_default`), Windows 11 + Docker Desktop. Copia limpia de `cdb8674` (`git archive`). | **Línea base de T003**: `dotnet test Inventario.slnx` antes de añadir código de HU-05. | 121 aprobadas, 1 omitida (V-14, requiere dos instancias), 0 fallidas. |
