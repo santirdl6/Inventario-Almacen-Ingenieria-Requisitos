@@ -31,6 +31,29 @@ public sealed record ReservationWrite(string? CustomerOrderLineId, IReadOnlyList
 
 public sealed record ReservationAllocationWrite(string? LocationId, string? LotId, string? Quantity);
 
+/// <summary>
+/// Cuerpo normalizado de POST /reservations/{id}/release (research D-06): releaseId del cliente
+/// (estable al reintentar), motivo recortado y asignaciones con cantidad de tres decimales.
+/// </summary>
+public sealed record ReleaseWrite(string? ReleaseId, string? Reason, IReadOnlyList<ReleaseAllocationWrite>? Allocations)
+{
+    public static ReleaseWrite Read(JsonElement body)
+    {
+        var properties = JsonBody.Object(body, "releaseId", "reason", "allocations");
+        return new(JsonBody.Id(properties, "releaseId"), JsonBody.Text(properties, "reason"),
+            JsonBody.Array(properties, "allocations", item =>
+            {
+                var line = JsonBody.Object(item, "allocationId", "quantity");
+                return new ReleaseAllocationWrite(JsonBody.Id(line, "allocationId"), JsonBody.Quantity(line, "quantity"));
+            }));
+    }
+}
+
+public sealed record ReleaseAllocationWrite(string? AllocationId, string? Quantity);
+
+/// <summary>200 de la liberación, sin ETag (D-08).</summary>
+public sealed record ReleaseResult(Guid OperationId, Guid ReservationId, Guid ReleaseId, Guid MovementId, string State);
+
 /// <summary>201 de POST /reservations, sin ETag (D-08): la UI vuelve a leer el pedido.</summary>
 public sealed record ReservationResult(Guid OperationId, Guid ReservationId, Guid CustomerOrderId, Guid MovementId);
 

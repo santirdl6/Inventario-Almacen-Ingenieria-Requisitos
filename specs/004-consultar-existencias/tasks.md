@@ -486,7 +486,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
 **Objetivo**: liberaciones parciales repetibles. **Prueba independiente**: S-14.
 
-- [ ] T013 [US4] Depende de T011. En `ReservationCommands.cs`, añadir **liberar** (D-06), con
+- [X] T013 [US4] Depende de T011. En `ReservationCommands.cs`, añadir **liberar** (D-06), con
   `OperationRequest(…, "POST", "/api/v1/reservations/{id}/release", "Reservations.Manage", DTO normalizado)`.
   - Validación de forma: `releaseId` no vacío; motivo recortado de 1 a 500 caracteres, si no 422
     `errors.reason`; `allocationId` sin repetir; cantidad positiva.
@@ -502,6 +502,18 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - Mapear `POST /reservations/{id}/release`.
 
   (US4.1–US4.6; FR-017–FR-019, FR-022, FR-023.)
+
+  **Hecho (2026-11-20)**: `ReservationCommands.ReleaseAsync`, `ReleaseWrite` y `ReleaseResult`, y la
+  ruta en `StockEndpoints`.
+  - Antes de los bloqueos se leen la reserva (404), la línea y los lotes. Después se piden
+    `customer-order`, `reservation-release:{releaseId}` y `reservation` en una sola llamada, luego
+    las ubicaciones de la reserva y por último el artículo.
+  - Tras los bloqueos: `If-Match` de la reserva, asignación de la reserva (422
+    `allocations[i].allocationId`), remanente (409 `ReservedStockConflict`) y después `StockCore`.
+    El `releaseId` ya aplicado lo rechaza el núcleo (409 `DocumentAlreadyConfirmed`).
+  - La validación de forma rechaza una asignación repetida en la misma liberación (422).
+  - Soporte `reservation:{id}` y contraparte `CustomerReference`. Se renuevan las cabeceras de la
+    reserva y del pedido; `sourceDocumentId` = `releaseId`.
 - [ ] T014 [P] [US4] [INT-HU05-02] Crear `backend/tests/Inventario.IntegrationTests/Stock/ReleaseTests.cs` y
   `StockReliabilityTests.cs`.
   - **Extensión de V-04** (S-14): R1 libera 2 con motivo → 200; R2 libera 2 → 200; R1 con su clave

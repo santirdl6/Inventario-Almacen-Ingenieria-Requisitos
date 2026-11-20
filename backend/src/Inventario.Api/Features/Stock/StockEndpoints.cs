@@ -82,6 +82,14 @@ public static class StockEndpoints
             .RequireAuthorization(ReservationCommands.Permission).Accepts<ReservationWrite>("application/json")
             .Produces<ReservationResult>(201).ProducesProblem(400).ProducesProblem(403).ProducesProblem(404)
             .ProducesProblem(409).ProducesProblem(412).ProducesProblem(422).ProducesProblem(428).ProducesProblem(503);
+        // T013 (US4, FR-017–FR-019): liberar con el If-Match de la reserva; 200 sin ETag (D-08).
+        reservations.MapPost("/{id:guid}/release", (Guid id, JsonElement body, HttpContext context, ReservationCommands commands,
+                CancellationToken token) =>
+                commands.ReleaseAsync(LocationEndpoints.Key(context), id, ReleaseWrite.Read(body),
+                    context.Request.Headers.IfMatch.ToString(), token))
+            .RequireAuthorization(ReservationCommands.Permission).Accepts<ReleaseWrite>("application/json")
+            .Produces<ReleaseResult>().ProducesProblem(400).ProducesProblem(403).ProducesProblem(404).ProducesProblem(409)
+            .ProducesProblem(412).ProducesProblem(422).ProducesProblem(428).ProducesProblem(503);
         // Detalle de la reserva: solo datos propios y ETag de Reservation.Version (D-07).
         reservations.MapGet("/{id:guid}", async (Guid id, ReservationQueries queries, HttpContext context, CancellationToken token) =>
             {
