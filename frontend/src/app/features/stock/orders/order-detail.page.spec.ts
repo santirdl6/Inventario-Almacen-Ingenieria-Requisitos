@@ -282,6 +282,67 @@ describe('OrderDetailPage', () => {
     expect(reason.value).toBe('El cliente reduce el pedido');
   });
 
+  // --- Convergence C2 (G4, FR-025, US5.4): 412 en los diálogos ---
+
+  it('reservar: un 412 relee el pedido, conserva las cantidades y reenvía con el ETag nuevo', async () => {
+    const { fixture, root } = await reserveUntilConfirm('7');
+    const first = httpMock().expectOne('/api/v1/reservations');
+    expect(first.request.headers.get('If-Match')).toBe('"v1"');
+    flushProblem(first, 412, 'VersionConflict', 'Otra persona cambió el registro.');
+    await settle(fixture);
+    const dialog = () => root.querySelector('[data-testid="reserve-dialog"]')!;
+    expect(text(dialog().querySelector('[role="alert"]'))).toContain('Otra persona cambió el pedido o la reserva');
+    // Se vuelven a leer pedido y contexto; el diálogo sigue abierto con lo escrito.
+    await flushPair(fixture, order(), '"v2"');
+    expect(dialog()).not.toBeNull();
+    expect(root.querySelector<HTMLInputElement>('[data-testid="reserve-qty-loc-1-lot-1"]')!.value).toBe('7');
+
+    click(root, '[data-testid="reserve-review"]');
+    await settle(fixture);
+    click(root, '[data-testid="reserve-confirm"]');
+    await settle(fixture);
+    const again = httpMock().expectOne('/api/v1/reservations');
+    expect(again.request.headers.get('If-Match')).toBe('"v2"');
+    expect(again.request.headers.get('Idempotency-Key')).not.toBe(first.request.headers.get('Idempotency-Key'));
+    expect(again.request.body).toEqual(first.request.body);
+    again.flush({ operationId: 'op-r2', reservationId: RESERVATION, customerOrderId: ORDER, movementId: 'm' }, { status: 201, statusText: 'Created' });
+    await settle(fixture);
+    await flushPair(fixture, reservedOrder(), '"v3"');
+    expect(text(root.querySelector('[role="status"]'))).toContain('op-r2');
+  });
+
+  it('liberar: un 412 relee la reserva, conserva cantidad, motivo y releaseId y reenvía con el ETag nuevo', async () => {
+    const { fixture, root } = await releaseUntilConfirm();
+    const path = `/api/v1/reservations/${RESERVATION}/release`;
+    const first = httpMock().expectOne(path);
+    expect(first.request.headers.get('If-Match')).toBe('"r1"');
+    flushProblem(first, 412, 'VersionConflict', 'Otra persona cambió el registro.');
+    await settle(fixture);
+    // El diálogo relee la versión de la reserva y el pedido se vuelve a leer.
+    httpMock().expectOne(`/api/v1/reservations/${RESERVATION}`).flush({
+      id: RESERVATION, state: 'Active', customerOrderId: ORDER, customerOrderLineId: LINE_B, articleId: 'art-1', allocations: ALLOCATIONS
+    }, { headers: { ETag: '"r2"' } });
+    await settle(fixture);
+    await flushPair(fixture, reservedOrder(), '"v2"');
+    const dialog = root.querySelector('[data-testid="release-dialog"]')!;
+    expect(text(dialog.querySelector('[role="alert"]'))).toContain('Otra persona cambió el pedido o la reserva');
+    expect(root.querySelector<HTMLInputElement>(`[data-testid="release-qty-${ALLOCATION}"]`)!.value).toBe('2');
+    expect(root.querySelector<HTMLTextAreaElement>('#release-reason')!.value).toBe('El cliente reduce el pedido');
+
+    click(root, '[data-testid="release-review"]');
+    await settle(fixture);
+    click(root, '[data-testid="release-confirm"]');
+    await settle(fixture);
+    const again = httpMock().expectOne(path);
+    expect(again.request.headers.get('If-Match')).toBe('"r2"');
+    expect(again.request.body).toEqual(first.request.body);
+    expect(again.request.body.releaseId).toBe(first.request.body.releaseId);
+    again.flush({ operationId: 'op-l2', reservationId: RESERVATION, releaseId: first.request.body.releaseId, movementId: 'm', state: 'Active' });
+    await settle(fixture);
+    await flushPair(fixture, reservedOrder(), '"v3"');
+    expect(text(root.querySelector('[role="status"]'))).toContain('op-l2');
+  });
+
   it('sin Reservations.Manage no hay botones de reservar ni liberar', async () => {
     TestBed.resetTestingModule();
     configure(['Inventory.Read']);

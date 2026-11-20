@@ -908,8 +908,8 @@ siempre en commit propio. Nunca `git add -A`.
 ## Phase 10: Convergence
 
 Tareas de [validation/converge-1.md](validation/converge-1.md), fuera de la numeración T001–T020
-(siguen siendo 20 tareas). G2 y G3 no generan tarea: se aceptan como límites conocidos (ver el
-informe).
+(siguen siendo 20 tareas). G2 y G3 no generan tarea: B los acepta como límites conocidos de esta
+entrega, con la justificación del informe.
 
 - [X] C1 [US2] [US3] [US4] Cerrar G1 (FR-027, FR-028, accesibilidad de
   [stock-ui](contracts/stock-ui.md#accesibilidad)): tras un rechazo del servidor, el foco va al
@@ -930,5 +930,18 @@ informe).
   - Rojo previo anotado: las 5 fallaban porque el foco quedaba en `<body>`.
   - Vitest 141/141 (línea base 136). La primera ejecución completa tuvo el fallo intermitente ya
     conocido de `location-detail.page.spec.ts` (HU-02); al repetir, 141/141.
-- [ ] C2 [US3] [US4] Cerrar G4 (FR-025): prueba Vitest del 412 en los diálogos de reservar y
+- [X] C2 [US3] [US4] Cerrar G4 (FR-025): prueba Vitest del 412 en los diálogos de reservar y
   liberar, que ya está implementado (relectura sin perder lo escrito y nuevo `If-Match`).
+
+  **Hecho (2026-11-20)**: 2 pruebas en `order-detail.page.spec.ts`.
+  - **Reservar**: el 412 muestra «Otra persona cambió…», relee pedido y contexto, conserva la
+    cantidad y reenvía el mismo cuerpo con el `If-Match` nuevo y otra clave. La primera intención
+    quedó resuelta por el 4xx.
+  - **Liberar**: el 412 relee la versión de la reserva y el pedido, conserva cantidad, motivo y
+    `releaseId`, y reenvía con el `If-Match` nuevo.
+  - **Rojo**: no lo hubo de forma natural, porque el comportamiento ya existía. Se comprobó con una
+    mutación temporal, sin commit: sin `stale.emit()` al reservar y sin `readVersion()` al liberar,
+    las dos pruebas fallan. Después se restauraron los archivos.
+  - Vitest 143/143 (línea base 136); `tsc` de app y specs limpio; `npm run build` correcto.
+
+**C1 en `b87852b`; C2 en el commit «/speckit-implement Convergence C2».**
