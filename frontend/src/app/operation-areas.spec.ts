@@ -44,7 +44,7 @@ describe('Áreas de B sobre la base de A', () => {
     signIn(operario);
     const harness = await RouterTestingHarness.create();
     const titles: Record<string, string> = { ubicaciones: 'Ubicaciones', existencias: 'Existencias', salidas: 'Salidas', inventarios: 'Inventarios cíclicos' };
-    const developed = ['ubicaciones']; // HU-02
+    const developed = ['ubicaciones', 'existencias']; // HU-02, HU-05
     for (const area of OPERATION_AREAS) {
       await harness.navigateByUrl(`/${area.path}`);
       expect(TestBed.inject(Router).url).toBe(`/${area.path}`);

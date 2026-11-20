@@ -570,7 +570,7 @@ veces; evidencia registrada.
 
 ## Phase 7: Frontend /existencias (US1–US4, solo lo que sale en el vídeo)
 
-- [ ] T015 [US1] Depende de T006.
+- [X] T015 [US1] Depende de T006.
   - Crear `frontend/src/app/features/stock/data/stock.models.ts` y `stock-api.service.ts`
     (`GET /stock` y `GET /api/v1/articles?q=&state=all`).
   - Crear `frontend/src/app/features/stock/query/stock-query.page.ts` según
@@ -588,6 +588,18 @@ veces; evidencia registrada.
     error (404 → mensaje en la página).
 
   (US1; FR-001–FR-008, FR-028.)
+
+  **Hecho (2026-11-20)**:
+  - `stock.models.ts`, `stock-api.service.ts`, `query/stock-query.page.ts` y `stock.css`. La ruta
+    `''` sustituye el placeholder.
+  - Las opciones de los filtros de ubicación y lote se toman de la consulta del artículo sin
+    filtros y se conservan al filtrar. No hay otra llamada.
+  - Spec `stock-query.page.spec.ts`, 7 casos, más de los dos pedidos: sin artículo no se consulta;
+    totales desde `totals`; `includeEmpty`; filtros y «Actualizar»; «sin lote» e «Inactivo»;
+    «No hay existencias para esta selección»; 404.
+  - Rojo previo anotado: 7/7 fallaban con un esqueleto vacío del componente.
+  - `operation-areas.spec.ts` (B, H0) marca `existencias` como área desarrollada.
+  - Vitest 115/115 (línea base 108); `tsc` de app y spec limpio.
 - [ ] T016 [US2] Depende de T008, T011, T013 y T015.
   - Crear `frontend/src/app/features/stock/data/customer-orders-api.service.ts`. Su `detail(id)` hace
     **dos lecturas**, como `articles-api.service.ts` de HU-08:
