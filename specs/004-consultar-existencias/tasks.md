@@ -57,13 +57,31 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
   Registrar decisión, fecha y revisor en `specs/004-consultar-existencias/plan.md` § «Estado de la
   revisión de A». Si A rechaza algo, ajustar solo las tareas afectadas.
-- [ ] T002 ⏸ **PENDIENTE, bloqueada por T001 y por la fusión de #7: aplicar los diffs aprobados**
+
+  **Estado tras fusionar #7 (2026-11-20): sin marcar.** A ya revisó y aplicó P-07 y la parte de
+  P-01 sobre responsabilidad y alcance. Esa parte dice que HU-05 crea y consulta el pedido, que no
+  lo edita ni lo cancela y que `Cancelled` se conserva en el modelo común. Además, en su revisión
+  del diseño A pidió el contexto sin ETag (D-07/D-11) y `appRoute`, ya incorporados. **Queda por
+  coordinar con A**:
+  - (a) de P-01, la unicidad `(CustomerOrderId, ArticleId)`, la comparación de `ExternalReference`
+    sin mayúsculas ni espacios extremos y la renovación de la cabecera en cada cambio de reservas o
+    servido; P-02…P-06, con P-03 ya ampliado con `GET /customer-orders/{id}/context`; y P-08;
+  - (b), (c) y (d) completos.
+
+  El PR #8 de A (XOR de contraparte, abierto) es compatible con el diseño: reservar y liberar solo
+  pasan `CounterpartyReference`, y T017 solo `CounterpartyNotApplicableReason`.
+- [ ] T002 ⏸ **PENDIENTE, bloqueada por T001: aplicar los diffs aprobados** (#7 ya está fusionado)
   P-01 (lo que falta), P-02…P-06 y P-08 en `.specify/memory/project/data-model.md`,
   `.specify/memory/project/contracts/api.md`, `.specify/memory/project/contracts/stock-operations.md`
   y `.specify/memory/project/quickstart.md` (evidencia, tras T014). **No toca** `research.md` (R-10)
   ni `specs/001-reparto-specs-inventario/plan.md`, que ya cambió #7 (P-07). **No se aplican hasta la
   aprobación de A** (AGENTS.md, «Cambios compartidos»). Al tener evidencia, marcar INT-HU05-01 e
-  INT-HU05-02 en `specs/001-reparto-specs-inventario/integration-tasks.md` (#7). ⚑ commit aparte.
+  INT-HU05-02 en el [backlog de integración](../001-reparto-specs-inventario/integration-tasks.md).
+  ⚑ commit aparte.
+
+  **Estado tras fusionar #7 (2026-11-20): sin marcar.** Ya no hay que aplicar P-07 ni la parte de
+  P-01 que #7 introdujo en `data-model.md` (párrafo «Responsabilidad revisada A+B»). Queda aplicar,
+  tras la aprobación de A, el resto de P-01, P-02…P-06 y P-08.
 
 ---
 
@@ -115,7 +133,8 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - `Touch()` no está en el dominio: marcar `State` como modificado necesita el `DbContext`.
     Lo hace el comando con `db.Entry(x).Property(v => v.State).IsModified = true`, como
     `ArticleCommands.cs` de A (T008, T011, T013; research D-07).
-- [ ] T004 [INT-HU05-01] Depende de T003 y, **para la migración**, de la fusión del PR #7 de A.
+- [ ] T004 [INT-HU05-01] Depende de T003 y, **para la migración**, de la fusión del PR #7 de A
+  (**satisfecha**: #7 fusionado en `c904824` y traído a esta rama el 2026-11-20).
   - Generar `dotnet ef migrations add HU05_CustomerOrdersReservations` en
     `backend/src/Inventario.Api/Infrastructure/Persistence/Migrations/`, sobre
     `20261119171332_HU08MovementCounterparty` (#7), la última migración de la cadena común. No se
@@ -498,7 +517,7 @@ preparadas.
 
 ## Phase 8: Preparación de pruebas y E2E-01 (vídeo)
 
-- [ ] T017 Depende de T005 y de la **fusión del PR #7 de A** (`CounterpartyNotApplicableReason` en
+- [ ] T017 Depende de T005 y de la **fusión del PR #7 de A** (satisfecha, `c904824`; `CounterpartyNotApplicableReason` en
   `StockCommandContext`).
   - Crear `backend/src/Inventario.Api/Features/Stock/Testing/StockSeedingEndpoints.cs` (D-17):
     `POST /api/v1/testing/stock-receipts`, que `MapStockEndpoints` mapea **solo** si
@@ -573,7 +592,7 @@ preparadas.
 
 ```text
 T001 ⏸ ─▶ T002 ⏸            (coordinación; no bloquea nada; T002 espera además a #7)
-PR #7 de A (fusión) ─▶ T004 (migración) y T017
+PR #7 de A (fusión, ✓ c904824) ─▶ T004 (migración) y T017
 T003 ─▶ T004 ─▶ T005 ─▶ T006 ─▶ T007
                   │      └──────────────▶ T015 ─┐
                   ├─▶ T008 ─▶ T010 (T009 ∥)     │
