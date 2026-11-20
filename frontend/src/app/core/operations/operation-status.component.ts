@@ -14,6 +14,7 @@ import { apiProblem } from '../http/api-problem';
         <section aria-label="Operación pendiente">
           <p role="status">Resultado pendiente de comprobar: {{ operation.operationId }}</p>
           @if (summaryOnly()) { <a [routerLink]="route(operation)">Revisar esta operación pendiente</a> } @else {
+          @if (operation.appRoute) { <a [routerLink]="operation.appRoute">Abrir pedido</a> }
           @if (!hasOriginal(operation)) { <p>La petición original se retiró al cerrar sesión. Solo puedes comprobar el resultado; no se reconstruirá ni se reenviará.</p> }
           @else if (!checked().includes(operation.operationId)) { <p>Comprueba primero el resultado antes de repetir la petición original.</p> }
           <button type="button" [disabled]="busy()" (click)="check(operation)">Comprobar resultado</button>
@@ -33,6 +34,7 @@ export class OperationStatusComponent {
   hasOriginal(operation: PendingOperation): boolean { return 'payload' in operation; }
   canRetry(operation: PendingOperation): boolean { const permission = mutationPermission(operation.resource); return this.hasOriginal(operation) && !!permission && this.session.has(permission) && this.checked().includes(operation.operationId); }
   route(operation: PendingOperation): string {
+    if (operation.appRoute) return operation.appRoute; // HU-05: pedido de la reserva o liberación.
     const parts = operation.resource.split('/');
     if (parts[3] === 'locations') return parts[4] ? `/ubicaciones/${parts[4]}/editar` : '/ubicaciones/nueva';
     const catalogue = ({ families: 'familias', articles: 'articulos', suppliers: 'proveedores' } as Record<string, string>)[parts[3]];
