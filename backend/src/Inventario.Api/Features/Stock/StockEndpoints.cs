@@ -1,4 +1,8 @@
+using System.Text.Json;
+using Inventario.Api.Features.Locations;
+using Inventario.Api.Features.Stock.CustomerOrders;
 using Inventario.Api.Features.Stock.Queries;
+using Inventario.Api.Infrastructure.Http;
 
 namespace Inventario.Api.Features.Stock;
 
@@ -18,6 +22,9 @@ public static class StockEndpoints
     {
         services.AddScoped<StockBalanceReader>();
         services.AddScoped<StockQueries>();
+        services.AddScoped<CustomerOrderCommands>();
+        services.AddScoped<CustomerOrderQueries>();
+        services.AddScoped<ICustomerOrderReader, CustomerOrderReader>();
         return services;
     }
 
@@ -30,6 +37,34 @@ public static class StockEndpoints
                 int? pageSize, StockQueries queries, CancellationToken token) =>
                 queries.StockAsync(articleId, locationId, lotId, includeEmpty, page, pageSize, token))
             .RequireAuthorization(Read).Produces<StockQueryResult>().ProducesProblem(404).ProducesProblem(422);
+
+        // T008 (US2, FR-009–FR-013): alta y lectura del pedido de cliente mínimo. Sin PUT, PATCH,
+        // DELETE ni cancelación (clarificación 3): esas rutas responden 404 o 405 como el resto.
+        var orders = api.MapGroup("/customer-orders").WithTags("CustomerOrders");
+        orders.MapPost("", (JsonElement body, HttpContext context, CustomerOrderCommands commands, CancellationToken token) =>
+                commands.CreateAsync(LocationEndpoints.Key(context), CustomerOrderWrite.Read(body), token))
+            .RequireAuthorization(CustomerOrderCommands.Permission).Accepts<CustomerOrderWrite>("application/json")
+            .Produces<CustomerOrderMutation>(201).ProducesProblem(400).ProducesProblem(403).ProducesProblem(409).ProducesProblem(422);
+        // Detalle versionado: solo datos propios y ETag de CustomerOrder.Version (D-07, D-11).
+        orders.MapGet("/{id:guid}", async (Guid id, CustomerOrderQueries queries, HttpContext context, CancellationToken token) =>
+            {
+                var found = await queries.DetailAsync(id, token);
+                if (found is null) return ApiProblems.Status(404);
+                context.Response.Headers.ETag = EntityTags.Format(found.Value.Version);
+                context.Response.Headers.CacheControl = "no-store";
+                return Results.Ok(found.Value.View);
+            })
+            .RequireAuthorization(Read).Produces<CustomerOrderView>().ProducesProblem(404);
+        // Contexto actual sin ETag, con orderVersion (patrón de GET /articles/{id}/context de HU-08).
+        orders.MapGet("/{id:guid}/context", async (Guid id, CustomerOrderQueries queries, HttpContext context,
+                CancellationToken token) =>
+            {
+                var found = await queries.ContextAsync(id, token);
+                if (found is null) return ApiProblems.Status(404);
+                context.Response.Headers.CacheControl = "no-store";
+                return Results.Ok(found);
+            })
+            .RequireAuthorization(Read).Produces<CustomerOrderContext>().ProducesProblem(404);
         return api;
     }
 }

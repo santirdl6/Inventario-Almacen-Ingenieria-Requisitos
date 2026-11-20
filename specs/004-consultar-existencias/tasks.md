@@ -246,7 +246,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
 **Objetivo**: alta y detalle del pedido. **Prueba independiente**: S-08.
 
-- [ ] T008 [US2] [INT-HU05-01] Depende de T004. Crear en `backend/src/Inventario.Api/Features/Stock/CustomerOrders/`
+- [X] T008 [US2] [INT-HU05-01] Depende de T004. Crear en `backend/src/Inventario.Api/Features/Stock/CustomerOrders/`
   `CustomerOrderCommands.cs`, `CustomerOrderQueries.cs`, `CustomerOrderDtos.cs` e
   `ICustomerOrderReader.cs`.
   - **Alta** (D-10), con `OperationRequest(…, "POST", "/api/v1/customer-orders", "Shipping.Record", DTO normalizado)`.
@@ -280,6 +280,22 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     como HU-02. `GET /reservations/{id}` (T011) sigue la misma regla de solo datos propios.
 
   (US2.1–US2.4; FR-009–FR-013.)
+
+  **Hecho (2026-11-20)**:
+  - `CustomerOrderCommands` (alta), `CustomerOrderQueries` (detalle y contexto, cada uno en
+    SNAPSHOT), `CustomerOrderDtos` y `ICustomerOrderReader` con su implementación
+    `CustomerOrderReader`, registrados en `AddStock()`. Las tres rutas, en `StockEndpoints` con
+    `LocationEndpoints.Key`.
+  - El cuerpo normalizado (`CustomerOrderWrite.Read`) es la huella. Lleva los textos recortados,
+    los ids en formato D y las cantidades válidas con tres decimales. Lo inválido se conserva
+    recortado para señalarlo por línea. La validación de forma va dentro de `change`, después de
+    que el ejecutor autorice, así que un rol sin permiso recibe 403 antes que 422.
+  - Bajo bloqueo, artículo inexistente → 422 por línea; inactivo → 409 `ArticleInactive` con los
+    SKU en `detail` y `errors["lines[i].articleId"]`.
+  - El detalle ordena líneas, reservas y asignaciones por Id (orden de `Guid` de .NET, en memoria).
+    El contexto ordena artículos por SKU y ubicaciones y lotes por código.
+  - `ICustomerOrderReader` lee sin seguimiento en la transacción del ejecutor y no toma bloqueos.
+    Las pruebas están en T010.
 - [ ] T009 [P] ⚑ commit aparte (archivo de A). En
   `backend/src/Inventario.Api/Infrastructure/Http/MasterDataProblemMapper.cs`, añadir una rama:
   2601/2627 cuyo mensaje contenga `UX_CustomerOrders_ExternalReference` → 409 `DuplicateCode` con
