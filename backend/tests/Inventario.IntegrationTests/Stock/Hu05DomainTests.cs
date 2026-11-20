@@ -120,6 +120,29 @@ public sealed class Hu05DomainTests
         Assert.Throws<InvalidOperationException>(() => reservation.Allocations[0].Release(1m));
     }
 
+    [Fact]
+    public void The_reference_lock_is_a_stable_uuid_v5_of_the_normalized_reference()
+    {
+        var id = Inventario.Api.Features.Stock.StockDocuments.ReferenceLockId("PED-1001");
+        Assert.Equal(id, Inventario.Api.Features.Stock.StockDocuments.ReferenceLockId("  ped-1001 "));
+        Assert.NotEqual(id, Inventario.Api.Features.Stock.StockDocuments.ReferenceLockId("PED-1002"));
+        var text = id.ToString("D");
+        Assert.Equal('5', text[14]);                    // versión 5
+        Assert.Contains(text[19], "89ab");              // variante RFC
+    }
+
+    [Fact]
+    public void Document_types_follow_the_d04_lock_order_and_the_canonical_pattern()
+    {
+        string[] types = [Inventario.Api.Features.Stock.StockDocuments.CustomerOrderReference,
+            Inventario.Api.Features.Stock.StockDocuments.CustomerOrder,
+            Inventario.Api.Features.Stock.StockDocuments.ReservationRelease,
+            Inventario.Api.Features.Stock.StockDocuments.Reservation];
+        Assert.All(types, type => Assert.Matches("^[a-z][a-z0-9-]{0,31}$", type));
+        var resources = types.Select(type => type + ":").ToArray();
+        Assert.Equal(resources, resources.Order(StringComparer.Ordinal));
+    }
+
     private static Reservation NewReservation(decimal quantity) =>
         Reservation.Create(Guid.NewGuid(), Guid.NewGuid(), [new(ArticleA, Guid.NewGuid(), Guid.NewGuid(), quantity)]);
 }

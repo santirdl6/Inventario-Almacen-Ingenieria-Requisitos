@@ -293,6 +293,82 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.CustomerOrder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CustomerReference")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ExternalReference")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .UseCollation("Latin1_General_100_CI_AS");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExternalReference")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CustomerOrders_ExternalReference");
+
+                    b.ToTable("CustomerOrders", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CustomerOrders_CustomerReference_NotBlank", "LEN(LTRIM(RTRIM([CustomerReference]))) > 0");
+
+                            t.HasCheckConstraint("CK_CustomerOrders_ExternalReference_NotBlank", "LEN(LTRIM(RTRIM([ExternalReference]))) > 0");
+
+                            t.HasCheckConstraint("CK_CustomerOrders_State", "[State] IN (N'Open', N'Fulfilled', N'Cancelled')");
+                        });
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.CustomerOrderLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CustomerOrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("OrderedQuantity")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("ShippedQuantity")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticleId");
+
+                    b.HasIndex("CustomerOrderId", "ArticleId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CustomerOrderLines_Order_Article");
+
+                    b.ToTable("CustomerOrderLines", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CustomerOrderLines_Ordered", "[OrderedQuantity] > 0");
+
+                            t.HasCheckConstraint("CK_CustomerOrderLines_Shipped", "[ShippedQuantity] >= 0 AND [ShippedQuantity] <= [OrderedQuantity]");
+                        });
+                });
+
             modelBuilder.Entity("Inventario.Api.Domain.Stock.Lot", b =>
                 {
                     b.Property<Guid>("Id")
@@ -320,6 +396,93 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_Lots_Code_NotBlank", "LEN(LTRIM(RTRIM([Code]))) > 0");
 
                             t.HasCheckConstraint("CK_Lots_Untracked_Code", "([IsUntracked] = 1 AND [Code] = 'SIN-LOTE') OR ([IsUntracked] = 0 AND [Code] <> 'SIN-LOTE')");
+                        });
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.Reservation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CustomerOrderLineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerOrderLineId");
+
+                    b.ToTable("Reservations", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Reservations_State", "[State] IN (N'Active', N'Consumed', N'Released')");
+                        });
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.ReservationAllocation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("AllocatedQuantity")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("ConsumedQuantity")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("LotId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("ReleasedQuantity")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("RemainingQuantity")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("decimal(18,3)")
+                        .HasComputedColumnSql("[AllocatedQuantity] - [ConsumedQuantity] - [ReleasedQuantity]", true);
+
+                    b.Property<Guid>("ReservationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LocationId");
+
+                    b.HasIndex("ArticleId", "LotId");
+
+                    b.HasIndex("ArticleId", "LocationId", "LotId")
+                        .HasDatabaseName("IX_ReservationAllocations_Bucket");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("ArticleId", "LocationId", "LotId"), new[] { "RemainingQuantity" });
+
+                    b.HasIndex("ReservationId", "ArticleId", "LocationId", "LotId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ReservationAllocations_Reservation_Bucket");
+
+                    b.ToTable("ReservationAllocations", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ReservationAllocations_Allocated", "[AllocatedQuantity] > 0");
+
+                            t.HasCheckConstraint("CK_ReservationAllocations_Consumed", "[ConsumedQuantity] >= 0");
+
+                            t.HasCheckConstraint("CK_ReservationAllocations_Released", "[ReleasedQuantity] >= 0");
+
+                            t.HasCheckConstraint("CK_ReservationAllocations_Remaining", "[AllocatedQuantity] - [ConsumedQuantity] - [ReleasedQuantity] >= 0");
                         });
                 });
 
@@ -792,11 +955,63 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.CustomerOrderLine", b =>
+                {
+                    b.HasOne("Inventario.Api.Domain.MasterData.Article", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Stock.CustomerOrder", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("CustomerOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Inventario.Api.Domain.Stock.Lot", b =>
                 {
                     b.HasOne("Inventario.Api.Domain.MasterData.Article", null)
                         .WithMany()
                         .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.Reservation", b =>
+                {
+                    b.HasOne("Inventario.Api.Domain.Stock.CustomerOrderLine", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerOrderLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.ReservationAllocation", b =>
+                {
+                    b.HasOne("Inventario.Api.Domain.MasterData.Article", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Locations.Location", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Stock.Reservation", null)
+                        .WithMany("Allocations")
+                        .HasForeignKey("ReservationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Stock.Lot", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId", "LotId")
+                        .HasPrincipalKey("ArticleId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
@@ -944,6 +1159,16 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                 {
                     b.Navigation("Policy")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.CustomerOrder", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.Reservation", b =>
+                {
+                    b.Navigation("Allocations");
                 });
 
             modelBuilder.Entity("Inventario.Api.Domain.Stock.StockMovement", b =>

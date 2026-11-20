@@ -89,7 +89,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
 **Objetivo**: tablas, dominio y registro de la feature sobre la cadena única de migraciones.
 
-- [ ] T003 Línea base y dominio. Primero, ejecutar la suite backend con la receta Docker y anotar el
+- [X] T003 Línea base y dominio. Primero, ejecutar la suite backend con la receta Docker y anotar el
   número de pruebas en verde. Después, crear en `backend/src/Inventario.Api/Domain/Stock/`:
   - `CustomerOrder.cs` con `CustomerOrder` y `CustomerOrderLine`:
     - «ExternalReference nvarchar(64), CI_AS, obligatoria y recortada».
@@ -119,7 +119,9 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
   (data-model; FR-009–FR-013, FR-015–FR-019.)
 
-  **Estado (2026-11-20): parcial, sin marcar.** Por decisión de B, T003 se parte:
+  **Estado final (2026-11-20): completada.** La parte pendiente (llamada «T003b»: las cuatro
+  configuraciones) se hizo junto a T004, en el mismo commit, para que ningún commit quedara en rojo
+  (decisión de B). Historial de la partición:
   - Hecho:
     - Línea base: 121/1/0, en `quickstart.md`, sección «Evidencia».
     - Dominio: `CustomerOrder.cs` y `Reservation.cs` con `Hu05DomainTests` (13 casos).
@@ -133,7 +135,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - `Touch()` no está en el dominio: marcar `State` como modificado necesita el `DbContext`.
     Lo hace el comando con `db.Entry(x).Property(v => v.State).IsModified = true`, como
     `ArticleCommands.cs` de A (T008, T011, T013; research D-07).
-- [ ] T004 [INT-HU05-01] Depende de T003 y, **para la migración**, de la fusión del PR #7 de A
+- [X] T004 [INT-HU05-01] Depende de T003 y, **para la migración**, de la fusión del PR #7 de A
   (**satisfecha**: #7 fusionado en `c904824` y traído a esta rama el 2026-11-20).
   - Generar `dotnet ef migrations add HU05_CustomerOrdersReservations` en
     `backend/src/Inventario.Api/Infrastructure/Persistence/Migrations/`, sobre
@@ -155,6 +157,19 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - Verificar con la receta Docker `has-pending-model-changes`, la cadena desde cero y
     revertir/reaplicar la migración. La suite previa debe seguir en verde: la cobertura de FK a
     `Articles` no debe dar `DependencyUnavailable`.
+
+  **Hecho (2026-11-20, con T003b)**:
+  - Migración `20261120111847_HU05_CustomerOrdersReservations` sobre `HU08MovementCounterparty`,
+    con `DENY DELETE` en las cuatro tablas. El PR #8 de A no estaba fusionado; al traerlo, repetir
+    `has-pending-model-changes` y regenerar la migración solo si la cadena cambia.
+  - `StockDocuments.cs`, `CustomerOrderArticleUsageContributor` y `StockEndpoints.cs`
+    (`AddStock()` y `MapStockEndpoints()` sin rutas).
+  - **Cambio frente al plan**: el contributor se registra en `AddStockCore`, no en `AddStock()`.
+    Así la cobertura no depende de T005 (decisión de B).
+  - Pruebas `Hu05SchemaTests` (4) y 2 nuevas en `Hu05DomainTests`. Dos pruebas de A que fijaban
+    exactamente {Lot, StockBalance, StockEntry} pasan a `Subset`, en commits aparte.
+  - Resultado: suite 146/1/0; modelo sin cambios; cadena desde cero, revertir y reaplicar
+    correctas.
 - [ ] T005 ⚑ commit aparte (archivo común). En `backend/src/Inventario.Api/Program.cs`, añadir
   `builder.Services.AddStock();` y `api.MapStockEndpoints();` junto a los de Locations, sin otro
   cambio (depende de T004).

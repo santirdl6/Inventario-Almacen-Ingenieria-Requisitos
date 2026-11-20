@@ -52,6 +52,11 @@ public static class StockCoreRegistration
         services.AddScoped<StockArticleUsageContributor>();
         services.AddScoped<IArticleUsageContributor>(provider => provider.GetRequiredService<StockArticleUsageContributor>());
         services.AddScoped<IArticleFirstReferenceContributor>(provider => provider.GetRequiredService<StockArticleUsageContributor>());
+        // HU-05 (T004): líneas de pedido y asignaciones de reserva también referencian Article. Se
+        // registra aquí, con el modelo que las incluye, para que la cobertura no dependa de AddStock().
+        services.AddScoped<CustomerOrders.CustomerOrderArticleUsageContributor>();
+        services.AddScoped<IArticleUsageContributor>(provider => provider.GetRequiredService<CustomerOrders.CustomerOrderArticleUsageContributor>());
+        services.AddScoped<IArticleFirstReferenceContributor>(provider => provider.GetRequiredService<CustomerOrders.CustomerOrderArticleUsageContributor>());
         services.AddScoped<IArticleMovementReader, StockArticleMovementReader>();
         return services;
     }
