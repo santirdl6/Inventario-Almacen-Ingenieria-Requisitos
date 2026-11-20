@@ -514,7 +514,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - La validación de forma rechaza una asignación repetida en la misma liberación (422).
   - Soporte `reservation:{id}` y contraparte `CustomerReference`. Se renuevan las cabeceras de la
     reserva y del pedido; `sourceDocumentId` = `releaseId`.
-- [ ] T014 [P] [US4] [INT-HU05-02] Crear `backend/tests/Inventario.IntegrationTests/Stock/ReleaseTests.cs` y
+- [X] T014 [P] [US4] [INT-HU05-02] Crear `backend/tests/Inventario.IntegrationTests/Stock/ReleaseTests.cs` y
   `StockReliabilityTests.cs`.
   - **Extensión de V-04** (S-14): R1 libera 2 con motivo → 200; R2 libera 2 → 200; R1 con su clave
     → replay idéntico; R1 con otra clave → 409 `DocumentAlreadyConfirmed`; 5 sobre un remanente de
@@ -543,6 +543,25 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     § «Evidencia».
 
   (US4, US5.1–US5.5; FR-018, FR-022–FR-024; SC-005.) Depende de T013.
+
+  **Hecho (2026-11-20)**: `ReleaseTests` (12) y `StockReliabilityTests` (1).
+  - Rojo previo anotado: las 13 fallaban porque la ruta de liberar no existía (404; las carreras
+    agotaban la espera; V-08 caía al llegar a la liberación).
+  - Con T013 quedaba roja una carrera, por una expectativa equivocada. Con la liberación primero, la
+    desactivación de la ubicación recibe 409 `LocationNotEmpty`, no 412: la revisión de HU-02 cubre
+    las capacidades derivadas, no las cantidades. La prueba comprueba el orden con el reservado que
+    lee el escritor (4 o 7). Se corrigió también el comentario equivalente de `ReservationTests`.
+  - Cubre:
+    - la extensión de V-04 (S-14), con el `ETag` de la reserva y del pedido distinto tras cada
+      liberación, replay, `DocumentAlreadyConfirmed`, `IdempotencyConflict` por motivo y por
+      cantidad, `ReservedStockConflict`, 422, 412 y 428;
+    - S-15, con `DELETE` del artículo aún rechazado tras liberarlo todo;
+    - la ubicación desactivada tras liberarlo todo y vaciarla, que no cambia el `ETag` del pedido y
+      sí el contexto (pendiente de T010);
+    - las carreras en ambos órdenes contra la desactivación, la definición y el borrado del
+      artículo y la desactivación de la ubicación;
+    - permisos (403 y 400 sin antiforgery) y V-08 en alta, reserva y liberación.
+  - Evidencia: suite completa tres veces, 199/1/0, en `quickstart.md` § «Evidencia».
 
 **Checkpoint backend**: S-01, S-03, S-05, S-08–S-12, S-14–S-16 y los permisos en verde tres
 veces; evidencia registrada.

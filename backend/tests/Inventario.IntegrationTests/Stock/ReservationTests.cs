@@ -315,10 +315,11 @@ public sealed class ReservationTests(IdentityFixture fixture) : IClassFixture<Id
                 Assert.Equal(7m, reservedAmount);
                 break;
             default:
-                // La ubicación tiene existencias: no se desactiva. Si la reserva gana, cambia el
-                // reservado y con él la revisión de la ubicación (HU-02, ETag con totales): 412.
+                // La ubicación tiene existencias: no se desactiva. Si la reserva gana, la ubicación
+                // pasa a tener reservas y cambia su revisión (HU-02: capacidades derivadas): 412.
                 if (reserveFirst) await ProblemAsync(changed, HttpStatusCode.PreconditionFailed, "VersionConflict");
-                else await ProblemAsync(changed, HttpStatusCode.Conflict, "LocationNotEmpty");
+                else Assert.Contains("0.000 reservadas",
+                    (await ProblemAsync(changed, HttpStatusCode.Conflict, "LocationNotEmpty")).GetProperty("detail").GetString());
                 Assert.Equal(HttpStatusCode.Created, reserved.StatusCode);
                 Assert.Equal(7m, reservedAmount);
                 break;
