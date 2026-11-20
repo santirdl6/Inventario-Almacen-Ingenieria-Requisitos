@@ -66,4 +66,39 @@ public sealed class StockBalanceReaderTests(IdentityFixture fixture) : IClassFix
         Assert.All(byLot.Items, item => Assert.Equal("L-001", item.Lot.Code));
         Assert.Equal((5m, 2m), (byLot.Totals.Physical, byLot.Totals.Reserved));
     }
+
+    [Fact]
+    public async Task Active_locations_only_filters_rows_and_totals_for_hu02()
+    {
+        // T020: GET /articles/{id}/locations (HU-02) delega aquí con includeInactiveLocations=false.
+        // Una ubicación inactiva con saldo solo se da con datos preparados: HU-02 exige vaciarla
+        // antes de desactivarla. Aquí se desactiva directamente para cubrir el filtro.
+        using var factory = fixture.Factory();
+        using var support = new StockApiSupport(fixture, factory);
+        var (article, _) = await support.ArticleAsync();
+        var prefix = "A" + StockApiSupport.Unique(8);
+        var active = await support.LocationAsync(prefix + "-N01");
+        var inactive = await support.LocationAsync(prefix + "-N02");
+        await support.ReceiveAsync(article, active, 2m);
+        await support.ReceiveAsync(article, inactive, 5m);
+        await using (var db = fixture.ApplicationDatabase())
+        {
+            var location = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
+                db.Set<Inventario.Api.Domain.Locations.Location>(), value => value.Id == inactive);
+            location.Deactivate();
+            await db.SaveChangesAsync();
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var reader = scope.ServiceProvider.GetRequiredService<StockBalanceReader>();
+        var all = (await reader.ReadAsync(article, null, null, false, Paging.From(null, null), CancellationToken.None))!;
+        Assert.Equal(2, all.TotalCount);
+        Assert.Equal(7m, all.Totals.Physical);
+
+        var onlyActive = (await reader.ReadAsync(article, null, null, false, Paging.From(null, null), CancellationToken.None,
+            activeLocationsOnly: true))!;
+        Assert.Equal(active, Assert.Single(onlyActive.Items).Location.Id);
+        Assert.Equal(1, onlyActive.TotalCount);
+        Assert.Equal((2m, 0m), (onlyActive.Totals.Physical, onlyActive.Totals.Reserved));
+    }
 }

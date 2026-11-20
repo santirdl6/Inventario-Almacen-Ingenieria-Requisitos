@@ -22,9 +22,11 @@ public sealed class StockBalanceReader(InventoryDbContext database)
     /// Devuelve null si el artículo no existe. Con <paramref name="includeEmpty"/> en false solo
     /// hay filas con físico mayor que cero; los totales son siempre los del filtro completo, porque
     /// las filas a cero no aportan nada (el reservado nunca supera el físico).
+    /// <paramref name="activeLocationsOnly"/> excluye las ubicaciones inactivas de filas y totales
+    /// (filtro includeInactiveLocations=false de GET /articles/{id}/locations, HU-02, T020).
     /// </summary>
     public Task<StockBuckets?> ReadAsync(Guid articleId, Guid? locationId, Guid? lotId, bool includeEmpty, Paging paging,
-        CancellationToken cancellation) =>
+        CancellationToken cancellation, bool activeLocationsOnly = false) =>
         database.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
             await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.Snapshot, cancellation);
@@ -36,6 +38,8 @@ public sealed class StockBalanceReader(InventoryDbContext database)
             var filtered = database.Set<StockBalance>().AsNoTracking().Where(balance => balance.ArticleId == articleId);
             if (locationId is { } location) filtered = filtered.Where(balance => balance.LocationId == location);
             if (lotId is { } lot) filtered = filtered.Where(balance => balance.LotId == lot);
+            if (activeLocationsOnly)
+                filtered = filtered.Where(balance => database.Set<Location>().Any(place => place.Id == balance.LocationId && place.IsActive));
 
             var totals = await filtered.GroupBy(_ => 1)
                 .Select(group => new { Physical = group.Sum(value => value.Physical), Reserved = group.Sum(value => value.Reserved) })

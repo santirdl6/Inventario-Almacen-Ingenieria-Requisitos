@@ -726,7 +726,7 @@ preparadas.
 
 ## Phase 9: Refactor mínimo de HU-02 (al final; el PR #6 ya está fusionado)
 
-- [ ] T020 ⚑ commit aparte (HU-02). En
+- [X] T020 ⚑ commit aparte (HU-02). En
   `backend/src/Inventario.Api/Features/Locations/Queries/LocationQueries.cs`,
   `ArticleLocationsAsync` pasa a delegar en `StockBalanceReader` (`includeEmpty=false` y el filtro
   `includeInactiveLocations` propio). Se conservan el DTO `ArticleLocations`, la ruta y el orden
@@ -739,6 +739,20 @@ preparadas.
     `Locations/LocationReviewTests.cs`.
 
   (D-02; FR-003.) Depende de T006. **Desbloqueada**: el PR #6 ya está fusionado (`45292a9`).
+
+  **Hecho (2026-11-20)**:
+  - `ArticleLocationsAsync` delega en `StockBalanceReader`. `LocationQueries` recibe el lector por
+    constructor. Se conservan el DTO, la ruta y el orden, con el desempate por Id de ubicación del
+    lector.
+  - El lector gana un parámetro opcional `activeLocationsOnly`, que filtra filas y totales y
+    equivale a `includeInactiveLocations=false`.
+  - El filtro de HU-02, `Physical ≠ 0 o Reserved ≠ 0`, equivale a `includeEmpty=false` porque
+    0 ≤ reservado ≤ físico.
+  - `DetailAsync`, `StockAsync` y `LocationEntityTags` no cambian.
+  - Pruebas: S-02 en `StockQueryTests` y el filtro de activas en `StockBalanceReaderTests`. Rojo
+    previo anotado: no compilaba por la falta del parámetro `activeLocationsOnly`. S-02 es de
+    caracterización: verde antes del refactor, ejecutada junto a `ArticleLocationsTests`, y verde
+    después. `ArticleLocationsTests` y `LocationReviewTests` no se tocan.
 
 ---
 

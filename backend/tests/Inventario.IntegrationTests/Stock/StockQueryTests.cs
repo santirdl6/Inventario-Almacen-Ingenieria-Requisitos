@@ -167,6 +167,39 @@ public sealed class StockQueryTests(IdentityFixture fixture) : IClassFixture<Ide
             Assert.Equal(HttpStatusCode.OK, (await StockApiSupport.GetStockAsync((await support.SessionAsync(role)).Client, query)).Status);
     }
 
+    [Fact]
+    public async Task S02_stock_and_hu02_article_locations_show_the_same_quantities()
+    {
+        // T020 (D-02, FR-003): las dos vistas salen del mismo agregado; con 4 reservados en N02
+        // dan las mismas filas, cantidades y totales.
+        using var factory = fixture.Factory();
+        using var support = new StockApiSupport(fixture, factory);
+        var api = await support.SessionAsync("ResponsableAlmacen");
+        var (article, _) = await support.ArticleAsync(tracksLot: true);
+        var prefix = "S2" + StockApiSupport.Unique(8);
+        var n01 = await support.LocationAsync(prefix + "-N01");
+        var n02 = await support.LocationAsync(prefix + "-N02");
+        await support.ReceiveAsync(article, n01, 3m, "L-001");
+        await support.ReceiveAsync(article, n02, 6m, "L-001");
+        await support.ReserveAsync(article, n02, 4m, "L-001");
+
+        var (_, stock) = await StockApiSupport.GetStockAsync(api.Client, $"?articleId={article}");
+        var locations = await System.Net.Http.Json.HttpClientJsonExtensions.GetFromJsonAsync<JsonElement>(api.Client,
+            $"/api/v1/articles/{article}/locations");
+        Totals(stock, "9.000", "4.000", "5.000");
+        Assert.Equal("9.000", locations.GetProperty("totals").GetProperty("physical").GetString());
+        Assert.Equal("4.000", locations.GetProperty("totals").GetProperty("reserved").GetString());
+        Assert.Equal(
+            stock.GetProperty("items").EnumerateArray().Select(item => (item.GetProperty("location").GetProperty("id").GetGuid(),
+                item.GetProperty("lot").GetProperty("code").GetString(), item.GetProperty("physical").GetString(),
+                item.GetProperty("reserved").GetString())),
+            locations.GetProperty("items").EnumerateArray().Select(item => (item.GetProperty("location").GetProperty("id").GetGuid(),
+                item.GetProperty("lotCode").GetString(), item.GetProperty("physical").GetString(),
+                item.GetProperty("reserved").GetString())));
+        Assert.Equal(new[] { n01, n02 }, locations.GetProperty("items").EnumerateArray()
+            .Select(item => item.GetProperty("location").GetProperty("id").GetGuid()));
+    }
+
     // --- T017 (D-17): siembra de existencias para el E2E, desactivada por defecto ---
 
     private const string Seeding = "/api/v1/testing/stock-receipts";
