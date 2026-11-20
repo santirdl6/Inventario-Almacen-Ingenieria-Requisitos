@@ -342,6 +342,11 @@ commit aparte:
 - `mutationPermission()`: `/api/v1/customer-orders` → `Shipping.Record`;
   `/api/v1/reservations` y `/api/v1/reservations/{id}/release` → `Reservations.Manage`.
 - `OperationStatusComponent.route()`: lleva esos recursos a las rutas de `/existencias/pedidos`.
+- `PendingOperation` gana el campo opcional `appRoute` (`/existencias/pedidos/{orderId}`), que se
+  conserva al cerrar sesión. Ni el recurso de reservar ni el de liberar contienen el id del pedido,
+  y el cuerpo que lo tiene se retira. Así el panel ofrece «Abrir pedido» y «Comprobar» sin el
+  cuerpo ([stock-ui](contracts/stock-ui.md#navegación-y-recuperación-de-una-operación-pendiente)).
+  Va en otro commit aparte al implementar.
 
 **Alternativas**: a) mantener `idempotent-intent.ts`, que reintroduce R1 y R2 y se descarta;
 b) un almacén propio de HU-05, que duplicaría el transporte común. También se descarta.

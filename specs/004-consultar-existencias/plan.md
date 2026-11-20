@@ -361,7 +361,10 @@ la [matriz S](quickstart.md#pruebas-automatizadas-backend).
   `/api/v1/customer-orders` → `Shipping.Record`, y `/api/v1/reservations` y
   `/api/v1/reservations/{id}/release` → `Reservations.Manage`.
 - `frontend/src/app/core/operations/operation-status.component.ts` (A): `route()` lleva esos
-  recursos a `/existencias/pedidos/…`.
+  recursos a `/existencias/pedidos/…` y el panel ofrece «Abrir pedido».
+- `frontend/src/app/core/operations/pending-operation.store.ts` (A): campo opcional `appRoute` en
+  `PendingOperation`, conservado al cerrar sesión (research D-15; stock-ui, «Navegación y
+  recuperación de una operación pendiente»). Va en otro commit aparte.
 
 ### Estado de la revisión de A
 

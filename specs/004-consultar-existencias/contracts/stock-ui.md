@@ -82,6 +82,37 @@ El área `/existencias` ya está declarada en `operation-areas.ts` con `Inventor
 | Otra reserva con una pendiente | El almacén común identifica la intención por recurso y todas las reservas son `POST /api/v1/reservations`. Mientras una reserva del usuario esté pendiente de comprobar, **no puede enviar otra reserva**, ni siquiera de otro pedido. Se explica con texto («Comprueba la reserva pendiente antes de reservar de nuevo») y el enlace «Revisar esta operación pendiente» del layout. Así no se duplica un compromiso. Las liberaciones (`/reservations/{id}/release`) se bloquean solo por reserva. |
 | 403 | Mensaje de permiso; las acciones no permitidas no se muestran, aunque el servidor es la barrera. |
 
+## Navegación y recuperación de una operación pendiente
+
+La referencia pendiente es la que guarda `PendingOperationStore` de A tras R1/R2: no es sensible,
+está ligada al usuario (`actorId`) y sobrevive a la recarga. Al cerrar sesión pierde el cuerpo y el
+`If-Match`, pero conserva el resto. Para HU-05 incluye:
+
+| Dato | Origen | Se conserva al cerrar sesión |
+|------|--------|------------------------------|
+| `operationId` | Clave idempotente (ya existe). | Sí |
+| Tipo de operación | Se deduce de `method` + `resource` (ya existen): `POST /api/v1/customer-orders` = alta, `POST /api/v1/reservations` = reserva, `POST /api/v1/reservations/{id}/release` = liberación. | Sí |
+| Ruta del recurso con el id del pedido | **Campo nuevo** `appRoute`: `/existencias/pedidos/{orderId}` en reservas y liberaciones; `/existencias/pedidos/nuevo` en el alta, cuyo id aún no se conoce. | Sí |
+| Cuerpo e `If-Match` | Intención original. | **No** (se retiran, R2) |
+
+Hace falta el campo nuevo porque ni el recurso de reservar (`/api/v1/reservations`) ni el de
+liberar (`/api/v1/reservations/{reservationId}/release`) contienen el id del pedido. El
+`customerOrderLineId` del cuerpo desaparece al cerrar sesión. `appRoute` es una ruta de la
+aplicación, sin datos del cuerpo. Se fija al abrir la intención y nunca se usa para enviar nada.
+
+El panel «Resultado pendiente de comprobar» (`OperationStatusComponent`) ofrece, para estas
+operaciones:
+
+- **«Abrir pedido»**, un enlace a `appRoute`, **aunque el cuerpo se haya retirado** al cerrar
+  sesión. El enlace resumido del layout («Revisar esta operación pendiente») usa la misma ruta.
+- **«Comprobar resultado»**: `GET /operations/{operationId}`, con la sesión del mismo usuario.
+  - Si confirma la operación, se resuelve la referencia y se vuelve a leer el pedido (detalle y
+    contexto). En un alta recuperada se navega a la `Location` del resultado.
+  - Si responde 404, la operación sigue pendiente. Sin cuerpo no se ofrece «Repetir la misma
+    intención»: el usuario rehace la reserva o la liberación desde el pedido una vez comprobada,
+    con una intención nueva.
+- Con otro usuario, la referencia no se muestra ni se comprueba (R2).
+
 ## Accesibilidad
 
 Todos los estados se comunican con texto (y con icono cuando lo haya), nunca solo con color.

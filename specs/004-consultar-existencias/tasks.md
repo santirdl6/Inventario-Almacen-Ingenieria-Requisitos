@@ -49,8 +49,9 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - (a) los diffs pendientes de [plan.md § Cambios al modelo común](plan.md#cambios-al-modelo-común-pendientes-de-a):
     P-01 (solo lo que falta tras #7), P-02…P-06 y P-08. P-07 ya está aplicado y aprobado en el
     PR #7 de A;
-  - (b) los cambios en archivos de A y comunes de T005, T009, T016 (`mutationPermission()` y
-    `OperationStatusComponent.route()`) y T018;
+  - (b) los cambios en archivos de A y comunes de T005, T009, T016 (`mutationPermission()`, el
+    campo `appRoute` de `PendingOperation` y `OperationStatusComponent.route()` / «Abrir pedido»)
+    y T018;
   - (c) la alternativa `ReservationRelease` de research D-06;
   - (d) el endpoint de preparación de pruebas de D-17.
 
@@ -431,13 +432,39 @@ veces; evidencia registrada.
     - en `frontend/src/app/core/operations/pending-operation.store.ts`, ampliar
       `mutationPermission()`: `^/api/v1/customer-orders$` → `Shipping.Record`, y
       `^/api/v1/reservations$` y `^/api/v1/reservations/{uuid}/release$` → `Reservations.Manage`;
-    - en `frontend/src/app/core/operations/operation-status.component.ts`, que `route()` lleve el
-      alta a `/existencias/pedidos/nuevo` y reservas y liberaciones a `/existencias/pedidos/{orderId}`
-      (el `customerOrderLineId` o `reservationId` del cuerpo identifica el pedido; fijar el
-      mecanismo al implementar).
+    - en el mismo `pending-operation.store.ts`, **ampliar la referencia** `PendingOperation` con el
+      campo opcional `appRoute`. Hoy guarda `operationId`, `actorId`, `method`, `resource`,
+      `payload` y `etag`, y al cerrar sesión solo conserva los cuatro primeros: ninguno lleva el id
+      del pedido de una reserva o liberación. Cambios:
+      - `begin()` acepta `appRoute`;
+      - el manejador de `loggedOut` lo **conserva** junto a `operationId`, `actorId`, `method` y
+        `resource`;
+      - `restore()` lo valida: solo rutas `^/existencias/pedidos/(nuevo|{uuid})$`.
 
-    Nada más cambia en esos archivos. Spec unitaria: la intención de HU-05 se restaura tras recargar
-    y no se reutiliza con otro usuario, como `location-form.review.spec.ts`.
+      `MasterDataMutationsService.mutate()` lo recibe como argumento opcional. Las intenciones de
+      maestros y ubicaciones siguen igual (campo ausente).
+    - en `frontend/src/app/core/operations/operation-status.component.ts`:
+      - `route()` usa `operation.appRoute` cuando existe y, si no, las rutas actuales;
+      - el panel muestra «Abrir pedido» con esa ruta, también sin cuerpo;
+      - «Comprobar resultado» no cambia (`GET /operations/{operationId}`).
+
+    Estos dos archivos van en **otro commit aparte** de la ampliación de `mutationPermission()`, al
+    implementar. Nada más cambia en ellos. El comportamiento está en
+    [stock-ui § Navegación y recuperación](contracts/stock-ui.md#navegación-y-recuperación-de-una-operación-pendiente).
+
+    Specs unitarias:
+    - la intención de HU-05 se restaura tras recargar y no se reutiliza con otro usuario, como
+      `location-form.review.spec.ts`;
+    - **cerrar sesión con una reserva pendiente y volver a entrar con el mismo usuario**:
+      1. con `user-1`, reservar con respuesta perdida, de modo que queda pendiente con `appRoute`
+         `/existencias/pedidos/{orderId}`;
+      2. emitir `loggedOut` y comprobar que sessionStorage **no** contiene el cuerpo ni el
+         `If-Match`, pero sí `operationId` y `appRoute`;
+      3. recrear TestBed conservando sessionStorage y volver a iniciar sesión con `user-1`;
+      4. el panel muestra «Abrir pedido» con `href` `/existencias/pedidos/{orderId}`, no ofrece
+         «Repetir la misma intención», y «Comprobar resultado» hace un único
+         `GET /api/v1/operations/{operationId}`;
+      5. con `user-2`, la referencia no aparece.
   - Crear `orders/order-form.page.ts`: referencia, cliente y líneas; un artículo no puede
     elegirse dos veces; revisión antes de confirmar; errores por línea conservando datos; al
     confirmar, navegación al detalle.
