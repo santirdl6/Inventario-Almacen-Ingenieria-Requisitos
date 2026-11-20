@@ -13,6 +13,7 @@ public static class MasterDataTestData
 {
     public const string E2EDatabase = "InventoryHu08E2E";
     private static readonly string[] E2ERoles = ["GestorMaestros", "Operario", "Administrador"];
+    private const string E2EOptionalRole = "ResponsableAlmacen";
 
     public static ServiceProvider BootstrapServices(IConfiguration configuration, string connection, string keysDirectory,
         Action<IServiceCollection>? configure = null)
@@ -81,9 +82,11 @@ public static class MasterDataTestData
     {
         if (database != E2EDatabase || host != "sqlserver")
             throw new ArgumentException("El provisionamiento solo admite InventoryHu08E2E en el servicio sqlserver dedicado.");
-        if (accounts.Count != 3 || !accounts.Select(account => account.Role).Order(StringComparer.Ordinal)
-            .SequenceEqual(E2ERoles.Order(StringComparer.Ordinal)))
-            throw new ArgumentException("Se requieren exactamente las cuentas gestora, lectora y administradora de E2E.");
+        // HU-05 (E2E-01): una cuarta cuenta ResponsableAlmacen es opcional; las tres comunes siguen obligatorias.
+        string[] expected = accounts.Count == 4 ? [.. E2ERoles, E2EOptionalRole] : E2ERoles;
+        if (accounts.Count is not (3 or 4) || !accounts.Select(account => account.Role).Order(StringComparer.Ordinal)
+            .SequenceEqual(expected.Order(StringComparer.Ordinal)))
+            throw new ArgumentException("Se requieren exactamente las cuentas gestora, lectora y administradora de E2E (y, opcionalmente, una responsable de almacén).");
 
         var runs = new HashSet<string>(StringComparer.Ordinal);
         foreach (var account in accounts)
