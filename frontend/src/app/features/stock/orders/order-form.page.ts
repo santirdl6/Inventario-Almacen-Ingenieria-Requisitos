@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, Injector, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { apiProblem } from '../../../core/http/api-problem';
@@ -7,6 +7,7 @@ import { OperationStatusComponent } from '../../../core/operations/operation-sta
 import { CustomerOrdersApiService, isUncertain } from '../data/customer-orders-api.service';
 import { StockApiService } from '../data/stock-api.service';
 import { ORDERS, StockArticleOption, orderRoute } from '../data/stock.models';
+import { focusFirstError } from '../shared/focus-first-error';
 
 interface DraftLine { article: StockArticleOption; quantity: string }
 
@@ -30,12 +31,14 @@ interface DraftLine { article: StockArticleOption; quantity: string }
       <div class="field">
         <label for="order-reference">Referencia del pedido</label>
         <input id="order-reference" [value]="reference()" (input)="reference.set(value($event))"
+          [attr.aria-invalid]="errors()['externalReference'] ? 'true' : null"
           [attr.aria-describedby]="errors()['externalReference'] ? 'order-reference-error' : null" />
         @if (errors()['externalReference']; as messages) { <span class="field-error" id="order-reference-error">{{ messages[0] }}</span> }
       </div>
       <div class="field">
         <label for="order-customer">Cliente</label>
         <input id="order-customer" [value]="customer()" (input)="customer.set(value($event))"
+          [attr.aria-invalid]="errors()['customerReference'] ? 'true' : null"
           [attr.aria-describedby]="errors()['customerReference'] ? 'order-customer-error' : null" />
         @if (errors()['customerReference']; as messages) { <span class="field-error" id="order-customer-error">{{ messages[0] }}</span> }
       </div>
@@ -48,6 +51,7 @@ interface DraftLine { article: StockArticleOption; quantity: string }
           @if (errors()['lines[' + index + '].articleId']; as messages) { <span class="field-error">{{ messages[0] }}</span> }
           <label [for]="'line-quantity-' + index">Cantidad ({{ line.article.baseUnit }})</label>
           <input [id]="'line-quantity-' + index" inputmode="decimal" [value]="line.quantity" (input)="quantity(index, value($event))"
+            [attr.aria-invalid]="errors()['lines[' + index + '].quantity'] ? 'true' : null"
             [attr.aria-describedby]="errors()['lines[' + index + '].quantity'] ? 'line-quantity-' + index + '-error' : null" />
           @if (errors()['lines[' + index + '].quantity']; as messages) {
             <span class="field-error" [id]="'line-quantity-' + index + '-error'">{{ messages[0] }}</span>
@@ -93,6 +97,8 @@ export class OrderFormPage {
   private readonly api = inject(CustomerOrdersApiService);
   private readonly stock = inject(StockApiService);
   private readonly router = inject(Router);
+  private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly injector = inject(Injector);
   private readonly mutations = inject(MasterDataMutationsService);
   protected readonly resource = ORDERS;
 
@@ -170,6 +176,7 @@ export class OrderFormPage {
         this.errors.set(problem.errors);
         this.error.set(problem.detail);
         this.reviewing.set(false);
+        focusFirstError(this.host, this.injector);
       }
     } finally {
       this.confirming.set(false);

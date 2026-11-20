@@ -94,10 +94,10 @@ Las unitarias (Vitest/TestBed) cubren:
   visibilidad según `Reservations.Manage`.
 - Estado «Resultado pendiente de comprobar».
 
-Construido: `stock-query.page.spec.ts` (7), `order-form.page.spec.ts` (5), `order-detail.page.spec.ts`
-(7) y las specs de los cambios en archivos de A (`pending-operation-hu05.spec.ts`, 5;
-`operation-status-hu05.spec.ts`, 4). El caso de 412 en los diálogos no tiene prueba
-(validation/converge-1.md, G4).
+Construido: `stock-query.page.spec.ts` (7), `order-form.page.spec.ts` (7), `order-detail.page.spec.ts`
+(10) y las specs de los cambios en archivos de A (`pending-operation-hu05.spec.ts`, 5;
+`operation-status-hu05.spec.ts`, 4). Incluyen el foco al primer error tras un rechazo (C1, FR-027
+y FR-028). El caso de 412 en los diálogos no tiene prueba (validation/converge-1.md, G4).
 
 ## E2E (solo el recorrido del vídeo)
 

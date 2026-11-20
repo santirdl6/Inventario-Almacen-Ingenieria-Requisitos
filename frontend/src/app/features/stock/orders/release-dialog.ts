@@ -1,10 +1,11 @@
 import { A11yModule } from '@angular/cdk/a11y';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import { Component, ElementRef, Injector, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { apiProblem } from '../../../core/http/api-problem';
 import { CustomerOrdersApiService, isUncertain } from '../data/customer-orders-api.service';
 import { CustomerOrderContext, OrderAllocation, OrderReservation, lotText } from '../data/stock.models';
+import { allocationErrorIndexes, focusFirstError } from '../shared/focus-first-error';
 
 /**
  * HU-05 T016 · Liberar una reserva (US4; contracts/stock-ui.md). El releaseId se genera al abrir
@@ -35,6 +36,7 @@ import { CustomerOrderContext, OrderAllocation, OrderReservation, lotText } from
               <td>
                 <label class="visually-hidden" [for]="'release-' + allocation.id">Cantidad a liberar ({{ unit() }})</label>
                 <input [id]="'release-' + allocation.id" [attr.data-testid]="'release-qty-' + allocation.id" inputmode="decimal"
+                  [attr.aria-invalid]="invalid().has(allocation.id) ? 'true' : null"
                   [value]="quantities()[allocation.id] ?? ''" [disabled]="reviewing()" (input)="set(allocation.id, value($event))" />
               </td>
             </tr>
@@ -42,7 +44,8 @@ import { CustomerOrderContext, OrderAllocation, OrderReservation, lotText } from
         </tbody>
       </table>
       <label for="release-reason">Motivo</label>
-      <textarea id="release-reason" maxlength="500" [value]="reason()" [disabled]="reviewing()" (input)="reason.set(value($event))"></textarea>
+      <textarea id="release-reason" maxlength="500" [attr.aria-invalid]="reasonInvalid() ? 'true' : null"
+        [value]="reason()" [disabled]="reviewing()" (input)="reason.set(value($event))"></textarea>
       @if (!reviewing()) {
         <button type="button" data-testid="release-review" [disabled]="!etag()" (click)="review()">Revisar</button>
       } @else {
@@ -73,6 +76,11 @@ export class ReleaseDialog implements OnInit {
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
   readonly conflict = signal(false);
+  /** Asignaciones y motivo señalados por el servidor o por la revisión. */
+  readonly invalid = signal<Set<string>>(new Set());
+  readonly reasonInvalid = signal(false);
+  private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly injector = inject(Injector);
   readonly allocations = computed(() => this.reservation().allocations.filter(allocation => Number(allocation.remaining) > 0));
   readonly chosen = computed(() => this.allocations().filter(allocation => Number(this.quantities()[allocation.id] || 0) > 0));
   readonly total = computed(() => this.chosen().reduce((sum, allocation) => sum + Number(this.quantities()[allocation.id]), 0).toFixed(3));
@@ -92,8 +100,9 @@ export class ReleaseDialog implements OnInit {
 
   review(): void {
     this.conflict.set(false);
-    if (!this.reason().trim()) { this.error.set('Indica el motivo de la liberación.'); return; }
-    if (!this.chosen().length) { this.error.set('Indica la cantidad que liberas.'); return; }
+    this.reasonInvalid.set(!this.reason().trim());
+    if (!this.reason().trim()) { this.error.set('Indica el motivo de la liberación.'); focusFirstError(this.host, this.injector); return; }
+    if (!this.chosen().length) { this.error.set('Indica la cantidad que liberas.'); focusFirstError(this.host, this.injector); return; }
     this.error.set(null);
     this.reviewing.set(true);
   }
@@ -110,7 +119,10 @@ export class ReleaseDialog implements OnInit {
       }, etag);
       this.done.emit(result.body?.operationId ?? '');
     } catch (error) {
+      const sent = this.chosen();
       this.reviewing.set(false);
+      this.invalid.set(new Set());
+      this.reasonInvalid.set(false);
       if (isUncertain(error)) {
         this.error.set('Resultado pendiente de comprobar: no sabemos si la liberación se guardó. Compruébalo antes de repetir.');
       } else if (!(error instanceof HttpErrorResponse)) {
@@ -124,7 +136,11 @@ export class ReleaseDialog implements OnInit {
         this.conflict.set(problem.code === 'ReservedStockConflict');
         this.error.set(problem.status === 403 ? 'Tu cuenta no tiene permiso para liberar reservas.'
           : [problem.detail, ...Object.values(problem.errors).flat()].join(' '));
+        this.reasonInvalid.set('reason' in problem.errors);
+        this.invalid.set(new Set([...allocationErrorIndexes(problem.errors)]
+          .filter(index => index < sent.length).map(index => sent[index].id)));
       }
+      if (!isUncertain(error)) focusFirstError(this.host, this.injector);
     } finally {
       this.busy.set(false);
     }

@@ -121,7 +121,8 @@ operaciones:
 ## Accesibilidad
 
 Todos los estados se comunican con texto (y con icono cuando lo haya), nunca solo con color.
-Tablas con encabezados y nombre accesible. El foco va al primer error tras rechazo
-(**pendiente**: no implementado en el alta ni en los diálogos; ver validation/converge-1.md, G1). Los diálogos se
+Tablas con encabezados y nombre accesible. El foco va al primer error tras rechazo: al primer
+campo con `aria-invalid` o, si el error no es de un campo, al aviso (tarea de convergencia C1, que
+cierra G1 de [validation/converge-1.md](../validation/converge-1.md)). Los diálogos se
 operan con teclado, tienen el foco atrapado y cierran con Escape. Las etiquetas están en español y
 la unidad acompaña a cada cantidad.

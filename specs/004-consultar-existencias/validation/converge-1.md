@@ -38,7 +38,7 @@ skill cargada. El método fue el mismo: pruebas primero, rojo anotado y un commi
 
 | ID | Severidad | Fuente | Evidencia | Qué falta |
 |----|-----------|--------|-----------|-----------|
-| G1 | MEDIA | stock-ui § Accesibilidad («El foco va al primer error tras rechazo»); FR-027, FR-028 | `order-form.page.ts`, `reserve-dialog.ts` y `release-dialog.ts` no mueven el foco. Solo los diálogos usan `cdkTrapFocus` y cierran con Escape. | Llevar el foco al primer campo con error, o al aviso, tras un 409/422. |
+| G1 | MEDIA | stock-ui § Accesibilidad («El foco va al primer error tras rechazo»); FR-027, FR-028 | `order-form.page.ts`, `reserve-dialog.ts` y `release-dialog.ts` no mueven el foco. Solo los diálogos usan `cdkTrapFocus` y cierran con Escape. | **Resuelto** con la tarea C1 de la fase «Convergence» de tasks.md: foco al primer `aria-invalid` o al aviso, con 5 pruebas Vitest. |
 | G2 | BAJA | FR-026, US2.1 («se muestra su identificador como resultado registrado») | `order-form.page.ts` pone «Pedido creado. Operación …» y navega en el acto al detalle, que no muestra ese identificador. | Mostrar el identificador de la operación en el detalle tras el alta, o no navegar hasta que se haya visto. |
 | G3 | BAJA | FR-004 (filtros) y FR-015 (asignación explícita) en artículos con más de 25 combinaciones | Las opciones de filtro (`stock-query.page.ts`) y las filas del diálogo de reservar (`reserve-dialog.ts`) salen de la página 1 de `GET /stock` (`pageSize` 25). | Paginar o pedir todas las combinaciones del artículo. |
 | G4 | BAJA (prueba) | FR-025 en la interfaz (412: «recargar sin perder las cantidades escritas») | El camino 412 de los diálogos existe (evento `stale`, relectura) pero no tiene prueba Vitest. | Una prueba del 412 en `order-detail.page.spec.ts`. |
@@ -78,8 +78,8 @@ S2. No se ha visto ninguna infracción de los principios MUST de la constitució
 | FR-024 | V-05 en `ReservationTests` (20 rondas); carreras con `LockBarrier` y `SaveBarrier`; conciliación | Cumplido |
 | FR-025 | 412/428 en `ReservationTests` y `ReleaseTests`; relectura en `order-detail.page.spec.ts` (`orderVersion` ≠ `ETag`) | Cumplido (G4: 412 de la UI sin prueba) |
 | FR-026 | «Resultado pendiente de comprobar», restauración y «Abrir pedido» (`order-detail.page.spec.ts`, `operation-status-hu05.spec.ts`) | Cumplido (G2) |
-| FR-027 | Revisión antes de confirmar en alta, reservar y liberar; 409/422 conservando datos (`order-form.page.spec.ts`, `order-detail.page.spec.ts`) | Cumplido (G1) |
-| FR-028 | Español, unidad junto a cada cantidad, estados en texto, diálogos con teclado (E2E-01 por roles y etiquetas) | Cumplido (G1) |
+| FR-027 | Revisión antes de confirmar en alta, reservar y liberar; 409/422 conservando datos y con el foco en el primer error (`order-form.page.spec.ts`, `order-detail.page.spec.ts`; C1) | Cumplido |
+| FR-028 | Español, unidad junto a cada cantidad, estados en texto, diálogos con teclado y foco tras rechazo (E2E-01 por roles y etiquetas; C1) | Cumplido |
 | SC-001 | `StockQueryTests` (S-01, totales en todas las páginas), S-02 | Cumplido |
 | SC-002 | Reflejo inmediato tras cada confirmación (`ReservationTests`, `ReleaseTests`, E2E-01); sin borradores (S-04) | Parcial |
 | SC-003 | `ReservationTests` (S-10, S-11) sin cambios | Cumplido |

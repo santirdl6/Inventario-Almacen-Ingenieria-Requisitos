@@ -1,11 +1,12 @@
 import { A11yModule } from '@angular/cdk/a11y';
-import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import { Component, ElementRef, Injector, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { apiProblem } from '../../../core/http/api-problem';
 import { CustomerOrdersApiService, isUncertain } from '../data/customer-orders-api.service';
 import { StockApiService } from '../data/stock-api.service';
 import { CustomerOrderContext, OrderLine, StockRow, lotText } from '../data/stock.models';
+import { allocationErrorIndexes, focusFirstError } from '../shared/focus-first-error';
 
 /**
  * HU-05 T016 · Reservar existencias para una línea (US3; contracts/stock-ui.md). Lista GET /stock
@@ -39,6 +40,7 @@ import { CustomerOrderContext, OrderLine, StockRow, lotText } from '../data/stoc
                 <td>
                   <label class="visually-hidden" [for]="'reserve-' + key(row)">Cantidad en {{ row.location.code }} ({{ article().baseUnit }})</label>
                   <input [id]="'reserve-' + key(row)" [attr.data-testid]="'reserve-qty-' + key(row)" inputmode="decimal"
+                    [attr.aria-invalid]="invalid().has(key(row)) ? 'true' : null"
                     [value]="quantities()[key(row)] ?? ''" [disabled]="reviewing()" (input)="set(row, value($event))" />
                   <span class="meta">Máximo reservable {{ maximum(row) }} {{ article().baseUnit }}</span>
                 </td>
@@ -80,6 +82,10 @@ export class ReserveDialog implements OnInit {
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
   readonly conflict = signal(false);
+  /** Filas (ubicación-lote) señaladas por el servidor: «allocations[i]» es la i-ésima enviada. */
+  readonly invalid = signal<Set<string>>(new Set());
+  private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly injector = inject(Injector);
   readonly article = computed(() => this.context().articles.find(item => item.id === this.line().articleId)
     ?? { id: this.line().articleId, sku: '', name: '', baseUnit: '', isActive: true, tracksLot: false, allowsFractional: false });
   readonly chosen = computed(() => this.rows().filter(row => Number(this.quantities()[this.key(row)] || 0) > 0));
@@ -121,7 +127,9 @@ export class ReserveDialog implements OnInit {
       }, this.etag());
       this.done.emit(result.body?.operationId ?? '');
     } catch (error) {
+      const sent = this.chosen();
       this.reviewing.set(false);
+      this.invalid.set(new Set());
       if (isUncertain(error)) {
         this.error.set('Resultado pendiente de comprobar: no sabemos si la reserva se guardó. Compruébalo antes de reservar de nuevo.');
       } else if (!(error instanceof HttpErrorResponse)) {
@@ -134,7 +142,10 @@ export class ReserveDialog implements OnInit {
         this.conflict.set(problem.code === 'InsufficientStock' || problem.code === 'ReservedStockConflict');
         this.error.set(problem.status === 403 ? 'Tu cuenta no tiene permiso para reservar.'
           : [problem.detail, ...Object.values(problem.errors).flat()].join(' '));
+        this.invalid.set(new Set([...allocationErrorIndexes(problem.errors)]
+          .filter(index => index < sent.length).map(index => this.key(sent[index]))));
       }
+      if (!isUncertain(error)) focusFirstError(this.host, this.injector);
     } finally {
       this.busy.set(false);
     }

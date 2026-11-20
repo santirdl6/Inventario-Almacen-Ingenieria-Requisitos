@@ -902,3 +902,33 @@ siempre en commit propio. Nunca `git add -A`.
 | Congelación por conteo abierto al reservar (US3.7, FR-016) sin prueba. | `IsInOpenCountAsync` devuelve `false` hasta que HU-04 integre los conteos. | Pendiente de INT-HU04-03 (backlog de integración del PR #7); allí se prueba 409 `CountScopeFrozen`. |
 | Selector de artículo propio en lugar de `article-search` de HU-02 (recogido en research D-15). | El de HU-02 enlaza fijo a `/ubicaciones/articulo/:id`; reutilizarlo exigiría tocar HU-02. | Un componente pequeño duplicado; se unifica en una historia posterior. |
 | Búsqueda de pedidos (P-04) y pestaña «Reservas» recortadas. | No salen en el vídeo. | El E2E abre el pedido por URL; S1 y S2 si hay tiempo. |
+
+---
+
+## Phase 10: Convergence
+
+Tareas de [validation/converge-1.md](validation/converge-1.md), fuera de la numeración T001–T020
+(siguen siendo 20 tareas). G2 y G3 no generan tarea: se aceptan como límites conocidos (ver el
+informe).
+
+- [X] C1 [US2] [US3] [US4] Cerrar G1 (FR-027, FR-028, accesibilidad de
+  [stock-ui](contracts/stock-ui.md#accesibilidad)): tras un rechazo del servidor, el foco va al
+  primer campo con error en el alta del pedido y en los diálogos de reservar y liberar.
+
+  **Hecho (2026-11-20)**:
+  - `features/stock/shared/focus-first-error.ts` reutiliza el patrón de `focusFirstError()` de
+    `location-form.page.ts` (HU-02, de B): tras el siguiente render, el foco va al primer
+    `[aria-invalid="true"]` y, si el error no es de un campo, al aviso `role="alert"`.
+  - El alta marca `aria-invalid` en referencia, cliente y cantidades. Los diálogos traducen
+    `allocations[i].*` a la i-ésima asignación enviada, y el de liberar marca también el motivo. La
+    revisión local de liberar (motivo vacío) usa el mismo foco.
+  - No se toca ningún archivo de A: sus formularios de maestros solo enfocan el bloque de error
+    general.
+  - Pruebas: 2 en `order-form.page.spec.ts` (422 → primer campo; `DuplicateCode` → referencia) y 3
+    en `order-detail.page.spec.ts` (422 por asignación → su cantidad; 409 sin campo → aviso; 422 del
+    motivo → motivo).
+  - Rojo previo anotado: las 5 fallaban porque el foco quedaba en `<body>`.
+  - Vitest 141/141 (línea base 136). La primera ejecución completa tuvo el fallo intermitente ya
+    conocido de `location-detail.page.spec.ts` (HU-02); al repetir, 141/141.
+- [ ] C2 [US3] [US4] Cerrar G4 (FR-025): prueba Vitest del 412 en los diálogos de reservar y
+  liberar, que ya está implementado (relectura sin perder lo escrito y nuevo `If-Match`).

@@ -136,6 +136,36 @@ describe('OrderFormPage', () => {
     expect(text(root.querySelector('#order-reference-error'))).toBe('Introduce una referencia que no esté usada.');
   });
 
+  // Convergence C1 (G1, FR-027/FR-028, stock-ui § Accesibilidad): el foco va al primer error.
+  it('tras un 422 el foco va al primer campo con error y los campos se marcan aria-invalid', async () => {
+    const { fixture, root } = await render();
+    await fill(fixture, root);
+    root.querySelector<HTMLButtonElement>('[data-testid="review"]')!.click();
+    await settle(fixture);
+    root.querySelector<HTMLButtonElement>('[data-testid="confirm"]')!.click();
+    await settle(fixture);
+    flushProblem(httpMock().expectOne('/api/v1/customer-orders'), 422, 'ValidationFailed', 'Revisa los datos marcados del pedido.',
+      { errors: { customerReference: ['Indica el cliente.'], 'lines[1].quantity': ['La cantidad debe ser mayor que cero.'] } });
+    await settle(fixture);
+    expect(document.activeElement?.id).toBe('order-customer');
+    expect(root.querySelector('#order-customer')!.getAttribute('aria-invalid')).toBe('true');
+    expect(root.querySelector('#line-quantity-1')!.getAttribute('aria-invalid')).toBe('true');
+    expect(root.querySelector('#line-quantity-0')!.getAttribute('aria-invalid')).toBeNull();
+  });
+
+  it('una referencia duplicada lleva el foco a su campo', async () => {
+    const { fixture, root } = await render();
+    await fill(fixture, root);
+    root.querySelector<HTMLButtonElement>('[data-testid="review"]')!.click();
+    await settle(fixture);
+    root.querySelector<HTMLButtonElement>('[data-testid="confirm"]')!.click();
+    await settle(fixture);
+    flushProblem(httpMock().expectOne('/api/v1/customer-orders'), 409, 'DuplicateCode', 'La referencia PED-1001 ya pertenece a otro pedido.',
+      { errors: { externalReference: ['Introduce una referencia que no esté usada.'] } });
+    await settle(fixture);
+    expect(document.activeElement?.id).toBe('order-reference');
+  });
+
   it('con la respuesta perdida queda «pendiente de comprobar» con la intención conservada', async () => {
     const { fixture, root } = await render();
     await fill(fixture, root);

@@ -209,6 +209,79 @@ describe('OrderDetailPage', () => {
     expect(text(root.querySelector('[role="status"]'))).toContain('op-l');
   });
 
+  // --- Convergence C1 (G1, FR-027/FR-028): el foco va al primer error tras un rechazo ---
+
+  async function reserveUntilConfirm(quantity = '7') {
+    const { fixture, root } = await render();
+    await flushPair(fixture, order(), '"v1"');
+    click(root, `[data-testid="reserve-${LINE_B}"]`);
+    await settle(fixture);
+    httpMock().expectOne(r => r.url === '/api/v1/stock').flush({
+      asOf: 'x', article: { id: 'art-1', sku: 'ART-01', name: 'Tornillo', baseUnit: 'UD', isActive: true, tracksLot: true },
+      totals: { physical: '10.000', reserved: '0.000', available: '10.000' },
+      items: [{ location: { id: 'loc-1', code: 'P01-E01-N01', aisle: 'P01', rack: 'E01', level: 'N01', kind: 'Storage', isActive: true },
+        lot: { id: 'lot-1', code: 'L-001', isUntracked: false }, physical: '10.000', reserved: '0.000', available: '10.000' }],
+      page: 1, pageSize: 25, totalCount: 1
+    });
+    await settle(fixture);
+    type(root, '[data-testid="reserve-qty-loc-1-lot-1"]', quantity);
+    await settle(fixture);
+    click(root, '[data-testid="reserve-review"]');
+    await settle(fixture);
+    click(root, '[data-testid="reserve-confirm"]');
+    await settle(fixture);
+    return { fixture, root };
+  }
+
+  async function releaseUntilConfirm() {
+    const { fixture, root } = await render();
+    await flushPair(fixture, reservedOrder(), '"v1"');
+    click(root, `[data-testid="release-${RESERVATION}"]`);
+    await settle(fixture);
+    httpMock().expectOne(`/api/v1/reservations/${RESERVATION}`).flush({
+      id: RESERVATION, state: 'Active', customerOrderId: ORDER, customerOrderLineId: LINE_B, articleId: 'art-1', allocations: ALLOCATIONS
+    }, { headers: { ETag: '"r1"' } });
+    await settle(fixture);
+    type(root, `[data-testid="release-qty-${ALLOCATION}"]`, '2');
+    type(root, '#release-reason', 'El cliente reduce el pedido');
+    await settle(fixture);
+    click(root, '[data-testid="release-review"]');
+    await settle(fixture);
+    click(root, '[data-testid="release-confirm"]');
+    await settle(fixture);
+    return { fixture, root };
+  }
+
+  it('reservar: un 422 por asignación lleva el foco a su cantidad', async () => {
+    const { fixture, root } = await reserveUntilConfirm();
+    flushProblem(httpMock().expectOne('/api/v1/reservations'), 422, 'ValidationFailed', 'Revisa los datos marcados de la reserva.',
+      { errors: { 'allocations[0].quantity': ['La cantidad admite como máximo tres decimales.'] } });
+    await settle(fixture);
+    const input = root.querySelector<HTMLInputElement>('[data-testid="reserve-qty-loc-1-lot-1"]')!;
+    expect(document.activeElement).toBe(input);
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(input.value).toBe('7');
+  });
+
+  it('reservar: un 409 sin campo lleva el foco al aviso del diálogo', async () => {
+    const { fixture, root } = await reserveUntilConfirm();
+    flushProblem(httpMock().expectOne('/api/v1/reservations'), 409, 'InsufficientStock', 'Disponible insuficiente (disponible 3.000).');
+    await settle(fixture);
+    const alert = root.querySelector('[data-testid="reserve-dialog"] [role="alert"]');
+    expect(document.activeElement).toBe(alert);
+  });
+
+  it('liberar: un 422 del motivo lleva el foco al motivo', async () => {
+    const { fixture, root } = await releaseUntilConfirm();
+    flushProblem(httpMock().expectOne(`/api/v1/reservations/${RESERVATION}/release`), 422, 'ValidationFailed',
+      'Revisa los datos marcados de la liberación.', { errors: { reason: ['El motivo no puede superar 500 caracteres.'] } });
+    await settle(fixture);
+    const reason = root.querySelector<HTMLTextAreaElement>('#release-reason')!;
+    expect(document.activeElement).toBe(reason);
+    expect(reason.getAttribute('aria-invalid')).toBe('true');
+    expect(reason.value).toBe('El cliente reduce el pedido');
+  });
+
   it('sin Reservations.Manage no hay botones de reservar ni liberar', async () => {
     TestBed.resetTestingModule();
     configure(['Inventory.Read']);
