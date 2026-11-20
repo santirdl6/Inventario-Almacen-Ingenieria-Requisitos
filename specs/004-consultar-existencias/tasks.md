@@ -443,7 +443,7 @@ preparadas.
 
 ---
 
-## Phase 9: Refactor mínimo de HU-02 (al final, para no chocar con la revisión del PR #6)
+## Phase 9: Refactor mínimo de HU-02 (al final; el PR #6 ya está fusionado)
 
 - [ ] T020 ⚑ commit aparte (HU-02). En
   `backend/src/Inventario.Api/Features/Locations/Queries/LocationQueries.cs`,
@@ -454,7 +454,10 @@ preparadas.
     `GET /articles/{id}/locations` dan las mismas cantidades.
   - Ejecutar `Locations/ArticleLocationsTests.cs` (L-05 y L-06) sin cambiar sus aserciones.
 
-  (D-02; FR-003.) Depende de T006 y, preferiblemente, de la fusión del PR #6.
+  - No tocar `DetailAsync` ni `LocationEntityTags` (digest de A en `dfc1fd1`). Ejecutar también
+    `Locations/LocationReviewTests.cs`.
+
+  (D-02; FR-003.) Depende de T006. **Desbloqueada**: el PR #6 ya está fusionado (`45292a9`).
 
 ---
 
@@ -513,7 +516,7 @@ T006 ─▶ T020 (al final)
 2. **Compromisos**: T008–T014 (pedido, reservar, liberar y fiabilidad). Checkpoint backend con
    evidencia.
 3. **Vídeo**: T015–T019 (pantallas y E2E-01).
-4. **Integración HU-02**: T020, tras la revisión del PR #6.
+4. **Integración HU-02**: T020. El PR #6 ya está fusionado.
 5. **Coordinación**: T001 se pide al abrir el PR; T002 se aplica tras la aprobación de A.
 
 Commits: uno por tarea o por grupo coherente con el formato `HU-05 (B): …`. Las tareas ⚑

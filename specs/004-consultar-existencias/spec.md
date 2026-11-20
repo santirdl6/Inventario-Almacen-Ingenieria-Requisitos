@@ -341,8 +341,9 @@ simular la pérdida de la respuesta tras confirmar.
   (research.md, línea 261) y el
   [plan de coordinación](../001-reparto-specs-inventario/plan.md#integración-de-las-futuras-specs)
   (plan.md, línea 114). HU-05 lo incorpora por decisión de B sobre la frontera HU-03/HU-05, porque
-  la reserva lo necesita antes; HU-03 lo consumirá. El cambio queda pendiente de revisión de A,
-  según AGENTS.md, y el plan de HU-05 deberá reflejarlo en ambos documentos.
+  la reserva lo necesita antes; HU-03 lo consumirá. A aprobó esta frontera el 2026-11-19 en su
+  PR #7, que actualiza ambos documentos y la reserva de numeración (`docs/agrupamiento.md`). Las
+  referencias de línea anteriores corresponden a la versión previa a la fusión de #7.
 - Desviación respecto al modelo común: el
   [modelo](../../.specify/memory/project/data-model.md#customerorder-y-customerorderline) define el
   estado cancelado del pedido y el

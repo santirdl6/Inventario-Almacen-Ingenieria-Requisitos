@@ -53,7 +53,7 @@ y coordinación.
 | H1 | Cobertura (INT-HU05-01/02) | ALTA | tasks.md:183-191, 221-232, 258-273, 386-388; integration-tasks.md:18-27, 46-47 (#7) | Faltan del contrato de escritores: carreras alta/reserva frente a desactivación, edición de la definición y borrado (conexiones independientes, ambos órdenes); borrado rechazado con compromisos reales; reserva rechazada tras desactivar; conciliación documental. S4 (tasks.md:386-388) aplaza S-19 alegando que la suite de HU-08 lo cubre, lo que contradice «cada módulo prueba sus escritores reales, no un doble de otro módulo». | Ver [H1](#h1--cobertura-de-int-hu05-01-e-int-hu05-02). |
 | H2 | Gobernanza | ALTA | tasks.md (sin IDs INT); AGENTS.md (#7) | AGENTS.md de #7 obliga a incorporar a `tasks.md` las tareas receptoras con sus IDs. Ninguna tarea cita INT-HU05-01, INT-HU05-02 ni COORD-01. | Etiquetar con su ID las tareas afectadas: INT-HU05-01 en T004, T008, T010, T011 y T012; INT-HU05-02 en T010, T012 y T014. Citar COORD-01 en T001. Marcar el checkbox del backlog solo con evidencia (integration-tasks.md:8-9). |
 | H3 | Inconsistencia / orden | ALTA | plan.md:60; research.md:253-258; data-model.md:112; quickstart.md:12; tasks.md:92-95, 396 | La migración se planifica sobre `20261119163347_HU02_LocationCharacters`. Con #7 la cadena termina en `20261119171332_HU08MovementCounterparty`, y por decisión de coordinación T004 no se hace hasta fusionar #7. El grafo de dependencias no recoge ese bloqueo. | T004: «Depende de T003 y de la fusión de #7; base `HU08MovementCounterparty`». Añadir la arista #7 → T004 (y #7 → T017, C2) en el grafo. La parte de T004 que no es migración (`StockDocuments.cs`, contributor, `StockEndpoints.cs`) puede adelantarse sin generar la migración. |
-| H4 | Coherencia con #7 (P-01…P-08) | ALTA | tasks.md:42-55; plan.md:231-341 (P-07 en 313-321); spec.md:339-345 | #7 ya aplica P-07 (R-10, R-05 y plan 001:114) y parte de P-01 (HU-05 crea y consulta el pedido; `Cancelled` se conserva). T001 y T002 siguen proponiendo «P-01…P-08» completos, y T002 editaría líneas que #7 ya reescribió: conflicto o texto duplicado. | Ver [la sección c](#c-coherencia-de-tasks-con-p-01p-08). |
+| H4 | Coherencia con #7 (P-01…P-08) | ALTA | tasks.md:42-55; plan.md:231-341 (P-07 en 313-321); spec.md:339-345 | #7 ya aplica P-07 (R-10, R-05 y plan 001:114) y parte de P-01 (HU-05 crea y consulta el pedido; `Cancelled` se conserva). T001 y T002 siguen proponiendo «P-01…P-08» completos, y T002 editaría líneas que #7 ya reescribió: conflicto o texto duplicado. | Ver [la sección c](#c--coherencia-de-tasks-con-p-01p-08). |
 | M1 | Inconsistencia (ETag) | MEDIA | contracts/stock-api.md:121-135; research.md:136-154 (D-07) | `GET /customer-orders/{id}` y `GET /reservations/{id}` devuelven un ETag fuerte de la `rowversion` propia, pero la representación incluye datos de otros agregados: SKU, nombre, unidad e `isActive` del artículo, y código de ubicación y de lote. Desactivar o renombrar el artículo cambia el cuerpo sin cambiar el ETag. Es la misma clase de defecto que R3 en PR #6. | Elegirlo en T001 con A. **Recomendado**: el precedente fusionado de HU-02 (`LocationEntityTags`, digest SHA-256 de representación + rowversion; `EntityTags` ya admite longitudes distintas de 8), recalculado bajo bloqueo en `RequireMatch` dentro de T011 y T013. **Alternativa**: el precedente de HU-08 (`/articles/{id}/context`: ETag solo de datos propios y datos ajenos en otra lectura). Se implementa dentro de T008, T011 y T013. |
 | M2 | Inconsistencia (contraparte) | MEDIA | research.md:99 frente a 119; data-model.md:103-104 | Las dos operaciones cumplen la regla de #7, pero la contraparte es el cliente al reservar (`CustomerReference`) y la referencia del pedido al liberar (`ExternalReference`, que ya es el soporte de la reserva). Para el mismo concepto hay dos valores distintos. | En T013, `CounterpartyReference = CustomerReference`: el pedido ya está bloqueado y leído al liberar. |
 | M3 | Cobertura FR-023 / SC-005 | MEDIA | tasks.md:183-191, 221-232, 258-273 | Ninguna prueba cubre «reutilizar una intención con contenido distinto DEBE rechazarse» (409 `IdempotencyConflict`). La reserva tampoco tiene prueba de replay. T014 prueba otra clave con el mismo `releaseId`, que es otro caso. | Añadir en T012: misma clave y cuerpo → replay idéntico; misma clave con otra cantidad → 409 `IdempotencyConflict`. En T014, lo mismo con otro motivo. |
@@ -289,6 +289,33 @@ del E2E y T020 cubre D-02/FR-003.
    pueden empezar después de los puntos 1 y 2.
 
 Ninguno de estos cambios se ha aplicado en esta iteración: el informe es de solo lectura.
+
+## Resolución
+
+Correcciones aplicadas el 2026-11-20 según las decisiones de B, en tres commits de documentación y
+uno de pruebas de HU-02. Siguen siendo 20 tareas (T001–T020) y los enlaces relativos de la feature
+se han comprobado.
+
+| Hallazgo | Decisión | Commit |
+|----------|----------|--------|
+| C1 | Transporte común de A (`MasterDataMutationsService` / `PendingOperationStore`) en D-15, el plan, stock-ui y T015/T016. Ampliación ⚑ de `mutationPermission()` y `OperationStatusComponent.route()` en T016 y T001(b). S3 retirada. | `ba47d56` |
+| C2 | D-17/T017 con `SupportNotApplicableReason` y `CounterpartyNotApplicableReason` («Preparación de pruebas E2E»). T017 depende de #7. | `ba47d56` |
+| H1 | Contrato de escritores, carreras en ambos órdenes, desactivación y conciliación dentro de T010, T012 y T014. «Retirar referencias» anotado como no aplicable. S4 corregido. | `81ae533` |
+| H2 | Etiquetas INT-HU05-01/02 y COORD-01. | `81ae533` |
+| H3 | Base `20261119171332_HU08MovementCounterparty`. T004 (migración) y T017 dependen de #7. | `81ae533` |
+| H4 | T001/T002 reducidas a P-01 (lo que falta), P-02…P-06 y P-08. T002 no toca R-10 ni el plan 001. | `81ae533` |
+| M1 | **Se aparta de la recomendación del informe**: se mantiene D-07 sin digest. Todo escritor actualiza la cabecera; T012/T014 prueban que el ETag cambia; hu03-integration lo exige a HU-03 en toda salida. Los datos de artículo, ubicación y lote del detalle se documentan como informativos y revalidados bajo bloqueo. | `81ae533` |
+| M2 | `CustomerReference` como contraparte al reservar y al liberar. | `ba47d56` |
+| M3 | Replay e `IdempotencyConflict` en T012 y T014. | `81ae533` |
+| M4 | FR-020 solo en API, desviación en el plan (Complexity Tracking) y en tasks. | `81ae533` |
+| M5 | Bloqueo de reservas por una reserva incierta, documentado en stock-ui. | `81ae533` |
+| M6 | Regla de conteo pendiente de INT-HU04-03 (T012, desviaciones y dependencias del plan). | `81ae533` |
+| L1 | P-05 parte de la fila 409 vigente. | este commit («correcciones del análisis, bajos») |
+| L2 | Frontera HU-03/HU-05 aprobada por A en #7, en la spec y en el estado de revisión del plan; sin cambio normativo. | este commit |
+| L3 | T020 desbloqueada, sin tocar `DetailAsync` ni `LocationEntityTags`. | este commit |
+| L4 | Selector propio en D-15 y stock-ui. | `ba47d56` |
+| L5 | Comentario de tasks.md en la estructura del plan. | este commit |
+| Observación (Vitest) | `locations.routes.spec.ts` estabilizado en un commit aparte de HU-02. | commit siguiente, «HU-02 (B): estabiliza locations.routes.spec.ts» |
 
 ## Observación fuera del análisis
 

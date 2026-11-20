@@ -124,7 +124,7 @@ specs/004-consultar-existencias/
 │   ├── stock-ui.md             # /existencias y pedidos
 │   └── hu03-integration.md     # lectura del pedido para HU-03
 ├── checklists/requirements.md
-└── tasks.md                    # /speckit-tasks (no generado aquí)
+└── tasks.md                    # /speckit-tasks: T001–T020
 ```
 
 ### Source Code (repository root)
@@ -230,7 +230,7 @@ No se tocan `StockCore`, `InventoryOperationExecutor`, `InventoryLocks`, `Operat
 
 | Dependencia | Efecto | Mitigación |
 |-------------|--------|------------|
-| Revisión de A de los diffs P-01…P-08 y de los cambios en sus archivos | Bloquea la fusión, no la implementación. | Cambios aditivos; si A rechaza P-04 (búsqueda), la UI navega solo desde el alta y los enlaces de «Reservas». |
+| Revisión de A de los diffs pendientes (P-01 en lo que falta, P-02…P-06 y P-08; P-07 ya aprobado en #7) y de los cambios en sus archivos | Bloquea la fusión, no la implementación. | Cambios aditivos; si A rechaza P-04 (búsqueda), la UI navega solo desde el alta y los enlaces de «Reservas». |
 | HU-01 recepciones por HTTP | Sin existencias reales para el vídeo. | Endpoint de preparación desactivado por defecto (D-17); se retira cuando exista HU-01. |
 | HU-04 conteos | `CountScopeFrozen` al reservar. | `ILocationUsage.IsInOpenCountAsync` devuelve `false` hasta HU-04. Liberar nunca lo comprueba. La prueba del 409 queda pendiente de INT-HU04-03. |
 | PR #7 de A (cierre de HU-08) | Última migración de la cadena (`HU08MovementCounterparty`), regla de contraparte y backlog INT-HU05-01/02. | T004 (migración) y T017 esperan a su fusión. Las pruebas de INT-HU05 están en T010, T012 y T014. |
@@ -295,11 +295,11 @@ resultado común (research D-08).
 ### P-05 · `contracts/api.md` — fila 409 de errores
 
 ```diff
--| 409 | InsufficientStock, ReservedStockConflict, CountScopeFrozen, DocumentAlreadyConfirmed, OverReceipt, ArticleInactive, HistoryPreventsDeletion, IdempotencyConflict. |
-+| 409 | InsufficientStock, ReservedStockConflict, CountScopeFrozen, DocumentAlreadyConfirmed, OverReceipt, ArticleInactive, HistoryPreventsDeletion, IdempotencyConflict, CustomerOrderNotOpen. |
+-| 409 | InsufficientStock, ReservedStockConflict, CountScopeFrozen, DocumentAlreadyConfirmed, OverReceipt, ArticleInactive, HistoryPreventsDeletion, IdempotencyConflict, DuplicateLocationPlace, LocationIdentityLocked, LocationNotEmpty, NoActiveReceivingLeft. |
++| 409 | InsufficientStock, ReservedStockConflict, CountScopeFrozen, DocumentAlreadyConfirmed, OverReceipt, ArticleInactive, HistoryPreventsDeletion, IdempotencyConflict, DuplicateLocationPlace, LocationIdentityLocked, LocationNotEmpty, NoActiveReceivingLeft, CustomerOrderNotOpen. |
 ```
 
-(Si la fila ya incluye los códigos de HU-02 cuando se integre, se añade a continuación.)
+(Parte de la fila vigente de `api.md`, que ya incluye los códigos de HU-02.)
 
 ### P-06 · `contracts/stock-operations.md` — `## Alcance y disciplina de escritura`
 
@@ -330,6 +330,10 @@ Alternativa abierta a A: una tabla `ReservationRelease(Id, ReservationId)` en lu
 
 Y el mismo cambio en la línea 114 del plan de coordinación (decisión de B ya recogida en la spec).
 
+**Estado**: aplicado y aprobado por A en su PR #7 (`research.md` R-05 y R-10, plan de coordinación
+y reserva de numeración en `docs/agrupamiento.md`), pendiente solo de fusionarse. T002 ya no lo
+aplica.
+
 ### P-08 · `quickstart.md` común
 
 Añadir la evidencia de HU-05 (fecha, entorno, número de pruebas y resultado) cuando se ejecute
@@ -352,8 +356,10 @@ la [matriz S](quickstart.md#pruebas-automatizadas-backend).
 
 ### Estado de la revisión de A
 
-**PENDIENTE** (2026-11-19). No bloquea la implementación de HU-05 ni las pruebas S. Bloquea la
-fusión.
+- **P-07, frontera HU-03/HU-05**: **aprobada por A** (2026-11-19) en su PR #7, que la aplica a los
+  documentos comunes y a `docs/agrupamiento.md`. Está pendiente solo de que #7 se fusione.
+- **Resto (P-01 en lo que falta, P-02…P-06, P-08 y archivos de A)**: **PENDIENTE** (2026-11-20).
+  No bloquea la implementación de HU-05 ni las pruebas S. Bloquea la fusión.
 
 ## Complexity Tracking
 
