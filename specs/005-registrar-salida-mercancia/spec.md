@@ -33,6 +33,14 @@ superiores a lo disponible considerando reservas ajenas; descuento al confirmar;
 Los enlaces anteriores son referencias normativas; esta especificación describe necesidades
 y resultados de negocio. Las decisiones de implementación corresponden al futuro plan de HU-03.
 
+## Clarifications
+
+### Session 2026-11-20
+
+- Q: ¿Se puede descartar (eliminar) un borrador de salida completo, o solo editarlo y quitarle líneas? → A: Se puede eliminar un borrador completo; no afecta al stock y retira sus referencias al artículo, con la prueba de retirada de referencias de INT-HU03-01 (FR-004, US1.9).
+- Q: ¿Cómo se eligen los orígenes al preparar una salida? → A: El sistema propone los orígenes a partir de las reservas propias remanentes de la línea y el operario puede cambiarlos, quitarlos o añadir otros antes de guardar; sin reserva propia no hay propuesta. No es una asignación automática: nada se guarda sin que el operario lo revise (FR-006, US1.10, R-05).
+- Q: ¿Incluye HU-03 corregir una salida confirmada mediante una reversión vinculada? → A: No. Una salida confirmada no se revierte en HU-03; las diferencias se corrigen con el ajuste de inventario de HU-04, cuya spec deberá cubrir explícitamente la corrección de una salida errónea (FR-013, Alcance y dependencias).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Registrar y confirmar una salida contra un pedido de cliente (Priority: P1)
@@ -78,6 +86,13 @@ y cliente.
 8. **Given** una salida en borrador, **When** el operario cambia sus líneas o su fecha y hora del
    hecho y guarda, **Then** el borrador se actualiza; si otro usuario lo cambió antes, se rechaza y
    se ofrece el estado actual.
+9. **Given** una salida en borrador, **When** el operario la elimina tras confirmar que quiere
+   descartarla, **Then** desaparece sin cambiar existencias, reservas ni lo servido del pedido; si
+   otro usuario la cambió o la confirmó antes, se rechaza y se ofrece el estado actual.
+10. **Given** una línea de pedido con reservas propias remanentes en dos orígenes, **When** el
+    operario la añade a la salida, **Then** se proponen esos orígenes con su remanente reservado,
+    sin superar el pendiente de la línea, y el operario puede cambiar la cantidad, quitarlos o
+    añadir otro origen antes de guardar; una línea sin reserva propia no recibe propuesta.
 
 ---
 
@@ -233,8 +248,10 @@ el mismo disponible.
   conservan ambas, para registrar una salida tardía tras una contingencia.
 - Línea de pedido sin pendiente en el momento de preparar: no se ofrece para la salida.
 - Salida confirmada con un error físico (cantidad u origen equivocados): no se edita ni se borra;
-  la diferencia se resuelve mediante un movimiento trazable vinculado, según lo que se decida en
-  la pregunta de alcance sobre correcciones.
+  tampoco se revierte en HU-03; la diferencia se corrige con un ajuste de inventario de HU-04.
+- Propuesta de orígenes cuya reserva propia supera lo que puede servirse (por ejemplo, porque el
+  físico ha bajado): la propuesta es orientativa y la confirmación revalida y explica la cantidad
+  posible.
 
 ## Requirements *(mandatory)*
 
@@ -256,17 +273,21 @@ el mismo disponible.
   que no pertenezca al pedido o una suma por línea de pedido superior a su pendiente.
 - **FR-004**: Una salida guardada sin confirmar DEBE quedar en borrador, editable por usuarios con
   permiso de registro de salidas, y NO DEBE cambiar existencias, reservas ni lo servido del pedido.
-  La edición de un borrador cambiado por otro usuario desde que se leyó DEBE rechazarse sin cambios.
-  [NEEDS CLARIFICATION: ¿se puede descartar (eliminar) un borrador de salida completo, o solo
-  editarlo y quitarle líneas? El modelo común solo define los estados borrador y confirmada.]
+  Un borrador DEBE poder eliminarse completo, sin efecto sobre existencias, reservas ni lo servido,
+  retirando sus referencias al artículo según el contrato común de escritores de referencias.
+  La edición o eliminación de un borrador cambiado o confirmado por otro usuario desde que se leyó
+  DEBE rechazarse sin cambios. Una salida confirmada NO DEBE poder eliminarse.
 - **FR-005**: La fecha y hora del hecho DEBE ser obligatoria y no posterior al momento del registro;
   el sistema DEBE conservar además la fecha y hora del registro.
 - **FR-006**: Antes de confirmar, el usuario DEBE poder revisar el pedido y su cliente y, por línea,
   artículo (con su estado si está inactivo), unidad, ubicación, lote, cantidad, pendiente de la
   línea, físico, reservado propio, reservado ajeno y cantidad posible del origen. Estas cifras son
   orientativas: el sistema las revalida al confirmar.
-  [NEEDS CLARIFICATION: ¿cómo se eligen los orígenes al preparar: a mano por el operario, o
-  propuestos a partir de las reservas propias de la línea y editables antes de guardar?]
+- **FR-006a**: Al añadir una línea de pedido a la salida, el sistema DEBE proponer como orígenes las
+  combinaciones de ubicación y lote con reserva propia remanente de esa línea, con su remanente como
+  cantidad y sin superar en total el pendiente de la línea. El operario DEBE poder cambiar, quitar o
+  añadir orígenes antes de guardar. Sin reserva propia NO DEBE proponerse ningún origen, y el sistema
+  NO DEBE elegir orígenes ni lotes por su cuenta (R-05).
 
 **Confirmar la salida**
 
@@ -290,10 +311,9 @@ el mismo disponible.
 - **FR-012**: Toda salida confirmada DEBE renovar la versión del pedido, aunque no consuma reservas,
   y la de cada reserva cuyo consumido cambie, de modo que cualquier reserva, liberación o salida
   preparada sobre datos anteriores se rechace por versión desactualizada.
-- **FR-013**: Una salida confirmada NO DEBE editarse, eliminarse ni confirmarse de nuevo.
-  [NEEDS CLARIFICATION: ¿incluye HU-03 corregir una salida confirmada (reversión vinculada a la
-  original, con motivo y responsable), o queda fuera y una diferencia posterior se resuelve con el
-  ajuste de inventario de HU-04?]
+- **FR-013**: Una salida confirmada NO DEBE editarse, eliminarse, revertirse ni confirmarse de
+  nuevo en esta feature. Una diferencia descubierta después se corrige con el ajuste de inventario
+  de HU-04, trazable y con su motivo, responsable y autorización.
 - **FR-014**: Se DEBE permitir preparar y confirmar salidas de pedidos existentes aunque su
   artículo se haya desactivado después del alta, con los mismos límites y permisos.
 
@@ -342,6 +362,12 @@ el mismo disponible.
   la creación y liberación de reservas (HU-05), los conteos y ajustes (HU-04), las alertas de mínimo
   (HU-06), los traslados entre ubicaciones, las devoluciones de cliente, el transporte, los
   albaranes imprimibles y cualquier dato comercial.
+- Corrección de salidas confirmadas (clarificación 2026-11-20): HU-03 no las revierte. La spec de
+  **HU-04** DEBERÁ cubrir explícitamente la corrección de una salida errónea (cantidad u origen
+  equivocados) mediante su ajuste trazable, incluidos su efecto sobre el físico del origen y su
+  relación con la salida original. Esto no corrige lo servido del pedido ni el consumo de
+  reservas, que la salida confirmada conserva; si HU-04 necesitara cambiarlos, deberá acordarse
+  como cambio compartido (AGENTS.md).
 - Cobertura de los criterios originales de HU-03: vinculación a pedido de cliente (US1, FR-001);
   artículos, cantidades y ubicaciones de origen (US1, FR-002/003); bloqueo de salidas superiores a lo
   disponible considerando reservas ajenas (US2, FR-007/010); descuento al confirmar (US1.1, US1.3,
@@ -367,7 +393,7 @@ concretarán como pruebas de este módulo, no de un doble de otro módulo.
 
 | ID | Origen | Qué exige a HU-03 | Requisitos |
 |----|--------|-------------------|------------|
-| INT-HU03-01 | [Backlog de integración](../001-reparto-specs-inventario/integration-tasks.md#hu-03--salidas--persona-b) (HU-08 T035/T064/T066/T075/T100/T101) | Integrar la salida y sus líneas con el contrato de aceptación de escritores de referencias (borradores, retirada de líneas, lectores, carreras con la edición y el borrado del artículo); consumir el pedido y las reservas de HU-05 sin duplicar sus altas; confirmar salida, servido y consumo de reserva con el protocolo común. | FR-001–FR-004, FR-007–FR-012, FR-020, FR-022 |
+| INT-HU03-01 | [Backlog de integración](../001-reparto-specs-inventario/integration-tasks.md#hu-03--salidas--persona-b) (HU-08 T035/T064/T066/T075/T100/T101) | Integrar la salida y sus líneas con el contrato de aceptación de escritores de referencias (borradores, retirada de líneas, lectores, carreras con la edición y el borrado del artículo); consumir el pedido y las reservas de HU-05 sin duplicar sus altas; confirmar salida, servido y consumo de reserva con el protocolo común. | FR-001–FR-004 (incluida la eliminación de borradores), FR-007–FR-012, FR-020, FR-022 |
 | INT-HU03-02 | Ídem (HU-08 T078/T103) | Servir compromisos anteriores de artículos inactivos con sus límites, reservas propias y ajenas y permisos originales; conservar historial y saldos; coordinación con la desactivación. | FR-014, US3 |
 | HU-05 regla 3 y 4 del [contrato HU-03](../004-consultar-existencias/contracts/hu03-integration.md#3-reglas-que-hu-03-debe-respetar) | Pendiente declarado por HU-05 | Probar el consumo de reservas al servir (consumido por asignación, estado derivado de la reserva, Σ remanente = reservado del bucket) y la renovación de la versión de la cabecera del pedido en toda salida, con y sin reservas, y la de cada reserva consumida. | FR-008, FR-012, US2.5–US2.7 |
 | HU-05 S-18 completo | [tasks.md de HU-05](../004-consultar-existencias/tasks.md), «Si hay tiempo» S4 («HU-03 lo amplía») | Ampliar la prueba del lector del pedido dentro de la confirmación: pendiente y remanente por bucket antes y después de servir. | FR-007, FR-008 |
@@ -440,7 +466,8 @@ Esta especificación define la aceptación; no declara realizadas pruebas ni rev
   aplicación. El documento de soporte es la propia salida junto con la referencia externa del pedido.
 - El motivo del movimiento es la expedición del pedido; no se pide otro motivo al operario.
 - La salida sigue el ciclo borrador → confirmada del modelo y del contrato HTTP común; un borrador
-  no reserva ni retiene existencias.
+  no reserva ni retiene existencias. Eliminar un borrador no añade un estado nuevo al modelo: el
+  borrador deja de existir y no deja movimientos, porque nunca los tuvo.
 - Puede haber varios borradores y varias salidas parciales del mismo pedido; el pendiente se
   revalida al confirmar.
 - El responsable del borrador y el de la confirmación pueden ser distintos; ambos quedan

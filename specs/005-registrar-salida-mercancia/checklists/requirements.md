@@ -16,7 +16,7 @@ implementación, pruebas ejecutadas ni aceptación operativa.
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain
+- [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -38,6 +38,10 @@ implementación, pruebas ejecutadas ni aceptación operativa.
   [NEEDS CLARIFICATION], dentro del límite: descartar un borrador (FR-004), elección de orígenes
   al preparar (FR-006) y corrección de una salida confirmada (FR-013). Se resuelven con
   `/speckit-clarify` antes de `/speckit-plan`.
+- Revisión 2 (2026-11-20, `/speckit-clarify`): los 16 criterios se cumplen. Los 3 marcadores se
+  resuelven en la sesión de clarificación: eliminar un borrador completo (FR-004, US1.9),
+  orígenes propuestos desde las reservas propias y editables (FR-006a, US1.10) y salida confirmada
+  sin reversión en HU-03, que se corrige con el ajuste de HU-04 (FR-013, Alcance y dependencias).
 - Las demás decisiones abiertas se documentan en Assumptions como valores por defecto: contraparte
   siempre el cliente del pedido (nunca el motivo de no aplicación), motivo implícito de expedición,
   ciclo borrador → confirmada del contrato común, varios borradores y salidas parciales por pedido,
