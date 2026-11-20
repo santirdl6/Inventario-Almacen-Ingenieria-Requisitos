@@ -170,9 +170,10 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     exactamente {Lot, StockBalance, StockEntry} pasan a `Subset`, en commits aparte.
   - Resultado: suite 146/1/0; modelo sin cambios; cadena desde cero, revertir y reaplicar
     correctas.
-- [ ] T005 ⚑ commit aparte (archivo común). En `backend/src/Inventario.Api/Program.cs`, añadir
+- [X] T005 ⚑ commit aparte (archivo común). En `backend/src/Inventario.Api/Program.cs`, añadir
   `builder.Services.AddStock();` y `api.MapStockEndpoints();` junto a los de Locations, sin otro
-  cambio (depende de T004).
+  cambio (depende de T004). **Hecho (2026-11-20)**: tres líneas, contando el `using
+  Inventario.Api.Features.Stock;` que necesitan las extensiones. Suite 146/1/0.
 
 **Checkpoint**: migración aplicada, suite previa en verde y feature registrada sin rutas.
 
