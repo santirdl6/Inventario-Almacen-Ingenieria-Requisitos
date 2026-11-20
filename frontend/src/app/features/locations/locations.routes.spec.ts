@@ -44,7 +44,11 @@ describe('Rutas de ubicaciones', () => {
     expect(TestBed.inject(Router).url).toBe('/ubicaciones/articulo');
     expect(harness.routeNativeElement!.querySelector('h1')!.textContent).toBe('Localizar un artículo');
     expect(harness.routeNativeElement!.querySelector('#article-query')).not.toBeNull();
-  });
+    // Es la primera prueba del archivo que resuelve los loadComponent de la lista y de la
+    // búsqueda (con PrimeNG): sola tarda unos 2 s, pero dentro de la suite completa, con los
+    // workers cargados, llega a 4-6 s y superaba el límite de 5 s. La siguiente prueba ya usa
+    // los chunks en caché (unos 50 ms). Mismo margen que operation-areas.spec.ts.
+  }, 20_000);
 
   it('la ruta de búsqueda no se confunde con el detalle de una ubicación (:id)', async () => {
     const harness = await RouterTestingHarness.create();
