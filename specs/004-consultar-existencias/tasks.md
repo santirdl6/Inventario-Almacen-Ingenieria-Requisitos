@@ -426,7 +426,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - Soporte = referencia externa; contraparte = `CustomerReference`, nunca los dos campos. La
     cabecera del pedido se renueva marcando `State`; 201 sin `ETag`, con `Location`.
   - `JsonBody` (en `ReservationDtos.cs`) lee los cuerpos de reservar y liberar.
-- [ ] T012 [P] [US3] [INT-HU05-01] [INT-HU05-02] Crear
+- [X] T012 [P] [US3] [INT-HU05-01] [INT-HU05-02] Crear
   `backend/tests/Inventario.IntegrationTests/Stock/ReservationTests.cs`.
   - **Habitual**: S-10 (reservar 7 de 10 → físico 10, reservado 7, disponible 3 en `GET /stock`;
     `GET /stock/reservations` muestra el pedido y el bucket). El `ETag` de
@@ -458,6 +458,25 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     `GET /customer-orders/{id}`.
 
   (US3, US5.1; FR-016, FR-022–FR-025; SC-003, SC-004, SC-005.) Depende de T011.
+
+  **Hecho (2026-11-20)**: `ReservationTests`, 16 pruebas.
+  - Rojo previo anotado: las 16 fallaban porque las rutas no existían (404, y las carreras
+    agotaban la espera).
+  - Con T011, 8 en verde y 8 carreras agotadas, por la barrera: `InventoryLocks` pide
+    `sp_getapplock` con un comando ADO.NET propio, fuera de los interceptores de EF. Se cambió
+    `LockBarrier` para retener la primera lectura EF de la fila (`Articles`/`Locations`) tras el
+    bloqueo. Resultado: 16/16.
+  - Cubre S-10 (incluido el `ETag` del pedido distinto tras reservar y el contexto con ubicación y
+    lote) y S-11, además de errores, idempotencia, permisos, artículo desactivado, S-18 con
+    asignaciones en dos buckets, V-05 (20 rondas) y la conciliación tras S-10, V-05 y las carreras.
+  - **Carreras** en ambos órdenes contra la desactivación, el `PUT` de la definición y el `DELETE`
+    del artículo y la desactivación de la ubicación. Usan `LockBarrier`, nuevo, porque los
+    escritores que rechazan no guardan y `SaveBarrier` no los retiene.
+  - `StockApiSupport` amplía sus ayudas (pedido, reserva y liberación por HTTP, escritores y
+    conciliación) sin modificar `StockTestHarness`.
+  - **Desviación**: con la reserva primero, la desactivación de la ubicación recibe 412 y no 409.
+    El `ETag` de HU-02 incluye los totales y la reserva cambia el reservado. Con la desactivación
+    primero, 409 `LocationNotEmpty`.
 
 **Checkpoint**: reservas confirmadas visibles en la consulta; V-05 en verde.
 
