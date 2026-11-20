@@ -600,7 +600,7 @@ veces; evidencia registrada.
   - Rojo previo anotado: 7/7 fallaban con un esqueleto vacío del componente.
   - `operation-areas.spec.ts` (B, H0) marca `existencias` como área desarrollada.
   - Vitest 115/115 (línea base 108); `tsc` de app y spec limpio.
-- [ ] T016 [US2] Depende de T008, T011, T013 y T015.
+- [X] T016 [US2] Depende de T008, T011, T013 y T015.
   - Crear `frontend/src/app/features/stock/data/customer-orders-api.service.ts`. Su `detail(id)` hace
     **dos lecturas**, como `articles-api.service.ts` de HU-08:
     - `GET /customer-orders/{id}` con `observe: 'response'` para el `ETag` (datos propios);
@@ -678,6 +678,44 @@ veces; evidencia registrada.
     - permisos: sin `Reservations.Manage` no hay botones.
 
   (US2–US4; FR-009, FR-013, FR-018, FR-026–FR-028.)
+
+  **Hecho (2026-11-20)**:
+  - **Archivos de A**, autorizados por B, en tres commits aparte, cada uno con su prueba Vitest en
+    una spec nueva de B (`features/stock/data/*-hu05.spec.ts`), sin tocar las specs de A:
+    - `mutationPermission()`, `e491a28`. Está en `pending-operation.store.ts`, no en
+      `master-data-mutations.service.ts`;
+    - `appRoute`, `f867b61`;
+    - `OperationStatusComponent.route()` y «Abrir pedido», `013d429`.
+  - **Desviación**: `MasterDataMutationsService.mutate()` no se modifica. HU-05 llama a
+    `pending.begin(…, appRoute)` y después a `send()`, que es lo que hace `mutate()` internamente.
+  - `customer-orders-api.service.ts`:
+    - el detalle hace dos lecturas y relee hasta 3 veces si `orderVersion` ≠ `ETag`;
+    - `GET /reservations/{id}` solo se usa para el `ETag`;
+    - alta, reserva y liberación con la intención de A y `appRoute`;
+    - `isUncertain()` propio en lugar de `idempotent-intent.ts`.
+  - `orders/order-form.page.ts`, `order-detail.page.ts`, `reserve-dialog.ts` y `release-dialog.ts`.
+    Los diálogos usan `cdkTrapFocus` y cierran con Escape. Rutas `pedidos/nuevo` (`permissionGuard`,
+    `Shipping.Record`) y `pedidos/:id`.
+  - Mientras haya una reserva pendiente de comprobar, no se puede reservar otra: se muestra «Comprueba
+    la reserva pendiente antes de reservar de nuevo».
+  - Specs: `order-form.page.spec.ts` (5) y `order-detail.page.spec.ts` (7):
+    - alta con clave y navegación;
+    - artículo repetido;
+    - 422 por línea conservando los datos;
+    - 409 `DuplicateCode`;
+    - respuesta perdida;
+    - detalle combinado y ordenado por SKU;
+    - `orderVersion` ≠ `ETag` → relectura y `If-Match` correcto;
+    - 409 conservando cantidades;
+    - liberar con el `ETag` de la reserva, motivo y `releaseId`;
+    - sin permiso no hay botones;
+    - reserva pendiente bloqueada y restaurada tras recargar con la misma clave, cuerpo e `If-Match`;
+    - los 5 pasos de cerrar sesión con «Abrir pedido» y solo comprobar.
+  - Rojo previo anotado: 12/12 fallaban con esqueletos vacíos. Las de A (b), (a) y (c), por
+    `mutationPermission` nulo, por compilación (`appRoute` inexistente) y por la ruta
+    `/maestros/undefined/nuevo`.
+  - Vitest 136/136 (línea base 108); `tsc` de app y spec limpio; `npm run build` correcto. No hay
+    lint configurado: no existe script, objetivo `lint` ni ESLint.
 
 **Checkpoint frontend**: `npm test` y `npm run build` en verde; recorrido manual con existencias
 preparadas.

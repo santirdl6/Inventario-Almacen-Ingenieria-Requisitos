@@ -14,3 +14,6 @@ th, td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid #e0
 .badge-inactive { font-weight: 600; }
 .pager { display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem; }
 dialog, .dialog { border: 1px solid #c8c8c8; border-radius: 4px; padding: 1rem; margin: 1rem 0; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.order-line { border-top: 1px solid #e0e0e0; padding-top: 0.5rem; }
+.reservation { margin-left: 1rem; }
