@@ -116,7 +116,10 @@ recibe:
 
 - `Source = ("reservation-release", releaseId)` y `OccurredAt = UtcNow`.
 - `Reason` = el motivo del usuario.
-- `SupportReference = "reservation:{reservationId}"` y `CounterpartyReference = ExternalReference`.
+- `SupportReference = "reservation:{reservationId}"` y `CounterpartyReference = CustomerReference`
+  del pedido, ya bloqueado y leído. Es la misma contraparte que al reservar (D-05): el cliente. La
+  referencia del pedido ya figura como soporte de la reserva (revisado tras `/speckit-analyze`, M2).
+  Con eso se cumple la regla del PR #7: todo hecho nuevo lleva contraparte o motivo.
 
 `StockCore` comprueba el reservado del bucket. HU-05 comprueba antes el **remanente de cada
 asignación** (`ReservedStockConflict` si se supera), porque el bucket puede tener reservas de otros
@@ -261,8 +264,9 @@ regenera la local según el plan global §5.
 
 **Decisión**: `features/stock` sustituye el placeholder de `/existencias`:
 
-- `''`: consulta de existencias, con la búsqueda de artículo `article-search` de HU-02 y la pestaña
-  «Reservas».
+- `''`: consulta de existencias, con un selector de artículo propio (SKU o nombre, incluidos
+  inactivos) y la pestaña «Reservas». No se reutiliza `article-search` de HU-02 porque enlaza fijo
+  a `/ubicaciones/articulo/:id` (desviación registrada en tasks.md).
 - `pedidos`: búsqueda de pedidos.
 - `pedidos/nuevo`: alta (`permissionGuard` con `Shipping.Record`).
 - `pedidos/:id`: detalle, reservar y liberar. Los botones solo se muestran con
@@ -270,13 +274,31 @@ regenera la local según el plan global §5.
 
 Errores con `apiProblem()`. Los parámetros se leen con `ActivatedRoute`.
 
-La intención idempotente reutiliza `idempotent-intent.ts` y `shared/operation.ts` de HU-02
-(código de B). Se trasladan a `frontend/src/app/shared/operations/` y HU-02 actualiza sus imports.
-No se usa `PendingOperationStore` de A, porque solo admite rutas de datos maestros y
-`MasterData.Manage` (excepción ya documentada en HU-02 D-11).
+**Intención idempotente (revisado tras `/speckit-analyze`, C1)**: las tres mutaciones (alta de
+pedido, reservar y liberar) usan el transporte común de A ya fusionado con las correcciones R1–R4
+del PR #6, igual que HU-02 en `locations-api.service.ts`:
 
-**Alternativas**: ampliar `PendingOperationStore` de A. Se descarta porque cambiaría su validación
-de rutas y permisos, que es de A.
+- `MasterDataMutationsService.mutate()` abre la intención en `PendingOperationStore` con actor,
+  método, recurso, cuerpo congelado y `If-Match`, y envía `Idempotency-Key`.
+- La intención se restaura al recargar (R1), pertenece a su actor (R2), conserva solo la referencia
+  al cerrar sesión y bloquea otra intención del mismo recurso mientras sea incierta.
+- «Comprobar» usa `check()` (`GET /operations/{id}`) y «Repetir la misma intención», `retry()`.
+  El estado 7 se muestra con `OperationStatusComponent`.
+- El `releaseId` viaja en el cuerpo congelado, así que se conserva en recargas y reintentos sin
+  lógica propia.
+
+No se usan las funciones de clave de `idempotent-intent.ts`: HU-02 las abandonó por los defectos
+R1 y R2, y reutilizarlas los reintroduciría.
+
+El almacén solo reconoce maestros y ubicaciones, así que T016 amplía dos archivos de A en un
+commit aparte:
+
+- `mutationPermission()`: `/api/v1/customer-orders` → `Shipping.Record`;
+  `/api/v1/reservations` y `/api/v1/reservations/{id}/release` → `Reservations.Manage`.
+- `OperationStatusComponent.route()`: lleva esos recursos a las rutas de `/existencias/pedidos`.
+
+**Alternativas**: a) mantener `idempotent-intent.ts`, que reintroduce R1 y R2 y se descarta;
+b) un almacén propio de HU-05, que duplicaría el transporte común. También se descarta.
 
 ## D-16. Pruebas
 
@@ -298,6 +320,14 @@ lo pasa desde el entorno (`Testing__EnableStockSeeding: ${TESTING_ENABLE_STOCK_S
 en producción no se define. Ejecuta `StockCore` (`Receive`) mediante el ejecutor común,
 con permiso `Receiving.Record`, documento `test-receipt` y motivo «Preparación de pruebas E2E»: es
 un movimiento normal del diario, no una escritura de saldos. Sin la opción, la ruta no existe (404).
+
+**Trazabilidad (constitución IV; revisado tras `/speckit-analyze`, C2)**: no hay documento de
+compra ni proveedor, así que el `StockCommandContext` lo hace explícito con
+`SupportNotApplicableReason = "Preparación de pruebas E2E"` y
+`CounterpartyNotApplicableReason = "Preparación de pruebas E2E"`. Sin ellos, el núcleo del PR #7 de A
+rechaza el hecho con 422 y la CHECK `CK_StockMovements_Counterparty` impide la fila. El parámetro
+`CounterpartyNotApplicableReason` solo existe tras fusionar #7, por lo que T017 depende de esa
+fusión.
 
 **Motivo**: la guía común exige preparar datos «mediante comandos auditados o un fixture de
 pruebas, nunca escribiendo saldos». HU-01 aún no ofrece recepciones por HTTP y el vídeo necesita

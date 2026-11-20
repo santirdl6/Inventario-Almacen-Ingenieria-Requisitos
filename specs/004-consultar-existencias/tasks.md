@@ -41,7 +41,8 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
 - [ ] T001 ⏸ **PENDIENTE: solicitar la revisión de A en el PR**, sin bloquear la implementación, de:
   - (a) los diffs P-01…P-08 de [plan.md § Cambios al modelo común](plan.md#cambios-al-modelo-común-pendientes-de-a);
-  - (b) los cambios en archivos de A y comunes de T005, T009 y T018;
+  - (b) los cambios en archivos de A y comunes de T005, T009, T016 (`mutationPermission()` y
+    `OperationStatusComponent.route()`) y T018;
   - (c) la alternativa `ReservationRelease` de research D-06;
   - (d) el endpoint de preparación de pruebas de D-17.
 
@@ -209,7 +210,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
       `CustomerOrderNotOpen`) → lote del artículo (422) → `ILocationUsage.IsInOpenCountAsync`
       (409 `CountScopeFrozen`) → Σ asignaciones + remanente activo ≤ pendiente (422
       `errors.allocations`).
-    - `StockCore.Prepare(StockOperation.Reserve, context("reservation", id, UtcNow, "Reserva para el pedido {ext}", support = ext, counterparty = cliente), allocations)`
+    - `StockCore.Prepare(StockOperation.Reserve, context("reservation", id, UtcNow, "Reserva para el pedido {ext}", support = ext, CounterpartyReference = CustomerReference), allocations)`
       + `ApplyAsync`.
     - `Add` de la reserva `Active`, `order.Touch()` y 201 con `Location`, **sin** `ETag` (D-08).
     - Sin `SaveChanges` dentro de `change`.
@@ -247,8 +248,8 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     → `LocationsAsync` → `ArticlesAsync`.
   - Después: `RequireMatch(ifMatch, reservation.Version)` → asignación de la reserva (422) →
     cantidad ≤ remanente (409 `ReservedStockConflict`).
-  - `StockCore.Prepare(StockOperation.Release, context("reservation-release", releaseId, UtcNow, motivo, support = "reservation:{r}", counterparty = ext), allocations)`
-    + `ApplyAsync`.
+  - `StockCore.Prepare(StockOperation.Release, context("reservation-release", releaseId, UtcNow, motivo, support = "reservation:{r}", CounterpartyReference = CustomerReference), allocations)`
+    + `ApplyAsync`. La contraparte es el cliente, como al reservar (D-06, regla de contraparte de #7).
   - `allocation.Release`, `DeriveState`, `Touch()` de la reserva y del pedido, y 200 con
     `{ operationId, reservationId, releaseId, movementId, state }`.
   - Sin comprobar artículo inactivo ni conteo (R-05).
@@ -291,17 +292,33 @@ veces; evidencia registrada.
     - «sin lote», «Inactivo» en texto, «Datos a las {asOf}», «Actualizar» y «No hay existencias
       para esta selección».
     - Errores con `apiProblem()`.
+    - Solo lee: no hay mutaciones ni intención idempotente en esta pantalla.
   - En `frontend/src/app/features/stock/stock.routes.ts`, sustituir el placeholder por `''`.
   - Spec unitaria `stock-query.page.spec.ts`: habitual (totales desde `totals`, `includeEmpty`) y
     error (404 → mensaje en la página).
 
   (US1; FR-001–FR-008, FR-028.)
 - [ ] T016 [US2] Depende de T008, T011, T013 y T015.
-  - Crear `frontend/src/app/features/stock/data/customer-orders-api.service.ts`: alta con
-    `Idempotency-Key`; detalle con `observe: 'response'` para el `ETag`; reservar y liberar con
-    `If-Match` e `Idempotency-Key`.
-  - La intención idempotente se importa de `frontend/src/app/features/locations/data/idempotent-intent.ts`
-    **sin moverla**: el traslado está en «Si hay tiempo».
+  - Crear `frontend/src/app/features/stock/data/customer-orders-api.service.ts`. Detalle con
+    `observe: 'response'` para el `ETag`. Las tres mutaciones van con
+    `MasterDataMutationsService.mutate()`, como `locations-api.service.ts` de HU-02:
+    - `POST /api/v1/customer-orders`;
+    - `POST /api/v1/reservations` con el `ETag` del pedido;
+    - `POST /api/v1/reservations/{id}/release` con el `ETag` de la reserva.
+
+    `PendingOperationStore` conserva la clave, el cuerpo congelado y el `If-Match`. **No** se usan
+    las funciones de clave de `idempotent-intent.ts`, que reintroducirían R1 y R2 del PR #6 (D-15).
+  - ⚑ **commit aparte (archivos de A)**, antes de las pantallas:
+    - en `frontend/src/app/core/operations/pending-operation.store.ts`, ampliar
+      `mutationPermission()`: `^/api/v1/customer-orders$` → `Shipping.Record`, y
+      `^/api/v1/reservations$` y `^/api/v1/reservations/{uuid}/release$` → `Reservations.Manage`;
+    - en `frontend/src/app/core/operations/operation-status.component.ts`, que `route()` lleve el
+      alta a `/existencias/pedidos/nuevo` y reservas y liberaciones a `/existencias/pedidos/{orderId}`
+      (el `customerOrderLineId` o `reservationId` del cuerpo identifica el pedido; fijar el
+      mecanismo al implementar).
+
+    Nada más cambia en esos archivos. Spec unitaria: la intención de HU-05 se restaura tras recargar
+    y no se reutiliza con otro usuario, como `location-form.review.spec.ts`.
   - Crear `orders/order-form.page.ts`: referencia, cliente y líneas; un artículo no puede
     elegirse dos veces; revisión antes de confirmar; errores por línea conservando datos; al
     confirmar, navegación al detalle.
@@ -309,11 +326,12 @@ veces; evidencia registrada.
     reservas con asignaciones.
   - Crear `orders/reserve-dialog.ts`, que lista `GET /stock` del artículo con el máximo
     reservable.
-  - Crear `orders/release-dialog.ts`: motivo obligatorio y `releaseId` generado al abrir y
-    conservado en reintentos.
+  - Crear `orders/release-dialog.ts`: motivo obligatorio y `releaseId` generado al abrir. Viaja en
+    el cuerpo congelado de la intención, así que se conserva en recargas y reintentos.
   - Los diálogos solo se muestran con `SessionService.has('Reservations.Manage')`. Tras
-    confirmar, se vuelve a leer el pedido. Estados «Resultado pendiente de comprobar», 409 y 412
-    según [stock-ui](contracts/stock-ui.md), sección «Estados de operación».
+    confirmar, se vuelve a leer el pedido. Estados según [stock-ui](contracts/stock-ui.md),
+    sección «Estados de operación»: «Resultado pendiente de comprobar» con
+    `OperationStatusComponent`, `check()` y `retry()`; 409 y 412.
   - Rutas `pedidos/nuevo` (`permissionGuard`, `data: { permission: 'Shipping.Record' }`) y
     `pedidos/:id`, leyendo `id` con `ActivatedRoute`.
   - Specs unitarias: habitual (alta, reservar y liberar envían las cabeceras), error (409 conserva
@@ -328,14 +346,18 @@ preparadas.
 
 ## Phase 8: Preparación de pruebas y E2E-01 (vídeo)
 
-- [ ] T017 Depende de T005.
+- [ ] T017 Depende de T005 y de la **fusión del PR #7 de A** (`CounterpartyNotApplicableReason` en
+  `StockCommandContext`).
   - Crear `backend/src/Inventario.Api/Features/Stock/Testing/StockSeedingEndpoints.cs` (D-17):
     `POST /api/v1/testing/stock-receipts`, que `MapStockEndpoints` mapea **solo** si
     `configuration.GetValue<bool>("Testing:EnableStockSeeding")`.
   - Ejecuta `StockCore` (`Receive`) con el ejecutor común, permiso `Receiving.Record`, documento
     `test-receipt` y motivo «Preparación de pruebas E2E».
+  - Sin documento de compra ni proveedor, lo hace explícito (constitución IV):
+    `SupportNotApplicableReason = "Preparación de pruebas E2E"` y
+    `CounterpartyNotApplicableReason = "Preparación de pruebas E2E"`.
   - Una prueba en `StockQueryTests.cs`: sin la opción → 404; con la opción → movimiento `Receipt`
-    en el diario.
+    en el diario con ambos motivos.
 - [ ] T018 ⚑ commit aparte (archivos comunes y de A).
   - En `docker-compose.yml`, servicio `app`, añadir
     `Testing__EnableStockSeeding: ${TESTING_ENABLE_STOCK_SEEDING:-false}`.
@@ -379,9 +401,8 @@ preparadas.
   desde el alta o por URL.
 - **S2** Pestaña «Reservas» de `/existencias` sobre `GET /stock/reservations` (US3.8 en
   interfaz). El endpoint sí entra en T011 y se prueba en T012.
-- **S3** Trasladar `idempotent-intent.ts` y `shared/operation.ts` de `features/locations` a
-  `frontend/src/app/shared/operations/` y actualizar imports de HU-02 y HU-05 (D-15). ⚑ commit
-  aparte (HU-02).
+- ~~S3~~ **Retirada** tras `/speckit-analyze` (C1). HU-05 usa el transporte común de A
+  (D-15), así que no hay nada que trasladar. El identificador S3 queda sin uso para no renumerar.
 - **S4** Pruebas no exigidas en esta entrega: S-04 (borrador no cuenta), S-06 (artículo
   inactivo), S-13 (dos reservas de la misma línea), S-18 (contrato HU-03, que HU-03 cubrirá),
   S-19 (uso del artículo, cubierto indirectamente por la suite de HU-08 en T004) y S-07
@@ -436,5 +457,5 @@ siempre en commit propio. Nunca `git add -A`.
 | SC-006 (rendimiento: p95 ≤ 2 s con 10.000 artículos, 1.000.000 de entradas y 25 sesiones) sin medir. | Presupuesto de unas 50 h para cuatro historias; requiere datos sintéticos y carga. | HU-05 se integra, pero no se da por aceptada ([plan § Complexity Tracking](plan.md#complexity-tracking)). |
 | SC-007 (validación con trabajadores, constitución III) sin realizar. | Requiere sesiones con operarios fuera de esta entrega. | Igual que la anterior; guion en el [quickstart](quickstart.md#fuera-de-alcance-de-esta-entrega). |
 | Pruebas limitadas a habitual, error, permisos, V-05, V-04 ampliada y V-08. | Recorte de presupuesto. | S-04, S-06, S-07 (completa), S-13, S-18 y S-19 pasan a «Si hay tiempo» (S4). |
-| Selector de artículo propio en lugar de `article-search` de HU-02 (cambio frente a research D-15). | El de HU-02 enlaza fijo a `/ubicaciones/articulo/:id`; reutilizarlo exigiría tocar HU-02 antes del PR #6. | Un componente pequeño duplicado; se unifica en S3 o después. |
+| Selector de artículo propio en lugar de `article-search` de HU-02 (recogido en research D-15). | El de HU-02 enlaza fijo a `/ubicaciones/articulo/:id`; reutilizarlo exigiría tocar HU-02. | Un componente pequeño duplicado; se unifica en una historia posterior. |
 | Búsqueda de pedidos (P-04) y pestaña «Reservas» recortadas. | No salen en el vídeo. | El E2E abre el pedido por URL; S1 y S2 si hay tiempo. |

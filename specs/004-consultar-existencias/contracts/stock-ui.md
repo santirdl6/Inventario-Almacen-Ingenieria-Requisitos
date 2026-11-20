@@ -17,7 +17,8 @@ El área `/existencias` ya está declarada en `operation-areas.ts` con `Inventor
 
 ## Consulta de existencias
 
-- Selector de artículo con la `article-search` de HU-02 (SKU o nombre, incluidos inactivos).
+- Selector de artículo propio (SKU o nombre, incluidos inactivos, con `GET /articles?q=&state=all`).
+  No se usa `article-search` de HU-02, que enlaza fijo a `/ubicaciones/articulo/:id` (research D-15).
   Hasta elegir un artículo no se consulta, y se muestra «Elige un artículo para ver sus
   existencias» (US1.4).
 - Filtros opcionales «Ubicación» y «Lote». El de lote solo aparece si el artículo tiene
@@ -63,10 +64,10 @@ El área `/existencias` ya está declarada en `operation-areas.ts` con `Inventor
 
 | Estado | Comportamiento |
 |--------|----------------|
-| Confirmando | Botón deshabilitado y la clave idempotente conservada (`shared/operations/idempotent-intent.ts`, trasladado desde HU-02). |
+| Confirmando | Botón deshabilitado. La intención (clave, cuerpo congelado e `If-Match`) queda en el transporte común `MasterDataMutationsService` / `PendingOperationStore` (research D-15): sobrevive a la recarga, pertenece al usuario que la abrió y al cerrar sesión solo conserva la referencia. |
 | Conflicto 409 | `InsufficientStock` y `ReservedStockConflict` muestran el `detail` del servidor, que nombra el disponible o el remanente, y ofrecen «Ver existencias actuales». |
 | `VersionConflict` 412 | «Otra persona cambió el pedido o la reserva»; recargar sin perder las cantidades escritas. |
-| Respuesta perdida | «Resultado pendiente de comprobar»; botones «Comprobar resultado» (`GET /operations/{id}`) y «Repetir la misma intención». |
+| Respuesta perdida | «Resultado pendiente de comprobar», mostrado con `OperationStatusComponent`, también tras recargar; botones «Comprobar resultado» (`check()`, `GET /operations/{id}`) y «Repetir la misma intención» (`retry()`, con la clave, el cuerpo y el `If-Match` originales). |
 | 403 | Mensaje de permiso; las acciones no permitidas no se muestran, aunque el servidor es la barrera. |
 
 ## Accesibilidad

@@ -168,7 +168,8 @@ backend/tests/Inventario.IntegrationTests/Stock/
 └── CustomerOrderReaderTests.cs     # S-18
 
 frontend/src/app/
-├── shared/operations/{idempotent-intent,operation}.ts   # trasladados desde features/locations (B)
+├── core/operations/pending-operation.store.ts           # (A) mutationPermission() + rutas de HU-05 (D-15)
+├── core/operations/operation-status.component.ts        # (A) route() hacia /existencias/pedidos (D-15)
 └── features/stock/
     ├── stock.routes.ts                     # sustituye el placeholder
     ├── data/{stock.models,stock-api.service,customer-orders-api.service}.ts
@@ -179,14 +180,20 @@ frontend/e2e/stock.spec.ts                  # E2E-01
 docker-compose.yml                          # (común) pasa TESTING_ENABLE_STOCK_SEEDING, false por defecto
 ```
 
+La preparación E2E de D-17 indica `SupportNotApplicableReason` y `CounterpartyNotApplicableReason`
+(constitución IV; regla de contraparte del PR #7).
+
 **Structure Decision**: estructura del plan global, con `Features/Stock` como dice su tabla de
 áreas. Archivos de otros dueños que se tocan, todos con cambios aditivos señalados para revisión
 en el PR:
 
-- De A: `MasterDataProblemMapper.cs` (una rama).
+- De A:
+  - `MasterDataProblemMapper.cs` (una rama);
+  - en frontend, `mutationPermission()` de `pending-operation.store.ts` y `route()` de
+    `operation-status.component.ts`, ampliados con los recursos de HU-05 (D-15).
 - Comunes: `Program.cs` (registro) y `docker-compose.yml` (variable con valor `false`).
-- De B: `LocationQueries.cs` de HU-02 (delegación sin cambio de contrato) y el traslado de dos
-  archivos de frontend de HU-02.
+- De B: `LocationQueries.cs` de HU-02 (delegación sin cambio de contrato). No se trasladan archivos
+  de frontend de HU-02: la intención usa el transporte común (D-15).
 
 No se tocan `StockCore`, `InventoryOperationExecutor`, `InventoryLocks`, `OperationResult` ni
 `EntityTags`.
@@ -214,8 +221,9 @@ No se tocan `StockCore`, `InventoryOperationExecutor`, `InventoryLocks`, `Operat
 4. **HTTP**: `GET` con `Inventory.Read`; `POST /customer-orders` con `Shipping.Record`; reservar y
    liberar con `Reservations.Manage`. Antiforgery del grupo `/api/v1` y `Key()` como en HU-02.
 5. **Frontend**: servicios tipados; `apiProblem()`; `permissionGuard` en `pedidos/nuevo`;
-   `SessionService.has('Reservations.Manage')` para los diálogos; intención idempotente
-   compartida (D-15).
+   `SessionService.has('Reservations.Manage')` para los diálogos. La intención idempotente usa el
+   transporte común `MasterDataMutationsService` / `PendingOperationStore`, con las correcciones
+   R1–R4 del PR #6, y `OperationStatusComponent` para el estado 7 (D-15).
 
 ## Dependencias y riesgos
 
@@ -334,6 +342,11 @@ la [matriz S](quickstart.md#pruebas-automatizadas-backend).
   `Testing:EnableStockSeeding`.
 - `docker-compose.yml`: `Testing__EnableStockSeeding: ${TESTING_ENABLE_STOCK_SEEDING:-false}`
   en el servicio `app`.
+- `frontend/src/app/core/operations/pending-operation.store.ts` (A): en `mutationPermission()`,
+  `/api/v1/customer-orders` → `Shipping.Record`, y `/api/v1/reservations` y
+  `/api/v1/reservations/{id}/release` → `Reservations.Manage`.
+- `frontend/src/app/core/operations/operation-status.component.ts` (A): `route()` lleva esos
+  recursos a `/existencias/pedidos/…`.
 
 ### Estado de la revisión de A
 

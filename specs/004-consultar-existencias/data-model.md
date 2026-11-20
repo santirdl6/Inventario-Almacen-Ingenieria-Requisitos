@@ -101,7 +101,11 @@ Reservation:    (reservar) → Active
 | Comando | Kind / Effect | SourceDocumentType / Id | Reason | SupportReference | CounterpartyReference |
 |---------|---------------|-------------------------|--------|------------------|-----------------------|
 | Reservar | `Reservation` / `Reserve` | `reservation` / ReservationId | «Reserva para el pedido {ExternalReference}» | ExternalReference | CustomerReference |
-| Liberar | `Release` / `Release` | `reservation-release` / releaseId | Motivo del usuario | `reservation:{ReservationId}` | ExternalReference |
+| Liberar | `Release` / `Release` | `reservation-release` / releaseId | Motivo del usuario | `reservation:{ReservationId}` | CustomerReference |
+
+Los dos hechos llevan como contraparte el cliente del pedido. Así cumplen la regla del PR #7 de A:
+`CounterpartyReference` o `CounterpartyNotApplicableReason` en todo hecho nuevo, comprobado con 422
+en `ApplyAsync` y con la CHECK SQL.
 
 `OccurredAt` = instante del servidor; el actor sale de la sesión. La unicidad del diario
 (tipo, id, `Kind`) impide aplicar dos veces la misma reserva o liberación.
