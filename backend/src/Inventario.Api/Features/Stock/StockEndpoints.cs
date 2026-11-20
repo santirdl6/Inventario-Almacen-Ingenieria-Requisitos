@@ -3,6 +3,7 @@ using Inventario.Api.Features.Locations;
 using Inventario.Api.Features.Stock.CustomerOrders;
 using Inventario.Api.Features.Stock.Queries;
 using Inventario.Api.Features.Stock.Reservations;
+using Inventario.Api.Features.Stock.Testing;
 using Inventario.Api.Infrastructure.Http;
 
 namespace Inventario.Api.Features.Stock;
@@ -100,6 +101,12 @@ public static class StockEndpoints
                 return Results.Ok(found.Value.View);
             })
             .RequireAuthorization(Read).Produces<ReservationView>().ProducesProblem(404);
+
+        // T017 (D-17): siembra para el E2E. Sin la opción, o en Production, la ruta no existe (404).
+        var services = ((IEndpointRouteBuilder)api).ServiceProvider;
+        if (StockSeedingEndpoints.IsEnabled(services.GetRequiredService<IConfiguration>(),
+                services.GetRequiredService<IHostEnvironment>()))
+            api.MapStockSeedingEndpoint();
         return api;
     }
 }

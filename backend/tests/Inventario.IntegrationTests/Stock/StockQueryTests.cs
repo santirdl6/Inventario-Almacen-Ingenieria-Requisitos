@@ -167,6 +167,83 @@ public sealed class StockQueryTests(IdentityFixture fixture) : IClassFixture<Ide
             Assert.Equal(HttpStatusCode.OK, (await StockApiSupport.GetStockAsync((await support.SessionAsync(role)).Client, query)).Status);
     }
 
+    // --- T017 (D-17): siembra de existencias para el E2E, desactivada por defecto ---
+
+    private const string Seeding = "/api/v1/testing/stock-receipts";
+    private const string SeedingReason = "Preparación de pruebas E2E";
+
+    private Dictionary<string, string?> SeedingEnabled() =>
+        new(fixture.Settings) { ["Testing:EnableStockSeeding"] = "true" };
+
+    [Fact]
+    public async Task D17_seeding_route_does_not_exist_by_default()
+    {
+        using var factory = fixture.Factory();
+        using var support = new StockApiSupport(fixture, factory);
+        var operario = await support.SessionAsync("Operario");
+        var (article, _) = await support.ArticleAsync();
+        var location = await support.LocationAsync("SEED" + StockApiSupport.Unique(6));
+
+        using var response = await operario.WriteAsync(HttpMethod.Post, Seeding,
+            new { articleId = article, locationId = location, quantity = "10" });
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Null(await support.Stock.BalanceAsync(article, location));
+    }
+
+    [Fact]
+    public async Task D17_seeding_route_does_not_exist_in_production_even_with_the_option()
+    {
+        // Control: con la opción en Development la ruta existe (sin sesión → 401, no 404).
+        using (var development = new ApiFactory(SeedingEnabled(), "Development"))
+        using (var anonymous = development.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions
+               { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false }))
+            Assert.NotEqual(HttpStatusCode.NotFound, (await anonymous.PostAsync(Seeding, System.Net.Http.Json.JsonContent.Create(new { }))).StatusCode);
+
+        using var production = new ApiFactory(SeedingEnabled(), "Production");
+        using var client = production.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions
+            { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync(Seeding, System.Net.Http.Json.JsonContent.Create(new { }))).StatusCode);
+    }
+
+    [Fact]
+    public async Task D17_enabled_seeding_records_a_receipt_with_both_not_applicable_reasons()
+    {
+        using var factory = new ApiFactory(SeedingEnabled(), "Development");
+        using var support = new StockApiSupport(fixture, factory);
+        var operario = await support.SessionAsync("Operario");
+        var (article, _) = await support.ArticleAsync(tracksLot: true);
+        var location = await support.LocationAsync("SEED" + StockApiSupport.Unique(6));
+        var body = new { articleId = article, locationId = location, lotCode = "l-001", quantity = "10" };
+
+        // Receiving.Record: el responsable no lo tiene.
+        using (var forbidden = await (await support.SessionAsync("ResponsableAlmacen")).WriteAsync(HttpMethod.Post, Seeding, body))
+            Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+
+        var key = Guid.NewGuid();
+        using var seeded = await operario.WriteAsync(HttpMethod.Post, Seeding, body, key);
+        Assert.Equal(HttpStatusCode.OK, seeded.StatusCode);
+        var outcome = JsonDocument.Parse(await seeded.Content.ReadAsStringAsync()).RootElement;
+        Assert.Equal("test-receipt", outcome.GetProperty("sourceDocumentType").GetString());
+        // Misma clave y mismo cuerpo: replay, sin un segundo recibo.
+        using (var replay = await operario.WriteAsync(HttpMethod.Post, Seeding, body, key))
+            Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+
+        var (_, stock) = await StockApiSupport.GetStockAsync(operario.Client, $"?articleId={article}");
+        Totals(stock, "10.000", "0.000", "10.000");
+        Assert.Equal("L-001", stock.GetProperty("items")[0].GetProperty("lot").GetProperty("code").GetString());
+        await using var db = fixture.ApplicationDatabase();
+        var movement = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
+            db.Set<Inventario.Api.Domain.Stock.StockMovement>(), value => value.SourceDocumentType == "test-receipt"
+                && value.SourceDocumentId == outcome.GetProperty("sourceDocumentId").GetGuid());
+        Assert.Equal(Inventario.Api.Domain.Stock.MovementKind.Receipt, movement.Kind);
+        Assert.Equal(SeedingReason, movement.Reason);
+        Assert.Equal(SeedingReason, movement.SupportNotApplicableReason);
+        Assert.Equal(SeedingReason, movement.CounterpartyNotApplicableReason);
+        Assert.Null(movement.SupportReference);
+        Assert.Null(movement.CounterpartyReference);
+        await support.Stock.AssertJournalMatchesBalanceAsync(article, location);
+    }
+
     private static void Totals(JsonElement body, string physical, string reserved, string available)
     {
         var totals = body.GetProperty("totals");

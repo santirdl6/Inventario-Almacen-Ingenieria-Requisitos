@@ -674,7 +674,7 @@ preparadas.
 
 ## Phase 8: Preparación de pruebas y E2E-01 (vídeo)
 
-- [ ] T017 Depende de T005 y de la **fusión del PR #7 de A** (satisfecha, `c904824`; `CounterpartyNotApplicableReason` en
+- [X] T017 Depende de T005 y de la **fusión del PR #7 de A** (satisfecha, `c904824`; `CounterpartyNotApplicableReason` en
   `StockCommandContext`).
   - Crear `backend/src/Inventario.Api/Features/Stock/Testing/StockSeedingEndpoints.cs` (D-17):
     `POST /api/v1/testing/stock-receipts`, que `MapStockEndpoints` mapea **solo** si
@@ -686,6 +686,23 @@ preparadas.
     `CounterpartyNotApplicableReason = "Preparación de pruebas E2E"`.
   - Una prueba en `StockQueryTests.cs`: sin la opción → 404; con la opción → movimiento `Receipt`
     en el diario con ambos motivos.
+
+  **Hecho (2026-11-20)**:
+  - `Features/Stock/Testing/StockSeedingEndpoints.cs`, mapeado por `MapStockEndpoints` sin tocar
+    `Program.cs`.
+  - La ruta solo existe si `Testing:EnableStockSeeding` es true (variable de entorno
+    `Testing__EnableStockSeeding`) **y** el entorno no es Production.
+  - Cuerpo `{ articleId, locationId, lotCode?, quantity }`; la huella es el cuerpo normalizado.
+    `SupportNotApplicableReason` y `CounterpartyNotApplicableReason` llevan el motivo; nunca
+    `CounterpartyReference`.
+  - Tres pruebas en `StockQueryTests.cs`:
+    - 404 por defecto;
+    - 404 en Production con la opción activa, con control en Development, donde sin sesión → 401;
+    - con la opción: 403 sin `Receiving.Record`, 200, replay, saldo y movimiento `Receipt` con
+      ambos motivos.
+  - Rojo previo anotado: las pruebas de la opción activa y de Production fallaban porque la ruta no
+    existía. La de «por defecto» pasaba antes de implementar, como guarda.
+  - **Desviación**: también se apaga en Production, además de la opción. Así lo pidió B (2026-11-20).
 - [ ] T018 ⚑ commit aparte (archivos comunes y de A).
   - En `docker-compose.yml`, servicio `app`, añadir
     `Testing__EnableStockSeeding: ${TESTING_ENABLE_STOCK_SEEDING:-false}`.
