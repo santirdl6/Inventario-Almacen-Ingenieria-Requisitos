@@ -187,7 +187,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
 **Objetivo**: `GET /stock` sobre el agregado único. **Prueba independiente**: S-01.
 
-- [ ] T006 [US1] Depende de T005.
+- [X] T006 [US1] Depende de T005.
   - Crear `backend/src/Inventario.Api/Features/Stock/Queries/StockBalanceReader.cs`: única
     proyección de `StockBalances ⋈ Locations ⋈ Lots` por artículo, con `locationId` y `lotId`
     opcionales e `includeEmpty`. Con `false`, solo `Physical > 0`. Totales `SUM(Physical)` y
@@ -205,6 +205,15 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - Mapear `GET /stock` en `StockEndpoints.cs` con `.RequireAuthorization("Inventory.Read")`.
 
   (US1.1–US1.9; FR-001–FR-008.)
+
+  **Hecho (2026-11-20)**:
+  - `StockBalanceReader`, `StockQueries`, `StockDtos` y `GET /stock` en `StockEndpoints`.
+    `articleId`, `locationId`, `lotId` e `includeEmpty` llegan como texto para responder 422 con
+    el campo, en vez del 400 genérico.
+  - Pruebas directas del lector en `StockBalanceReaderTests` (2): nulo si no hay artículo; orden,
+    página, filtros, `includeEmpty` y totales. Usan `StockApiSupport` de T007, que por eso entra en
+    este commit.
+  - HU-02 (`LocationQueries.ArticleLocationsAsync`) no cambia: la delegación es T020.
 - [ ] T007 [P] [US1] Crear `backend/tests/Inventario.IntegrationTests/Stock/StockApiSupport.cs` y
   `StockQueryTests.cs`, sobre `StockTestHarness` sin modificarlo.
   - Soporte: cliente HTTP con sesión real y antiforgery por rol (Operario, ResponsableAlmacen,
