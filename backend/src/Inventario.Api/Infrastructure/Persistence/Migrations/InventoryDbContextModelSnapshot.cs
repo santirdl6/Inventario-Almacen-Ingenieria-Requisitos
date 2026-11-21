@@ -1219,6 +1219,73 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.StockAlert", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("AvailableSnapshot")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("MinimumSnapshot")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<DateTimeOffset>("OpenedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("PhysicalSnapshot")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("ReservedSnapshot")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<DateTimeOffset?>("ResolvedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<decimal>("SuggestedQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticleId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_StockAlerts_ArticleId_Active")
+                        .HasFilter("[State] = 'Active'");
+
+                    b.HasIndex("ArticleId", "OpenedAt")
+                        .IsDescending(false, true);
+
+                    b.HasIndex("State", "OpenedAt")
+                        .IsDescending(false, true);
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("State", "OpenedAt"), new[] { "ArticleId", "AvailableSnapshot", "MinimumSnapshot", "SuggestedQuantity" });
+
+                    b.ToTable("StockAlerts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_StockAlerts_ResolvedAt", "([State] = 'Active' AND [ResolvedAt] IS NULL) OR ([State] = 'Resolved' AND [ResolvedAt] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_StockAlerts_State", "[State] IN ('Active', 'Resolved')");
+
+                            t.HasCheckConstraint("CK_StockAlerts_SuggestedQuantity", "[SuggestedQuantity] >= 0");
+                        });
+                });
+
             modelBuilder.Entity("Inventario.Api.Domain.Stock.StockBalance", b =>
                 {
                     b.Property<Guid>("ArticleId")
@@ -1982,6 +2049,15 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Inventario.Api.Domain.Stock.Lot", b =>
+                {
+                    b.HasOne("Inventario.Api.Domain.MasterData.Article", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.StockAlert", b =>
                 {
                     b.HasOne("Inventario.Api.Domain.MasterData.Article", null)
                         .WithMany()

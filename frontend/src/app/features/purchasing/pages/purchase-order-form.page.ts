@@ -150,11 +150,27 @@ export class PurchaseOrderFormPage implements OnInit {
         this.currency.set(settings.currency);
       }
       const pending = this.pending(); if (pending?.payload) this.patch(pending.payload as PurchaseOrderWrite);
+      if (!this.id && !pending && this.session.has('Purchasing.Manage')) await this.applyAlertProposal(isCurrent);
+      if (!isCurrent()) return;
       await Promise.all([this.searchSuppliers(1), this.searchArticles(1)]);
       if (!isCurrent()) return;
       this.form.enable(); if (!this.canEdit()) this.form.disable();
     } catch (error) { if (isCurrent()) { this.problem.set(apiProblem(error)); this.form.disable(); } }
     finally { if (isCurrent()) this.loading.set(false); }
+  }
+  private async applyAlertProposal(isCurrent: () => boolean): Promise<void> {
+    const params = this.route.snapshot.queryParamMap;
+    const id = params?.get('articleId'); const quantity = params?.get('suggestedQuantity');
+    if (!id && !quantity) return;
+    const invalid = () => { if (isCurrent()) this.problem.set({ status: 422, code: 'ValidationError', detail: 'La propuesta no es válida o el artículo está inactivo. Selecciona artículo y cantidad manualmente.', errors: {} }); };
+    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+      || !quantity || !/^\d{1,15}(?:\.\d{1,3})?$/.test(quantity) || !/[1-9]/.test(quantity)) { invalid(); return; }
+    try {
+      const article = (await this.articleApi.detail(id)).resource;
+      if (!isCurrent() || !this.session.has('Purchasing.Manage') || this.pending()) return;
+      if (!article.isActive || (!article.allowsFractional && /\.\d*[1-9]/.test(quantity))) { invalid(); return; }
+      this.form.controls.lines.at(0).patchValue({ articleId: id, quantity });
+    } catch { invalid(); }
   }
   async searchSuppliers(page: number): Promise<void> {
     const generation = this.generation;

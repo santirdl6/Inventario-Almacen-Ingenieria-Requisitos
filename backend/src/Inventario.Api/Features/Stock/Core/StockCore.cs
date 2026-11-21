@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using Inventario.Api.Domain.Locations;
 using Inventario.Api.Domain.MasterData;
 using Inventario.Api.Domain.Stock;
+using Inventario.Api.Features.Replenishment;
 using Inventario.Api.Infrastructure.Http;
 using Inventario.Api.Infrastructure.Persistence;
 using Inventario.Api.Infrastructure.Persistence.Operations;
@@ -52,6 +53,7 @@ public sealed partial class StockCore
             balance.Apply(entry.PhysicalDelta, entry.ReservedDelta);
         }
         db.Add(movement);
+        await context.Services.GetRequiredService<StockAlertEvaluator>().EvaluateAsync(context, buckets.Select(x => x.ArticleId), cancellation);
         return new StockOperationOutcome(context.OperationId, movement.Id, movement.SourceDocumentType, correctionId, now);
     }
 
@@ -156,6 +158,7 @@ public sealed partial class StockCore
             }
         }
 
+        await context.Services.GetRequiredService<StockAlertEvaluator>().EvaluateAsync(context, articleIds, cancellationToken);
         return new StockOperationOutcome(context.OperationId, movement.Id, command.SourceType, command.SourceId, recordedAt);
     }
 

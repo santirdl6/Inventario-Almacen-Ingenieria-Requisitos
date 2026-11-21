@@ -35,7 +35,7 @@ public sealed class PrepareHu08FamilyMapHandler(InventoryOperationExecutor execu
                     """).SingleOrDefaultAsync(token);
                 if (before is null || before.FamilyId is not null && before.FamilyId != entry.FamilyId)
                     throw InventoryProblemException.Validation($"entries[{index}].articleId", "El artículo no existe o ya tiene otra asociación explícita.");
-                var use = await context.Services.GetRequiredService<IArticleUsageReader>().ReadAsync(entry.ArticleId, token);
+                var use = await context.Services.GetRequiredService<IArticleUsageReader>().ReadDefinitionAsync(entry.ArticleId, token);
                 var after = before with { FamilyId = entry.FamilyId, IsDefinitionLocked = before.IsDefinitionLocked || use.HasReferences || use.HasHistory };
                 await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE dbo.Articles SET FamilyId = {after.FamilyId}, IsDefinitionLocked = {after.IsDefinitionLocked} WHERE Id = {entry.ArticleId}", token);
                 if (!await db.Set<StockPolicy>().AnyAsync(value => value.ArticleId == entry.ArticleId, token))

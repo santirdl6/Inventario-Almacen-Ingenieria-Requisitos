@@ -3,15 +3,15 @@ import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 
-type AccountKey = 'gestor' | 'lector' | 'administrador' | 'comprador';
+type AccountKey = 'gestor' | 'lector' | 'administrador' | 'comprador' | 'responsable';
 type Account = { email: string; password: string; role: string };
 type Me = { id: string; email: string; roles: string[]; permissions: string[] };
 export type Session = { request: APIRequestContext; csrfToken: string; me: Me };
-type Environment = { baseURL: string; accounts: Record<Exclude<AccountKey, 'comprador'>, Account> & { comprador?: Account } };
+type Environment = { baseURL: string; accounts: Record<Exclude<AccountKey, 'comprador' | 'responsable'>, Account> & { comprador?: Account; responsable?: Account } };
 type WorkerFixtures = { environment: Environment };
 type HistorySnapshot = { actorId: string; actorName: string; balances: unknown[]; entries: unknown[] };
 type TestFixtures = { gestor: Session; lector: Session; administrador: Session;
-  comprador: Session;
+  comprador: Session; responsable: Session;
   historyData: (mode: 'prepare' | 'snapshot', articleId: string) => HistorySnapshot };
 type RequestFactory = PlaywrightWorkerArgs['playwright']['request'];
 
@@ -138,7 +138,10 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     const accounts: Environment['accounts'] = {
       gestor: account('GestorMaestros'), lector: account('Operario'), administrador: account('Administrador')
     };
-    if (purchasingProfile) accounts.comprador = account('Comprador');
+    if (purchasingProfile) {
+      accounts.comprador = account('Comprador');
+      accounts.responsable = account('ResponsableAlmacen');
+    }
     let provisioningAttempted = false;
     try {
       compose(env, ['up', process.env['HU08_E2E_SKIP_BUILD'] === '1' ? '--no-build' : '--build',
@@ -172,7 +175,8 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   gestor: async ({ playwright, environment }, use) => useSession(playwright.request, environment, 'gestor', use),
   lector: async ({ playwright, environment }, use) => useSession(playwright.request, environment, 'lector', use),
   administrador: async ({ playwright, environment }, use) => useSession(playwright.request, environment, 'administrador', use),
-  comprador: async ({ playwright, environment }, use) => useSession(playwright.request, environment, 'comprador', use)
+  comprador: async ({ playwright, environment }, use) => useSession(playwright.request, environment, 'comprador', use),
+  responsable: async ({ playwright, environment }, use) => useSession(playwright.request, environment, 'responsable', use)
 });
 
 export { expect };

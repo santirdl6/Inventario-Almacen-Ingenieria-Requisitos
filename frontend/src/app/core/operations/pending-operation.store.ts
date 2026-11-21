@@ -8,6 +8,7 @@ export interface PendingOperation {
 const KEY = 'inventario.pending-operations';
 
 export function mutationPermission(resource: string, method?: string): string | null {
+  if (/^\/api\/v1\/articles\/[0-9a-f-]{36}\/stock-policy$/i.test(resource) && method === 'PUT') return 'StockPolicy.Manage';
   if (/^\/api\/v1\/(families|articles|suppliers)(\/[0-9a-f-]{36})?$/i.test(resource)) return 'MasterData.Manage';
   if (/^\/api\/v1\/locations(\/[0-9a-f-]{36})?$/i.test(resource)) return 'Locations.Manage';
   if (/^\/api\/v1\/purchase-orders$/i.test(resource) && method === 'POST') return 'Purchasing.Manage';

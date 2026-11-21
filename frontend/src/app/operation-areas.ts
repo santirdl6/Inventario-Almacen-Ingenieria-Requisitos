@@ -16,6 +16,8 @@ export interface OperationArea {
 }
 
 export const OPERATION_AREAS: readonly OperationArea[] = [
+  { path: 'alertas', label: 'Alertas', story: 'HU-06', permission: 'Alerts.Read',
+    loadChildren: () => import('./features/replenishment/alerts.routes').then(module => module.ALERTS_ROUTES) },
   { path: 'ubicaciones', label: 'Ubicaciones', story: 'HU-02', permission: 'Inventory.Read',
     loadChildren: () => import('./features/locations/locations.routes').then(module => module.LOCATIONS_ROUTES) },
   { path: 'existencias', label: 'Existencias', story: 'HU-05', permission: 'Inventory.Read',

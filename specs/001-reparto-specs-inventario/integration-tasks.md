@@ -59,7 +59,7 @@ funcional no acredita ese objetivo. [Evidencia](../007-gestionar-pedidos-proveed
 
 ## HU-06 — Mínimos y alertas — Persona A
 
-- [ ] INT-HU06-01 Implementar el evaluador real de IArticleStateEffects: desactivar resuelve el episodio y suspende nuevas alertas; reactivar reevalúa la StockPolicy común. Probar misma transacción/bloqueo de artículo, rollback conjunto y reacción de alertas en los consumidores de stock, sin otro cálculo de disponibilidad. Origen HU-08 T068/T078/T106; FR-012/013 y plan: integración HU-06.
+- [X] INT-HU06-01 Implementar el evaluador real de IArticleStateEffects: desactivar resuelve el episodio y suspende nuevas alertas; reactivar reevalúa la StockPolicy común. Probar misma transacción/bloqueo de artículo, rollback conjunto y reacción de alertas en los consumidores de stock, sin otro cálculo de disponibilidad. Origen HU-08 T068/T078/T106; FR-012/013 y plan: integración HU-06. [Evidencia técnica local](../009-configurar-alertas-stock-minimo/validation/acceptance.md) y [revisión A+B confirmada por el usuario](../009-configurar-alertas-stock-minimo/validation/shared-review.md).
 
 ## Coordinación e integración compartida — A+B
 

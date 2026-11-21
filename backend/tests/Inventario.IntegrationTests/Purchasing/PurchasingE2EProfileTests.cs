@@ -9,7 +9,7 @@ public sealed class PurchasingE2EProfileTests
     public void Buyer_requires_an_explicit_matching_database_profile_and_run()
     {
         var run = Guid.NewGuid().ToString("N");
-        E2EAccount[] Accounts(string domain) => new[] { "GestorMaestros", "Operario", "Administrador", "Comprador" }
+        E2EAccount[] Accounts(string domain) => new[] { "GestorMaestros", "Operario", "Administrador", "Comprador", "ResponsableAlmacen" }
             .Select(role => new E2EAccount($"{run}.{role.ToLowerInvariant()}@{domain}", IdentityFixture.Password, role)).ToArray();
         var purchasing = Accounts("hu07.e2e.test");
         MasterDataTestData.ValidateE2ERequest("InventoryHu07E2E", "sqlserver", purchasing, "hu07");

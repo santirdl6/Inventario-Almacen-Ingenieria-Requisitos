@@ -34,6 +34,7 @@ describe('Áreas de B sobre la base de A', () => {
       expect(route.data).toEqual({ permission: area.permission });
     }
     expect(OPERATION_AREAS.map(area => [area.path, area.permission])).toEqual([
+      ['alertas', 'Alerts.Read'],
       ['ubicaciones', 'Inventory.Read'], ['existencias', 'Inventory.Read'],
       ['salidas', 'Shipping.Record'], ['inventarios', 'Counts.Record'], ['compras', 'Inventory.Read'], ['recepciones', 'Inventory.Read']
     ]);
@@ -41,10 +42,10 @@ describe('Áreas de B sobre la base de A', () => {
   });
 
   it('con permiso carga la página de cada área (provisional salvo las ya desarrolladas)', async () => {
-    signIn(operario);
+    signIn({ ...operario, permissions: [...operario.permissions, 'Alerts.Read'] });
     const harness = await RouterTestingHarness.create();
-    const titles: Record<string, string> = { ubicaciones: 'Ubicaciones', existencias: 'Existencias', salidas: 'Salidas', inventarios: 'Inventarios cíclicos', compras: 'Compras', recepciones: 'Recepciones' };
-    const developed = ['ubicaciones', 'compras', 'recepciones'];
+    const titles: Record<string, string> = { alertas: 'Alertas de stock mínimo', ubicaciones: 'Ubicaciones', existencias: 'Existencias', salidas: 'Salidas', inventarios: 'Inventarios cíclicos', compras: 'Compras', recepciones: 'Recepciones' };
+    const developed = ['alertas', 'ubicaciones', 'compras', 'recepciones'];
     for (const area of OPERATION_AREAS) {
       await harness.navigateByUrl(`/${area.path}`);
       expect(TestBed.inject(Router).url).toBe(`/${area.path}`);
