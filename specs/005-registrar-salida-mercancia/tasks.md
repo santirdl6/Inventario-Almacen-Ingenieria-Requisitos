@@ -240,7 +240,7 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
     404; vacía, en blanco, de 65 caracteres o ausente → 422; GestorMaestros y ResponsableAlmacen →
     200; Administrador → 403; sin sesión → 401.
   - Suite 238/1/0; sin cambios de modelo.
-- [ ] T007 [US1] Borrador: crear, editar, eliminar y detalle. Depende de T005.
+- [X] T007 [US1] Borrador: crear, editar, eliminar y detalle. Depende de T005.
   - En `Features/Shipping/`: `ShipmentCommands.cs` (crear, editar y eliminar; la confirmación es
     T009), `ShipmentQueries.cs` (`DetailAsync` en `SNAPSHOT`, solo datos propios, líneas **por Id**),
     `ShipmentDtos.cs` (`ShipmentWrite.Read(body)` normalizado como huella: ids en formato D,
@@ -259,6 +259,23 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
   - Pruebas en T008.
 
   (D-02, D-03, D-12; US1.1, US1.8–US1.9; FR-001–FR-005.)
+
+  **Hecho (2026-11-21)**:
+  - `ShipmentDtos`, `ShipmentCommands` (crear, editar y eliminar), `ShipmentQueries.DetailAsync` y las
+    rutas `POST`, `GET`, `PUT` y `DELETE /shipments` en `ShipmentEndpoints`.
+  - Bloqueos: `shipment:{id}` → artículos (anteriores y nuevos al editar). Después,
+    `ArticleReferenceTracker.MarkAsync`.
+  - **Desviación TDD**: para que la tarea tenga rojo propio, el núcleo de H-04…H-07 se escribe ya
+    en `Shipping/ShipmentDraftTests.cs` (6 pruebas). T008 amplía ese archivo con las carreras, la
+    retirada por edición, los permisos completos y `ShippingApiSupport.cs`.
+  - Rojo previo: 6/6 respondían 404, porque las rutas no existían.
+  - Verde: 6/6. Cubre crear (201, `ETag`, `Location`, sin cambios en stock, servido ni diario;
+    replay idéntico), detalle propio con líneas por Id; forma, línea ajena, lote ajeno, fracción, Σ
+    > pendiente (422), bucket sin existencias (409) y pedido inexistente (404); `PUT` con `ETag`
+    vigente (200), viejo (412), sin `If-Match` (428) y con otro pedido (422); `DELETE` (204,
+    replay 204, otra clave 404); escrituras 403 para GestorMaestros y ResponsableAlmacen, y lectura
+    403 para Administrador.
+  - Suite 244/1/0; sin cambios de modelo.
 - [ ] T008 [P] [US1] [US5] [INT-HU03-01] `Shipping/ShippingApiSupport.cs` y
   `Shipping/ShipmentDraftTests.cs`. Depende de T007. Escribir las pruebas contra las rutas mapeadas
   con cuerpo `NotImplemented` antes de completar T007 y anotar el rojo (501/500 en todas).
