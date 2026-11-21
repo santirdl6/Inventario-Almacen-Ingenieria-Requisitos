@@ -3,7 +3,7 @@
 # existentes con frontend/playwright.demo.config.ts. Usa ffmpeg en Docker (jrottenberg/ffmpeg) con
 # --rm, así que no deja contenedores. Probado en Git Bash (Windows 11) con Docker Desktop.
 #
-#   cd frontend && npx playwright test -c playwright.demo.config.ts locations stock shipping hu04-cycle-counts
+#   cd frontend && npx playwright test -c playwright.demo.config.ts locations stock shipping hu04-cycle-counts e2e/demo
 #   bash demo/montar.sh            # CRF=28 por defecto; CRF=32 bash demo/montar.sh para comprimir más
 #
 # Genera demo/video/NN-nombre.mp4 y .jpg por historia, demo/video/demo-completa.mp4, demo/lista.txt y
@@ -30,10 +30,10 @@ node - "$REPORT" "$WORK" "$CRF" <<'JS'
 const fs = require('fs'), path = require('path');
 const [report, work, crf] = process.argv.slice(2);
 const stories = [
-  { id: 'HU-02', slug: '01-hu02-ubicaciones', spec: 'locations.spec.ts', titulo: 'Gestionar ubicaciones' },
-  { id: 'HU-05', slug: '02-hu05-existencias-reservas', spec: 'stock.spec.ts', titulo: 'Consultar existencias y reservar' },
-  { id: 'HU-03', slug: '03-hu03-salidas', spec: 'shipping.spec.ts', titulo: 'Registrar salida de mercancía' },
-  { id: 'HU-04', slug: '04-hu04-inventarios-ciclicos', spec: 'hu04-cycle-counts.spec.ts', titulo: 'Realizar inventarios cíclicos' }
+  { id: 'HU-02', slug: '01-hu02-ubicaciones', specs: ['locations.spec.ts', 'demo-hu02.spec.ts'], titulo: 'Gestionar ubicaciones' },
+  { id: 'HU-05', slug: '02-hu05-existencias-reservas', specs: ['stock.spec.ts', 'demo-hu05.spec.ts'], titulo: 'Consultar existencias y reservar' },
+  { id: 'HU-03', slug: '03-hu03-salidas', specs: ['shipping.spec.ts', 'demo-hu03.spec.ts'], titulo: 'Registrar salida de mercancía' },
+  { id: 'HU-04', slug: '04-hu04-inventarios-ciclicos', specs: ['hu04-cycle-counts.spec.ts', 'demo-hu04.spec.ts'], titulo: 'Realizar inventarios cíclicos' }
 ];
 const data = JSON.parse(fs.readFileSync(report, 'utf8'));
 const specs = [];
@@ -54,7 +54,9 @@ const card = (file, big, small, seconds, size) => {
 };
 const plan = [];
 for (const story of stories) {
-  const tests = specs.filter(spec => spec.file.endsWith(story.spec)).sort((a, b) => a.line - b.line);
+  // E2E existente primero y luego los escenarios de e2e/demo/, cada uno en orden de línea.
+  const order = spec => story.specs.findIndex(name => spec.file.split(/[\\/]/).pop() === name);
+  const tests = specs.filter(spec => order(spec) >= 0).sort((a, b) => order(a) - order(b) || a.line - b.line);
   const entry = { ...story, escenarios: [], saltados: [] };
   const parts = [];
   card(`${story.slug}-title`, `${story.id} · ${story.titulo}`, 'Persona B · E2E de Playwright grabado', 4, 56);
@@ -110,23 +112,28 @@ const dur = Object.fromEntries(fs.readFileSync(path.join(work, 'durations.txt'),
   .map(line => line.split(' ')).map(([k, v]) => [k, Number(v)]));
 const r = x => Math.round(x * 10) / 10;
 const meta = {
-  'HU-02': { rol: 'Operario de almacén (y cuenta de solo lectura)',
+  'HU-02': { rol: 'Operario de almacén (y cuenta sin gestión de ubicaciones)',
     historia: 'Como operario, quiero dar de alta, buscar, corregir y retirar ubicaciones para saber dónde está físicamente cada artículo.',
-    previstos: ['Alta, búsqueda, revisión y retirada de ubicaciones (recorrido habitual)', 'Código duplicado o datos no válidos (error)',
-      'Cuenta de solo lectura sin gestión (permisos)', 'Retirada bloqueada por existencias, reservas o conteo abierto (estado bloqueante)',
+    previstos: ['Alta, búsqueda, revisión y retirada de ubicaciones (recorrido habitual)', 'Código duplicado o con caracteres no válidos (error)',
+      'Cuenta sin Locations.Manage: ni alta ni retirada, también por API (permisos)', 'Última zona de recepción activa: no se puede retirar (estado bloqueante)',
       'Respuesta perdida recuperada sin duplicar (fiabilidad)'] },
   'HU-05': { rol: 'Responsable de almacén y operario',
     historia: 'Como responsable, quiero consultar físico, reservado y disponible por ubicación y lote, y reservar o liberar existencias para un pedido de cliente.',
-    previstos: ['Consulta de existencias, alta de pedido, reserva y liberación (recorrido habitual)', 'Reserva superior a lo disponible (error)',
-      'Operario sin permiso de reservas (permisos)', 'Ubicación en conteo abierto rechaza la reserva (estado bloqueante)'] },
+    previstos: ['Consulta de existencias, alta de pedido, reserva y liberación (recorrido habitual)',
+      'Consulta con y sin filtros: físico 0 oculto, artículo inactivo marcado', 'Reserva superior a lo disponible (error)',
+      'Liberación parcial con motivo obligatorio', 'Operario sin Reservations.Manage (permisos)',
+      'Ubicación en conteo abierto rechaza la reserva (estado bloqueante, en la demo de HU-04)'] },
   'HU-03': { rol: 'Operario de almacén',
     historia: 'Como operario, quiero registrar la salida de mercancía de un pedido de cliente consumiendo su reserva, para que las existencias reflejen lo servido.',
-    previstos: ['Salida que consume la reserva propia y deja el pedido servido (recorrido habitual)', 'Cantidad superior a la posible (error)',
-      'Sesión sin permiso de salidas (permisos)', 'Pedido no abierto u origen en conteo abierto (estado bloqueante)'] },
+    previstos: ['Salida que consume la reserva propia y deja el pedido servido (recorrido habitual)', 'Stock insuficiente: aviso con detalle y rechazo (error)',
+      'Salida que consume toda la reserva: reservado a 0', 'Origen en conteo abierto: confirmar se rechaza (estado bloqueante)',
+      'Cuenta sin Shipping.Record (permisos)'] },
   'HU-04': { rol: 'Operario (cuenta) y responsable de almacén (autoriza)',
     historia: 'Como responsable, quiero contar una parte del almacén, ver las diferencias y autorizar su ajuste con motivo, para que el sistema refleje lo que hay físicamente.',
-    previstos: ['Conteo con una diferencia, revisión con motivo y ajuste confirmado (recorrido habitual)', 'Confirmar por debajo del reservado (error)',
-      'Operario sin permiso de ajuste (permisos)', 'Ubicación congelada rechaza salidas, reservas y cambios (estado bloqueante)'] }
+    previstos: ['Conteo con una diferencia, revisión con motivo y ajuste confirmado (recorrido habitual)',
+      'Ubicación congelada rechaza reservas y cambios con CountScopeFrozen (estado bloqueante)',
+      'Diferencias en dos ubicaciones: motivos, confirmación y ajuste del físico', 'Aviso P-07: salida de 6 con 4 reales, el pedido no se corrige',
+      'Operario sin Inventory.Adjust no confirma (permisos)'] }
 };
 let inicio = 0;
 const historias = [];
@@ -137,7 +144,7 @@ for (const story of plan.filter(s => s.escenarios.length)) {
     t += dur[scenario.card] + scenario.segs.reduce((sum, seg) => sum + dur[seg], 0);
     return item;
   });
-  historias.push({ id: story.id, spec: `frontend/e2e/${story.spec}`, titulo: story.titulo, ...meta[story.id], escenarios,
+  historias.push({ id: story.id, spec: story.specs.map(name => `frontend/e2e/${name.startsWith('demo-') ? 'demo/' : ''}${name}`).join(' + '), titulo: story.titulo, ...meta[story.id], escenarios,
     previstos: meta[story.id].previstos, saltados: story.saltados, duracion: r(dur[story.slug]), inicio: r(inicio),
     video: `video/${story.slug}.mp4`, poster: `video/${story.slug}.jpg` });
   inicio += dur[story.slug];
