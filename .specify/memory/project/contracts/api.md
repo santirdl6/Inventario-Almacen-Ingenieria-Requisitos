@@ -77,7 +77,7 @@ code, traceId, operationId cuando aplique y errors por campo. No contienen traza
 | 400 | JSON o identificador inválido; antiforgery rechazado. |
 | 401 / 403 | Sin sesión / permiso insuficiente. |
 | 404 | Recurso inexistente o resultado de operación aún no observado. |
-| 409 | InsufficientStock, ReservedStockConflict, CountScopeFrozen, DocumentAlreadyConfirmed, OverReceipt, ArticleInactive, HistoryPreventsDeletion, IdempotencyConflict, DuplicateLocationPlace, LocationIdentityLocked, LocationNotEmpty, NoActiveReceivingLeft. |
+| 409 | InsufficientStock, ReservedStockConflict, CountScopeFrozen, DocumentAlreadyConfirmed, OverReceipt, ArticleInactive, HistoryPreventsDeletion, IdempotencyConflict, DuplicateLocationPlace, LocationIdentityLocked, LocationNotEmpty, NoActiveReceivingLeft, CustomerOrderNotOpen. |
 | 412 / 428 | Versión obsoleta / falta If-Match. |
 | 422 | Campos de negocio inválidos, cantidades/unidades o suma de asignaciones incorrectas. |
 | 503 | LockTimeout o indisponibilidad tras reintentos; Retry-After. Comprobar operationId antes de repetir. |
@@ -203,10 +203,11 @@ edición/cancelación de pedidos ni un módulo comercial.
 | Método y ruta | Entrada / salida |
 |---------------|-----------------|
 | POST /customer-orders | externalReference, customerReference, lines con articleId y quantity. Alta mínima con Shipping.Record; no módulo comercial. |
-| GET /customer-orders/{id} | Líneas, pedido/servido/pendiente y reservas; Inventory.Read. |
-| POST /reservations | customerOrderLineId, allocations con locationId, lotId y quantity; Reservations.Manage. |
-| GET /reservations/{id} | Asignado, consumido, liberado y remanente por bucket. |
-| POST /reservations/{id}/release | allocations con id y quantity; motivo; Reservations.Manage. No libera más del remanente. |
+| GET /customer-orders/{id} | Solo datos propios: líneas con articleId, pedido/servido/pendiente/reservado remanente y reservas con asignaciones por ids; ETag de la cabecera, renovada por cada reserva, liberación o salida; Inventory.Read. |
+| GET /customer-orders/{id}/context | Sin ETag, como GET /articles/{id}/context: orderVersion, datos actuales de los artículos (sku, nombre, unidad, estado), ubicaciones (código, estado) y lotes del pedido y sus reservas, y creationOperationId (operación del alta, leída de su OperationResult); Inventory.Read. |
+| POST /reservations | customerOrderLineId, allocations con locationId, lotId y quantity; If-Match del pedido; Reservations.Manage. 201 sin ETag. |
+| GET /reservations/{id} | Solo datos propios: asignado, consumido, liberado y remanente por bucket (ids); ETag de la reserva; Inventory.Read. |
+| POST /reservations/{id}/release | releaseId, reason (texto libre obligatorio), allocations con allocationId y quantity; If-Match de la reserva; Reservations.Manage. No libera más del remanente. 200 sin ETag. |
 | POST /shipments; GET, PUT /shipments/{id} | customerOrderId, occurredAt y lines con customerOrderLineId, locationId, lotId y quantity; edición solo de borrador con If-Match. |
 | POST /shipments/{id}/confirm | Shipping.Record; efecto atómico sobre físico, reserva propia y servido del pedido. |
 
@@ -219,9 +220,11 @@ deben pertenecer al artículo de la línea. Solo confirma una salida lo que perm
 
 ### HU-05 — B: consultas
 
-GET /stock?articleId=...&locationId=...&lotId=...&page=1&pageSize=25: exige articleId;
+GET /stock?articleId=...&locationId=...&lotId=...&includeEmpty=false&page=1&pageSize=25: exige articleId;
 los demás filtros son opcionales. Inventory.Read. Cada fila identifica artículo, ubicación
 y lote y muestra physical, reserved, available. Totales consistentes del filtro completo.
+Por defecto solo filas con physical > 0; includeEmpty=true muestra también las de cero.
+GET /articles/{id}/locations (HU-02) usa el mismo agregado.
 GET /stock/reservations?articleId=... devuelve compromisos por pedido y bucket.
 Los resultados incluyen movimientos y ajustes ya confirmados; no borradores.
 

@@ -6,6 +6,15 @@
 con lo construido en T003–T020 (historial desde `92686c5`). Con la [constitución](../../../.specify/memory/constitution.md)
 como marco. Sin cambios de código y sin tareas nuevas: [tasks.md](../tasks.md) conserva sus 20 tareas.
 
+**Revisión de A del PR #9 (2026-11-21)**: A aprueba los diffs de los documentos comunes (salvo
+P-04, pendiente con S1), aplicados en T002. Aprueba también:
+
+- los cambios de B en archivos de A (tabla de commits del plan);
+- la cuarta cuenta E2E `ResponsableAlmacen` (`ef296cc`, `110df1a`);
+- que HU-05 llame a `pending.begin(…, appRoute)` + `send()` sin modificar `mutate()`.
+
+La aprobación quedaba condicionada a cerrar G2 y G3: resueltos con C3 (`8009807`) y C4 (`363de56`).
+
 ## Desviación respecto a la skill
 
 `/speckit-converge` solo añade una fase `## Phase N: Convergence` a `tasks.md` con una tarea por
@@ -62,7 +71,7 @@ A condicionó la aprobación del PR #9 a cerrar G2 y G3, que dejan de ser límit
   `OperationResult` del alta. Así se ve tras crear, tras cerrar sesión, por «Abrir pedido» y por
   URL. Sin cambio de esquema ni de migración y sin ruta nueva. Límite anotado: la lectura no tiene
   índice por `SourceDocumentId` (SC-006).
-- **G3, resuelto** en el commit «/speckit-implement Convergence C4» (C4). `StockApiService.allRows`
+- **G3, resuelto** en `363de56` (C4). `StockApiService.allRows`
   recorre `GET /stock` en páginas de 100 hasta `totalCount`. El diálogo de reservar lista todas las
   combinaciones con existencias, y las opciones de filtro se completan con todas cuando la consulta
   sin filtros tiene más de una página. Probado con 130 y 30 combinaciones. Sin cambios de backend.

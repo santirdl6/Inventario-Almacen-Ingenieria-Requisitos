@@ -44,8 +44,11 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
 ## Phase 1: Coordinación con A (pendiente explícita, no se aplica ahora)
 
-- [ ] T001 ⏸ **PENDIENTE: solicitar la revisión de A en el PR** (COORD-01), sin bloquear la
-  implementación, de:
+- [X] T001 **Hecha: visto bueno de A en la revisión del PR #9 (2026-11-21)**, condicionado a cerrar
+  G2 y G3 (C3 y C4). Cubre (a), salvo P-04, que queda pendiente con S1, y también (b), (c) y (d).
+  En (c) se mantiene `SupportReference`. Decisión, fecha y revisor en
+  [plan.md § Estado de la revisión de A](plan.md#estado-de-la-revisión-de-a). Era la tarea de
+  solicitar la revisión de A en el PR (COORD-01), sin bloquear la implementación, de:
   - (a) los diffs pendientes de [plan.md § Cambios al modelo común](plan.md#cambios-al-modelo-común-pendientes-de-a):
     P-01 (solo lo que falta tras #7), P-02…P-06 y P-08. P-07 ya está aplicado y aprobado en el
     PR #7 de A;
@@ -70,7 +73,11 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
   El PR #8 de A (XOR de contraparte, abierto) es compatible con el diseño: reservar y liberar solo
   pasan `CounterpartyReference`, y T017 solo `CounterpartyNotApplicableReason`.
-- [ ] T002 ⏸ **PENDIENTE, bloqueada por T001: aplicar los diffs aprobados** (#7 ya está fusionado)
+- [X] T002 **Hecha (2026-11-21)**: aplicados P-01 (lo que faltaba) y P-02 en `data-model.md`;
+  P-03 (con `creationOperationId`, C3) y P-05 en `api.md`; P-06 en `stock-operations.md`; y P-08,
+  apartado 10 de `quickstart.md`. P-04 **no se aplica** (S1, pendiente). INT-HU05-01 e INT-HU05-02
+  quedan marcadas en el backlog con su evidencia. `CountScopeFrozen` sigue en INT-HU04-03. Era la
+  tarea de aplicar los diffs aprobados (#7 ya está fusionado):
   P-01 (lo que falta), P-02…P-06 y P-08 en `.specify/memory/project/data-model.md`,
   `.specify/memory/project/contracts/api.md`, `.specify/memory/project/contracts/stock-operations.md`
   y `.specify/memory/project/quickstart.md` (evidencia, tras T014). **No toca** `research.md` (R-10)
@@ -992,5 +999,5 @@ para aprobar el PR #9, así que pasan a C3 y C4.
   - Verde: los dos specs, 23/23. Vitest completo 147/147 (base 143); `tsc` de app, specs y E2E sin
     errores; `npm run build` correcto.
 
-**C1 en `b87852b`; C2 en el commit «/speckit-implement Convergence C2»; C3 en `8009807`; C4 en el
-commit «/speckit-implement Convergence C4».**
+**C1 en `b87852b`; C2 en el commit «/speckit-implement Convergence C2»; C3 en `8009807`; C4 en
+`363de56`.**

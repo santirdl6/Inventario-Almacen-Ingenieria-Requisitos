@@ -43,8 +43,23 @@ Un escritor no se habilita sin esa cobertura; HU-08 no necesita reabrirse para a
 
 ## HU-05 — Consultas, pedido mínimo y reservas — Persona B
 
-- [ ] INT-HU05-01 Integrar CustomerOrder/Line (alta y consulta) y Reservation/Allocation con el contrato de aceptación de referencias, manteniendo el bloqueo de definición desde la primera línea de pedido y tras retirar referencias cuando proceda, y el rechazo de borrado con compromisos reales. Publicar el pedido/servido/pendiente y reservas que consume HU-03; no sustituir Reservation por el efecto Reserve del núcleo. Origen HU-08 T035/T064/T066/T075/T100/T101; FR-009/010/019 y acuerdo de alcance HU-05/HU-03 del 2026-11-19.
-- [ ] INT-HU05-02 Rechazar pedidos y reservas nuevos tras desactivar, permitir liberar compromisos existentes con permisos/motivo y comprobar las carreras de alta/reserva/desactivación y la conciliación documental/diario/saldo. Origen HU-08 T078/T103; FR-013/019, Q-09/V-12.
+- [x] INT-HU05-01 Integrar CustomerOrder/Line (alta y consulta) y Reservation/Allocation con el contrato de aceptación de referencias, manteniendo el bloqueo de definición desde la primera línea de pedido y tras retirar referencias cuando proceda, y el rechazo de borrado con compromisos reales. Publicar el pedido/servido/pendiente y reservas que consume HU-03; no sustituir Reservation por el efecto Reserve del núcleo. Origen HU-08 T035/T064/T066/T075/T100/T101; FR-009/010/019 y acuerdo de alcance HU-05/HU-03 del 2026-11-19. **Hecho (2026-11-21, PR #9 aprobado por A)**:
+  - Contributors de uso y de primera referencia de `CustomerOrderLine` y `ReservationAllocation`
+    en `AddStockCore`; definición bloqueada desde la primera línea y `DELETE` rechazado con
+    compromisos (S-19).
+  - `ICustomerOrderReader` para HU-03 (S-18) y `DENY DELETE` (`Hu05SchemaTests`).
+  - Evidencia: `CustomerOrderTests`, `ReservationTests` y `ReleaseTests` en la suite completa
+    sobre `363de56`: 207 aprobadas, 1 omitida (V-14), 0 fallidas.
+  - Registro: [quickstart común § 10](../../.specify/memory/project/quickstart.md#10-hu-05--evidencia-de-integración-del-2026-11-21)
+    y el [quickstart de HU-05](../004-consultar-existencias/quickstart.md#evidencia).
+- [x] INT-HU05-02 Rechazar pedidos y reservas nuevos tras desactivar, permitir liberar compromisos existentes con permisos/motivo y comprobar las carreras de alta/reserva/desactivación y la conciliación documental/diario/saldo. Origen HU-08 T078/T103; FR-013/019, Q-09/V-12. **Hecho (2026-11-21, PR #9 aprobado por A)**:
+  - Alta y reserva con el artículo inactivo → 409 `ArticleInactive`; liberar sigue permitido con
+    permiso y motivo (S-15).
+  - Carreras con `LockBarrier` en ambos órdenes: 16 de reserva y liberación, y 6 de alta con
+    `SaveBarrier`, frente a desactivación, `PUT` y `DELETE`.
+  - Conciliación de asignaciones, diario y saldo (`AssertCommitmentsMatchBalancesAsync`).
+  - Evidencia y registro: los mismos que INT-HU05-01, sobre `363de56`.
+  - Sigue pendiente, fuera de esta tarea: `CountScopeFrozen` al reservar (INT-HU04-03).
 
 ## HU-04 — Conteos y ajustes — Persona B
 
