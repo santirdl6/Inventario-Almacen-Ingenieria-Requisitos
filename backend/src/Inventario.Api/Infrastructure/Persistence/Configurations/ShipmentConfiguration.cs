@@ -14,8 +14,14 @@ internal sealed class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
         builder.ToTable("Shipments", table =>
         {
             table.HasCheckConstraint("CK_Shipments_State", "[State] IN (N'Draft', N'Confirmed')");
+            // Convergence C1: los totales declarados acompañan a la operación de la confirmación.
             table.HasCheckConstraint("CK_Shipments_OperationId",
-                "([State] = N'Confirmed' AND [OperationId] IS NOT NULL) OR ([State] = N'Draft' AND [OperationId] IS NULL)");
+                "([State] = N'Confirmed' AND [OperationId] IS NOT NULL AND [DeclaredConsumptionCount] IS NOT NULL "
+                + "AND [DeclaredConsumedQuantity] IS NOT NULL) OR ([State] = N'Draft' AND [OperationId] IS NULL "
+                + "AND [DeclaredConsumptionCount] IS NULL AND [DeclaredConsumedQuantity] IS NULL)");
+            table.HasCheckConstraint("CK_Shipments_Declared",
+                "([DeclaredConsumptionCount] IS NULL OR [DeclaredConsumptionCount] >= 0) "
+                + "AND ([DeclaredConsumedQuantity] IS NULL OR [DeclaredConsumedQuantity] >= 0)");
             // EF no puede usar OUTPUT sin INTO en tablas con triggers (plan, riesgos).
             table.HasTrigger("TR_Shipments_ConfirmedImmutable");
         });
@@ -24,6 +30,7 @@ internal sealed class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
         builder.Property(shipment => shipment.State).HasConversion<string>().HasMaxLength(16);
         // ETag de la salida (D-05): crear, editar y confirmar la renuevan.
         builder.Property(shipment => shipment.Version).IsRowVersion();
+        builder.Property(shipment => shipment.DeclaredConsumedQuantity).HasColumnType(StockColumns.Quantity);
         // Sin FK, como OperationResult.SourceDocumentId: es la operación que confirma.
         builder.HasIndex(shipment => shipment.OperationId).IsUnique()
             .HasFilter("[OperationId] IS NOT NULL").HasDatabaseName("UX_Shipments_OperationId");

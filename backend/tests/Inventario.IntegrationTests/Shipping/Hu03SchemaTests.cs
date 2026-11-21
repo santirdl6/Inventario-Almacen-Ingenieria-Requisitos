@@ -21,6 +21,8 @@ public sealed class Hu03SchemaTests(IdentityFixture fixture) : IClassFixture<Ide
     private const int ForeignConsumptionsAtConfirm = 51302;
     private const int ConfirmedLinesChanged = 51303;
     private const int LateConsumption = 51304;
+    private const int OverDeclared = 51305;
+    private const int ConfirmedOverDeclared = 51306;
     private const int PermissionDenied = 229;
     private const int ForeignKeyViolation = 547;
 
@@ -50,7 +52,8 @@ public sealed class Hu03SchemaTests(IdentityFixture fixture) : IClassFixture<Ide
 
         Assert.Superset(new HashSet<string>
         {
-            "CK_Shipments_State", "CK_Shipments_OperationId", "CK_ShipmentLines_Quantity", "CK_ShipmentReservationConsumptions_Quantity"
+            "CK_Shipments_State", "CK_Shipments_OperationId", "CK_Shipments_Declared", "CK_ShipmentLines_Quantity",
+            "CK_ShipmentReservationConsumptions_Quantity"
         }, await Names(database, "SELECT name AS [Value] FROM sys.check_constraints WHERE parent_object_id IN "
             + "(OBJECT_ID('dbo.Shipments'), OBJECT_ID('dbo.ShipmentLines'), OBJECT_ID('dbo.ShipmentReservationConsumptions'))"));
         Assert.Superset(new HashSet<string>
@@ -163,6 +166,20 @@ public sealed class Hu03SchemaTests(IdentityFixture fixture) : IClassFixture<Ide
         Assert.Equal(1, await database.Set<ShipmentReservationConsumption>().CountAsync(value => value.ShipmentLineId == line));
     }
 
+    // Convergence C1 (A, cierre de P-02): tampoco con la MISMA operación se añade un consumo tras confirmar.
+    [Fact]
+    public async Task A_late_consumption_with_the_same_operation_is_rejected_by_the_database()
+    {
+        var seed = await SeedAsync();
+        var operation = Guid.NewGuid();
+        var (_, line, _) = await ConfirmedAsync(seed, operation);
+        var other = await SecondAllocationAsync(seed);
+        await using var database = fixture.ApplicationDatabase();
+
+        await AssertSqlErrorAsync(database, OverDeclared, InsertConsumption(line, other, operation));
+        Assert.Equal(1, await database.Set<ShipmentReservationConsumption>().CountAsync(value => value.ShipmentLineId == line));
+    }
+
     [Fact]
     public async Task Confirming_a_draft_that_already_has_a_consumption_of_another_operation_is_rejected()
     {
@@ -209,6 +226,37 @@ public sealed class Hu03SchemaTests(IdentityFixture fixture) : IClassFixture<Ide
             .SingleAsync(value => value.ShipmentLineId == line)).OperationId);
     }
 
+    // Convergence C1: con la misma operación, más consumos que los declarados se rechazan en cualquier orden.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_confirmation_with_more_consumptions_than_declared_is_rejected_in_either_order(bool headerFirst)
+    {
+        var seed = await SeedAsync();
+        var (shipment, line) = await DraftAsync(seed);
+        var other = await SecondAllocationAsync(seed);
+        var operation = Guid.NewGuid();
+        await using var database = fixture.ApplicationDatabase();
+        await using (var transaction = await database.Database.BeginTransactionAsync())
+        {
+            if (headerFirst)
+            {
+                await database.Database.ExecuteSqlRawAsync(Confirm(shipment, operation, seed.Actor, count: 1, quantity: 1m));
+                await database.Database.ExecuteSqlRawAsync(InsertConsumption(line, seed.Allocation, operation));
+                await AssertSqlErrorAsync(database, OverDeclared, InsertConsumption(line, other, operation));
+            }
+            else
+            {
+                await database.Database.ExecuteSqlRawAsync(InsertConsumption(line, seed.Allocation, operation));
+                await database.Database.ExecuteSqlRawAsync(InsertConsumption(line, other, operation));
+                await AssertSqlErrorAsync(database, ConfirmedOverDeclared, Confirm(shipment, operation, seed.Actor, count: 1, quantity: 1m));
+            }
+            await transaction.RollbackAsync();
+        }
+        Assert.Equal(ShipmentState.Draft, (await database.Set<Shipment>().AsNoTracking().SingleAsync(value => value.Id == shipment)).State);
+        Assert.False(await database.Set<ShipmentReservationConsumption>().AnyAsync(value => value.ShipmentLineId == line));
+    }
+
     [Fact]
     public async Task Check_constraints_reject_invalid_rows_written_directly()
     {
@@ -223,6 +271,13 @@ public sealed class Hu03SchemaTests(IdentityFixture fixture) : IClassFixture<Ide
             $"UPDATE dbo.Shipments SET OperationId = '{Guid.NewGuid()}' WHERE Id = '{shipment}'"));
         await Assert.ThrowsAsync<SqlException>(() => database.Database.ExecuteSqlRawAsync(
             $"UPDATE dbo.Shipments SET State = N'Cancelled', OperationId = '{Guid.NewGuid()}' WHERE Id = '{shipment}'"));
+        // Convergence C1: Confirmed exige los dos totales declarados; Draft no admite ninguno; nunca negativos.
+        await Assert.ThrowsAsync<SqlException>(() => database.Database.ExecuteSqlRawAsync(
+            $"UPDATE dbo.Shipments SET State = N'Confirmed', OperationId = '{Guid.NewGuid()}' WHERE Id = '{shipment}'"));
+        await Assert.ThrowsAsync<SqlException>(() => database.Database.ExecuteSqlRawAsync(
+            $"UPDATE dbo.Shipments SET DeclaredConsumptionCount = 0, DeclaredConsumedQuantity = 0 WHERE Id = '{shipment}'"));
+        await Assert.ThrowsAsync<SqlException>(() => database.Database.ExecuteSqlRawAsync(
+            Confirm(shipment, Guid.NewGuid(), seed.Actor, count: -1, quantity: 0m)));
         await Assert.ThrowsAsync<SqlException>(() => database.Database.ExecuteSqlRawAsync(
             $"UPDATE dbo.ShipmentLines SET Quantity = 0 WHERE Id = '{line}'"));
         // Mismo bucket dos veces en la salida.
@@ -304,7 +359,7 @@ public sealed class Hu03SchemaTests(IdentityFixture fixture) : IClassFixture<Ide
         var (id, line) = await DraftAsync(seed);
         await using var database = fixture.ApplicationDatabase();
         var shipment = await database.Set<Shipment>().SingleAsync(value => value.Id == id);
-        shipment.Confirm(operation, seed.Actor, DateTimeOffset.UtcNow);
+        shipment.Confirm(operation, seed.Actor, DateTimeOffset.UtcNow, withConsumption ? 1 : 0, withConsumption ? 2m : 0m);
         ShipmentReservationConsumption? consumption = null;
         if (withConsumption)
         {
@@ -319,8 +374,10 @@ public sealed class Hu03SchemaTests(IdentityFixture fixture) : IClassFixture<Ide
         "INSERT INTO dbo.ShipmentReservationConsumptions (Id, ShipmentLineId, ReservationAllocationId, Quantity, OperationId) "
         + $"VALUES ('{Guid.NewGuid()}', '{line}', '{allocation}', 1, '{operation}')";
 
-    private static string Confirm(Guid shipment, Guid operation, Guid actor) =>
+    /// <summary>Confirmación a mano en una sentencia: estado, operación y totales declarados (Convergence C1).</summary>
+    private static string Confirm(Guid shipment, Guid operation, Guid actor, int count = 1, decimal quantity = 1m) =>
         $"UPDATE dbo.Shipments SET State = N'Confirmed', OperationId = '{operation}', ActorId = '{actor}', "
+        + $"DeclaredConsumptionCount = {count}, DeclaredConsumedQuantity = {quantity.ToString(System.Globalization.CultureInfo.InvariantCulture)}, "
         + $"RecordedAt = SYSDATETIMEOFFSET() WHERE Id = '{shipment}'";
 
     private static Task AssertSqlErrorAsync(InventoryDbContext database, int expected, string sql) =>

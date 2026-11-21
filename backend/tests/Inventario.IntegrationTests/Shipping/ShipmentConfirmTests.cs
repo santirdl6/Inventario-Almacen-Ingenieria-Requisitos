@@ -63,6 +63,10 @@ public sealed class ShipmentConfirmTests(IdentityFixture fixture) : IClassFixtur
         Assert.Equal(StockEffect.ShipAvailable, entry.Effect);
         Assert.Equal(6m, entry.Quantity);
         await support.Stock.AssertJournalMatchesBalanceAsync(seed.Article, seed.Location);
+        // Convergence C1: sin reservas la cabecera declara 0 consumos.
+        var header = await database.Set<Shipment>().AsNoTracking().SingleAsync(value => value.Id == id);
+        Assert.Equal(0, header.DeclaredConsumptionCount);
+        Assert.Equal(0m, header.DeclaredConsumedQuantity);
     }
 
     // V-04 (H-10): reserva propia frente a ajena en el mismo bucket.
@@ -105,6 +109,10 @@ public sealed class ShipmentConfirmTests(IdentityFixture fixture) : IClassFixtur
         Assert.Equal(4m, movement.Entries.Single(entry => entry.Effect == StockEffect.ShipReserved).Quantity);
         Assert.Equal(2m, movement.Entries.Single(entry => entry.Effect == StockEffect.ShipAvailable).Quantity);
         await support.AssertCommitmentsMatchBalancesAsync(seed.Article, seed.Location);
+        // Convergence C1: la cabecera declara 1 consumo de 4 (V-04).
+        var header = await database.Set<Shipment>().AsNoTracking().SingleAsync(value => value.Id == id);
+        Assert.Equal(1, header.DeclaredConsumptionCount);
+        Assert.Equal(4m, header.DeclaredConsumedQuantity);
     }
 
     // --- T010 ---

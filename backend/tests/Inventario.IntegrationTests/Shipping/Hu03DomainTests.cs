@@ -184,15 +184,20 @@ public sealed class Hu03DomainTests
         var shipment = Draft();
         var operation = Guid.NewGuid();
         var confirmer = Guid.NewGuid();
-        Assert.Throws<ArgumentException>(() => shipment.Confirm(Guid.Empty, confirmer, Now));
+        Assert.Throws<ArgumentException>(() => shipment.Confirm(Guid.Empty, confirmer, Now, 0, 0m));
+        // Convergence C1: los totales declarados no pueden ser negativos.
+        Assert.Throws<ArgumentException>(() => shipment.Confirm(operation, confirmer, Now, -1, 0m));
+        Assert.Throws<ArgumentException>(() => shipment.Confirm(operation, confirmer, Now, 0, -1m));
 
-        shipment.Confirm(operation, confirmer, Now.AddMinutes(10));
+        shipment.Confirm(operation, confirmer, Now.AddMinutes(10), 2, 4.5m);
         Assert.Equal(ShipmentState.Confirmed, shipment.State);
         Assert.Equal(operation, shipment.OperationId);
         Assert.Equal(confirmer, shipment.ActorId);
         Assert.Equal(Now.AddMinutes(10), shipment.RecordedAt);
+        Assert.Equal(2, shipment.DeclaredConsumptionCount);
+        Assert.Equal(4.5m, shipment.DeclaredConsumedQuantity);
 
-        Assert.Throws<InvalidOperationException>(() => shipment.Confirm(Guid.NewGuid(), confirmer, Now));
+        Assert.Throws<InvalidOperationException>(() => shipment.Confirm(Guid.NewGuid(), confirmer, Now, 0, 0m));
         Assert.Throws<InvalidOperationException>(() => shipment.ReplaceDraft(Now, [Line()], confirmer, Now));
         Assert.Equal(operation, shipment.OperationId);
     }

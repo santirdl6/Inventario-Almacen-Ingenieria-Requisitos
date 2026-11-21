@@ -22,12 +22,15 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                     RecordedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
                     ActorId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     OperationId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    DeclaredConsumptionCount = table.Column<int>(type: "int", nullable: true),
+                    DeclaredConsumedQuantity = table.Column<decimal>(type: "decimal(18,3)", nullable: true),
                     Version = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Shipments", x => x.Id);
-                    table.CheckConstraint("CK_Shipments_OperationId", "([State] = N'Confirmed' AND [OperationId] IS NOT NULL) OR ([State] = N'Draft' AND [OperationId] IS NULL)");
+                    table.CheckConstraint("CK_Shipments_Declared", "([DeclaredConsumptionCount] IS NULL OR [DeclaredConsumptionCount] >= 0) AND ([DeclaredConsumedQuantity] IS NULL OR [DeclaredConsumedQuantity] >= 0)");
+                    table.CheckConstraint("CK_Shipments_OperationId", "([State] = N'Confirmed' AND [OperationId] IS NOT NULL AND [DeclaredConsumptionCount] IS NOT NULL AND [DeclaredConsumedQuantity] IS NOT NULL) OR ([State] = N'Draft' AND [OperationId] IS NULL AND [DeclaredConsumptionCount] IS NULL AND [DeclaredConsumedQuantity] IS NULL)");
                     table.CheckConstraint("CK_Shipments_State", "[State] IN (N'Draft', N'Confirmed')");
                     table.ForeignKey(
                         name: "FK_Shipments_CustomerOrders_CustomerOrderId",
@@ -182,6 +185,21 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                     BEGIN
                         THROW 51302, N'La salida tiene consumos de reserva de otra operación.', 1;
                     END
+                    -- Convergence C1: lo ya insertado no puede superar los totales que declara la confirmación.
+                    IF EXISTS (
+                        SELECT 1
+                        FROM inserted AS confirmed
+                        JOIN deleted AS previous ON previous.Id = confirmed.Id
+                        CROSS APPLY (
+                            SELECT COUNT(*) AS Rows, COALESCE(SUM(consumption.Quantity), 0) AS Total
+                            FROM dbo.ShipmentLines AS line
+                            JOIN dbo.ShipmentReservationConsumptions AS consumption ON consumption.ShipmentLineId = line.Id
+                            WHERE line.ShipmentId = confirmed.Id) AS existing
+                        WHERE previous.[State] = N'Draft' AND confirmed.[State] = N'Confirmed'
+                          AND (existing.Rows > confirmed.DeclaredConsumptionCount OR existing.Total > confirmed.DeclaredConsumedQuantity))
+                    BEGIN
+                        THROW 51306, N'La salida tiene más consumos de reserva de los que declara su confirmación.', 1;
+                    END
                 END
                 """);
             migrationBuilder.Sql("""
@@ -198,9 +216,9 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                     END
                 END
                 """);
-            // Consumos ligados a la operación que confirma (D-06, iteración del 2026-11-21): en cualquier
-            // orden de sentencias de la confirmación, la cabecera está en Draft o ya es Confirmed con la
-            // misma operación; un consumo posterior lleva otra operación y se rechaza aquí.
+            // Consumos ligados a la confirmación (D-06): de otra operación, nunca tras confirmar (51304);
+            // con cualquier operación, nunca por encima de los totales declarados (Convergence C1, 51305).
+            // En cualquier orden de sentencias la cabecera está en Draft, sin tope, o ya declara los totales.
             migrationBuilder.Sql("""
                 CREATE TRIGGER dbo.TR_ShipmentReservationConsumptions_ConfirmingOperation ON dbo.ShipmentReservationConsumptions AFTER INSERT AS
                 BEGIN
@@ -213,6 +231,22 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                         WHERE shipment.[State] = N'Confirmed' AND shipment.OperationId <> consumption.OperationId)
                     BEGIN
                         THROW 51304, N'No se pueden añadir consumos de reserva a una salida ya confirmada.', 1;
+                    END
+                    IF EXISTS (
+                        SELECT 1
+                        FROM (SELECT DISTINCT line.ShipmentId
+                              FROM inserted AS consumption
+                              JOIN dbo.ShipmentLines AS line ON line.Id = consumption.ShipmentLineId) AS touched
+                        JOIN dbo.Shipments AS shipment ON shipment.Id = touched.ShipmentId
+                        CROSS APPLY (
+                            SELECT COUNT(*) AS Rows, COALESCE(SUM(consumption.Quantity), 0) AS Total
+                            FROM dbo.ShipmentLines AS line
+                            JOIN dbo.ShipmentReservationConsumptions AS consumption ON consumption.ShipmentLineId = line.Id
+                            WHERE line.ShipmentId = shipment.Id) AS existing
+                        WHERE shipment.[State] = N'Confirmed'
+                          AND (existing.Rows > shipment.DeclaredConsumptionCount OR existing.Total > shipment.DeclaredConsumedQuantity))
+                    BEGIN
+                        THROW 51305, N'No se pueden añadir consumos de reserva por encima de lo que declara la confirmación.', 1;
                     END
                 END
                 """);

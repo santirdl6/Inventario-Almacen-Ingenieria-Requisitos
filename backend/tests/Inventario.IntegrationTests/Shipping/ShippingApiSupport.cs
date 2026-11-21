@@ -127,6 +127,9 @@ internal static class ShippingApiSupport
             .Where(value => lineIds.Contains(value.ShipmentLineId)).ToListAsync();
         // 7. Ningún consumo de otra operación.
         Assert.All(consumptions, value => Assert.Equal(shipment.OperationId, value.OperationId));
+        // 8. Convergence C1: la cabecera declara exactamente el número y la suma de sus consumos.
+        Assert.Equal(consumptions.Count, shipment.DeclaredConsumptionCount);
+        Assert.Equal(consumptions.Sum(value => value.Quantity), shipment.DeclaredConsumedQuantity);
         // 6. Un único movimiento Shipment.
         var movement = await database.Set<StockMovement>().AsNoTracking().Include(value => value.Entries)
             .SingleAsync(value => value.SourceDocumentType == "shipment" && value.SourceDocumentId == shipmentId);

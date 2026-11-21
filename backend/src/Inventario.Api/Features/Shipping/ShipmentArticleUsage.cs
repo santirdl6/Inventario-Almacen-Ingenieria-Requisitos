@@ -31,5 +31,5 @@ internal sealed class ShipmentArticleUsageContributor : IArticleUsageContributor
 public static class ShipmentSchema
 {
     // Migración que crea Shipments, ShipmentLines y ShipmentReservationConsumptions (research D-10).
-    public const string Migration = "20261121114907_HU03_Shipments";
+    public const string Migration = "20261121135335_HU03_Shipments";
 }

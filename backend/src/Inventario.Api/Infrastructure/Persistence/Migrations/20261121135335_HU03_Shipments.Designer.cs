@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Inventario.Api.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(InventoryDbContext))]
-    [Migration("20261121114907_HU03_Shipments")]
+    [Migration("20261121135335_HU03_Shipments")]
     partial class HU03_Shipments
     {
         /// <inheritdoc />
@@ -307,6 +307,12 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("CustomerOrderId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal?>("DeclaredConsumedQuantity")
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int?>("DeclaredConsumptionCount")
+                        .HasColumnType("int");
+
                     b.Property<DateTimeOffset>("OccurredAt")
                         .HasColumnType("datetimeoffset");
 
@@ -342,7 +348,9 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                         {
                             t.HasTrigger("TR_Shipments_ConfirmedImmutable");
 
-                            t.HasCheckConstraint("CK_Shipments_OperationId", "([State] = N'Confirmed' AND [OperationId] IS NOT NULL) OR ([State] = N'Draft' AND [OperationId] IS NULL)");
+                            t.HasCheckConstraint("CK_Shipments_Declared", "([DeclaredConsumptionCount] IS NULL OR [DeclaredConsumptionCount] >= 0) AND ([DeclaredConsumedQuantity] IS NULL OR [DeclaredConsumedQuantity] >= 0)");
+
+                            t.HasCheckConstraint("CK_Shipments_OperationId", "([State] = N'Confirmed' AND [OperationId] IS NOT NULL AND [DeclaredConsumptionCount] IS NOT NULL AND [DeclaredConsumedQuantity] IS NOT NULL) OR ([State] = N'Draft' AND [OperationId] IS NULL AND [DeclaredConsumptionCount] IS NULL AND [DeclaredConsumedQuantity] IS NULL)");
 
                             t.HasCheckConstraint("CK_Shipments_State", "[State] IN (N'Draft', N'Confirmed')");
                         });

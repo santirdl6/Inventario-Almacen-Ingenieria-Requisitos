@@ -678,8 +678,33 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
 
 ## Phase 7: Convergence
 
-Vacía. La rellenarán `/speckit-analyze` y `/speckit-converge` con tareas `C1…`, fuera de la
-numeración T001–T018.
+Tareas `C1…`, fuera de la numeración T001–T018 (siguen siendo 18 tareas).
+
+- [X] C1 [INT-HU03-01] Cerrar P-02 a petición de A: SQL rechaza también un `INSERT` tardío de
+  consumo con el **mismo** `OperationId` que la confirmación. Diseño en research D-06 y D-08
+  (iteración Convergence C1, `01f7c64`), data-model (columnas e invariante 8) y H-02.
+
+  **Hecho (2026-11-21)**:
+  - `Shipments.DeclaredConsumptionCount` y `DeclaredConsumedQuantity`: los fija `Shipment.Confirm(…,
+    count, sum)` en la misma sentencia que pasa a `Confirmed`. `CK_Shipments_OperationId` los exige
+    en `Confirmed` y los prohíbe en `Draft`; `CK_Shipments_Declared` los quiere ≥ 0; son inmutables
+    por `TR_Shipments_ConfirmedImmutable`.
+  - `TR_ShipmentReservationConsumptions_ConfirmingOperation` añade 51305, que rechaza superar lo
+    declarado con cualquier operación. El complemento de la cabecera añade 51306, que rechaza
+    confirmar con más consumos de los declarados. Solo `THROW`, independiente del orden de EF y sin
+    `CURRENT_TRANSACTION_ID()`.
+  - `ShipmentCommands.ConfirmAsync` declara `plan.Count` y la suma de `plan`.
+  - Migración regenerada sobre `HU05_CustomerOrdersReservations`: ahora es
+    `20261121135335_HU03_Shipments` (antes `20261121114907`, sin fusionar en la integración), con la
+    parte manual actualizada. `ShipmentSchema.Migration` sigue el nuevo nombre.
+  - Rojo previo:
+    - `A_late_consumption_with_the_same_operation_is_rejected_by_the_database` fallaba con «No
+      exception was thrown»: el consumo con la misma operación se admitía.
+    - Las demás pruebas (los dos órdenes con más consumos, el CHECK, H-08 y H-10 con los totales
+      declarados, la invariante 8 y el dominio) no compilaban, porque faltaban las columnas.
+  - Verde: Shipping 83 pruebas; suite 290\/1\/0 (base 287\/1\/0); `has-pending-model-changes`
+    limpio. Aplicar, revertir a HU-05 y reaplicar con `dotnet ef database update` sobre una base
+    temporal, ya eliminada.
 
 ---
 

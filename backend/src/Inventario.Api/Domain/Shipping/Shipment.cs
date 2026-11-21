@@ -36,6 +36,12 @@ public sealed class Shipment
     public Guid ActorId { get; private set; }
     /// <summary>Operación que confirma; null en borrador. Los consumos la repiten (D-06, iteración).</summary>
     public Guid? OperationId { get; private set; }
+    /// <summary>
+    /// Convergence C1: número y suma de los consumos que inserta la confirmación, declarados en la
+    /// misma sentencia que pasa a Confirmed. SQL rechaza cualquier consumo que los supere (D-06).
+    /// </summary>
+    public int? DeclaredConsumptionCount { get; private set; }
+    public decimal? DeclaredConsumedQuantity { get; private set; }
     // rowversion: ETag de la salida (D-05).
     public byte[] Version { get; private set; } = [];
     public IReadOnlyList<ShipmentLine> Lines => lines;
@@ -59,14 +65,24 @@ public sealed class Shipment
         Apply(occurredAt, newLines, actorId, recordedAt);
     }
 
-    /// <summary>Draft → Confirmed con la operación que confirma; después no admite cambios.</summary>
-    public void Confirm(Guid operationId, Guid actorId, DateTimeOffset recordedAt)
+    /// <summary>
+    /// Draft → Confirmed con la operación que confirma y los totales de consumo que esa operación
+    /// inserta (Convergence C1); después no admite cambios.
+    /// </summary>
+    public void Confirm(Guid operationId, Guid actorId, DateTimeOffset recordedAt, int declaredConsumptionCount,
+        decimal declaredConsumedQuantity)
     {
         if (operationId == Guid.Empty) throw new ArgumentException("La confirmación requiere su operación.", nameof(operationId));
+        if (declaredConsumptionCount < 0)
+            throw new ArgumentException("El número de consumos no puede ser negativo.", nameof(declaredConsumptionCount));
+        if (declaredConsumedQuantity < 0 || decimal.Round(declaredConsumedQuantity, 3) != declaredConsumedQuantity)
+            throw new ArgumentException("La cantidad consumida es positiva o cero, con tres decimales.", nameof(declaredConsumedQuantity));
         RequireActor(actorId);
         RequireDraft();
         State = ShipmentState.Confirmed;
         OperationId = operationId;
+        DeclaredConsumptionCount = declaredConsumptionCount;
+        DeclaredConsumedQuantity = declaredConsumedQuantity;
         ActorId = actorId;
         RecordedAt = recordedAt;
     }

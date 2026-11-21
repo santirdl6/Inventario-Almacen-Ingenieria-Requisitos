@@ -249,7 +249,8 @@ public sealed class ShipmentCommands(InventoryOperationExecutor executor)
             order.DeriveFulfilment();
             // Siempre, aunque no se consuma ninguna reserva: cambia lo servido (regla 4, FR-012).
             db.Entry(order).Property(value => value.State).IsModified = true;
-            shipment.Confirm(context.OperationId, context.ActorId, DateTimeOffset.UtcNow);
+            // Convergence C1: declara en la misma sentencia el número y la suma de los consumos que inserta.
+            shipment.Confirm(context.OperationId, context.ActorId, DateTimeOffset.UtcNow, plan.Count, plan.Sum(item => item.Quantity));
 
             return OperationResponse.Json(200, new ShipmentConfirmation(context.OperationId, id, outcome.MovementId, order.Id,
                 order.State.ToString(), lines.Select(line => new ShipmentConfirmedLine(line.Id, ShipmentView.Quantity(line.Quantity),
