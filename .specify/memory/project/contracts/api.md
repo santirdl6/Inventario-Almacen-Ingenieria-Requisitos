@@ -208,8 +208,13 @@ edición/cancelación de pedidos ni un módulo comercial.
 | POST /reservations | customerOrderLineId, allocations con locationId, lotId y quantity; If-Match del pedido; Reservations.Manage. 201 sin ETag. |
 | GET /reservations/{id} | Solo datos propios: asignado, consumido, liberado y remanente por bucket (ids); ETag de la reserva; Inventory.Read. |
 | POST /reservations/{id}/release | releaseId, reason (texto libre obligatorio), allocations con allocationId y quantity; If-Match de la reserva; Reservations.Manage. No libera más del remanente. 200 sin ETag. |
-| POST /shipments; GET, PUT /shipments/{id} | customerOrderId, occurredAt y lines con customerOrderLineId, locationId, lotId y quantity; edición solo de borrador con If-Match. |
-| POST /shipments/{id}/confirm | Shipping.Record; efecto atómico sobre físico, reserva propia y servido del pedido. |
+| GET /customer-orders/lookup?externalReference= | Búsqueda exacta sin distinguir mayúsculas ni espacios extremos; devuelve como mucho un pedido (`id`, `externalReference`, `state`) o 404; sin lista ni búsqueda parcial; Inventory.Read (HU-03 P-04). |
+| POST /shipments; PUT /shipments/{id} | customerOrderId, occurredAt y lines con customerOrderLineId, locationId, lotId y quantity; edición solo de borrador con If-Match; Shipping.Record. |
+| DELETE /shipments/{id} | Elimina un borrador completo con If-Match; 409 DocumentAlreadyConfirmed si está confirmada; 204; Shipping.Record (HU-03 P-03). |
+| GET /shipments/{id} | Solo datos propios y líneas ordenadas por Id, con ETag de la salida; Inventory.Read. |
+| GET /shipments/{id}/context | Sin ETag, con shipmentVersion y orderVersion: datos actuales de pedido, artículos, ubicaciones y lotes; Inventory.Read. |
+| GET /shipments?customerOrderId= | Lista paginada de las salidas del pedido, sin ETag; Inventory.Read. |
+| POST /shipments/{id}/confirm | Shipping.Record; If-Match de la salida y cuerpo `{ orderVersion }` (versión del pedido revisado, 412 si cambió); respuesta sin ETag. Efecto atómico sobre físico, reserva propia y servido del pedido. |
 
 Cada liberación incluye releaseId UUID estable; su reintento lo conserva, pero otra
 liberación parcial legítima utiliza otro releaseId. Reservar y liberar son comandos que

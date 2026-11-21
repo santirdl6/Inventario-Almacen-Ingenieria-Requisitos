@@ -86,7 +86,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - P-03, P-04, P-05 y P-08: cubiertos por la luz verde general; confirmación ítem a ítem pendiente;
   - P-07: con la limitación pedida por A (`34af23d`).
   Ninguno rechazado: no cambia ninguna tarea.
-- [ ] T002 ⏸ **PENDIENTE, bloqueada por T001 y por la fusión del PR #9**: aplicar los diffs aprobados
+- [X] T002 Aplicar los diffs aprobados
   P-01…P-05, P-07 y P-08 en `.specify/memory/project/data-model.md`,
   `.specify/memory/project/contracts/api.md`, `.specify/memory/project/contracts/stock-operations.md`,
   `.specify/memory/project/quickstart.md` (evidencia, tras T018) y
@@ -96,6 +96,21 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   La fusión del PR #9 sigue siendo necesaria para que la base de HU-03 sea la definitiva. **No se aplican
   hasta la aprobación de A** (AGENTS.md, «Cambios compartidos»). Al tener evidencia (T018), marcar
   INT-HU03-01 e INT-HU03-02 en el backlog. ⚑ commit aparte.
+
+  **Hecho (2026-11-21)**, con la luz verde de A (T001) y el PR #9 ya fusionado:
+  - `data-model.md` común: P-01 (concreción de `Shipment`/`ShipmentLine`) y P-02
+    (`ShipmentReservationConsumption` con totales declarados y el límite de D-06: SQL impone el
+    máximo; H-14 comprueba que la confirmación por API inserta exactamente lo declarado).
+  - `contracts/api.md`: P-03 (`DELETE`, detalle con `ETag`, contexto sin él, lista y cuerpo
+    `orderVersion` en `/confirm`) y P-04 (`GET /customer-orders/lookup`).
+  - `contracts/stock-operations.md`: P-05 (tipo `shipment`, orden de bloqueos, `orderVersion` bajo
+    bloqueo, motivo, soporte y contraparte), el límite de D-06 y la limitación de la corrección por
+    conteo.
+  - `integration-tasks.md`: P-07 como INT-HU04-04, con la limitación pedida por A; INT-HU03-01 e
+    INT-HU03-02 marcadas con su evidencia.
+  - `quickstart.md` común: P-08 en § 11, con la evidencia tras T018 y Convergence C4.
+  P-03, P-04, P-05 y P-08 quedan con confirmación ítem a ítem de A pendiente (plan, «Estado de la
+  revisión de A»).
 
 ---
 
