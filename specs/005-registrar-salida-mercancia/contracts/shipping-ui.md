@@ -44,6 +44,8 @@ El área `salidas` de `operation-areas.ts` pasa a `Inventory.Read` (research D-1
   `StockApiService.allRows` de HU-05 (todas las páginas de `GET /stock?articleId=`; analyze-1 H3).
   Sin reserva propia, la fila queda vacía.
 - Cada fila muestra ubicación, lote o «sin lote», cantidad con unidad, y el pendiente de su línea.
+  **Convergence C3** (G2): también el artículo («SKU · nombre»). En solo lectura, cada línea empieza
+  por el artículo y la cabecera muestra la fecha de registro (US4.1, FR-018).
 - «Guardar borrador» crea (`POST`) o sustituye (`PUT`) y navega o se queda en `/salidas/:id`.
 - «Eliminar borrador» pide confirmación en un diálogo y, tras el 204, vuelve al pedido con el aviso
   «Borrador eliminado. No se ha modificado ninguna existencia». **Construido** (T015, `8487830`): la

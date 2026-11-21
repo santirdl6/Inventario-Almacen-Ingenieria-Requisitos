@@ -730,6 +730,24 @@ Tareas `C1…`, fuera de la numeración T001–T018 (siguen siendo 18 tareas).
       Después se deshizo.
   - Verde: Shipping 85/85 y la spec de confirmación 7/7.
 
+- [X] C3 [G2 de converge-1] Identificar el artículo de cada línea con «SKU · nombre», en la vista
+  de solo lectura y en las filas del borrador. La vista de solo lectura muestra además la fecha de
+  registro (US4.1, FR-018).
+
+  **Hecho (2026-11-21)**:
+  - `shipment-form.page.ts`:
+    - `readonly-line` empieza por el artículo, que sale de `context.articles` de la salida.
+    - Cada `shipment-line` lleva `line-article`, con el artículo de su línea de pedido (contexto del
+      pedido).
+    - La cabecera de solo lectura añade «Fecha de registro» con `recordedAt`.
+    - No cambian la API ni el esquema.
+  - Pruebas: dos en `shipment-form.page.spec.ts` (filas propuestas y borrador guardado) y una en
+    `shipment-confirm.page.spec.ts` (confirmada: artículo, origen y fecha de registro).
+  - Rojo: las tres fallaban porque faltaba el artículo, «expected 'N01 · sin lote · 2.000 UD ·
+    Reserva p…' to contain 'ART-01 · Tornillo'» y «expected [ '', '' ] to deeply equal [ 'ART-01 ·
+    Tornillo', …(1) ]».
+  - Verde: specs de `/salidas` 36/36.
+
 ---
 
 ## Si hay tiempo (fuera de las 18 tareas, en este orden)

@@ -44,6 +44,19 @@ describe('ShipmentFormPage · preparar y editar el borrador', () => {
     expect(text(rows[0])).toContain('Pendiente 6.000 UD');
   });
 
+  it('cada fila del borrador identifica el artículo con SKU y nombre (US4.1, FR-018; Convergence C3)', async () => {
+    const { fixture, root } = await renderNew();
+    click(root, `[data-testid="add-${LINE}"]`);
+    await settle(fixture);
+    const rows = Array.from(root.querySelectorAll('[data-testid="shipment-line"]'));
+    expect(rows.map(row => text(row.querySelector('[data-testid="line-article"]')))).toEqual(['ART-01 · Tornillo', 'ART-01 · Tornillo']);
+  });
+
+  it('un borrador guardado también muestra el artículo de cada fila (C3)', async () => {
+    const { root } = await renderExisting();
+    expect(text(root.querySelector('[data-testid="shipment-line"] [data-testid="line-article"]'))).toBe('ART-01 · Tornillo');
+  });
+
   it('sin reserva propia no propone nada; el selector ofrece todas las combinaciones, también la 30', async () => {
     const { fixture, root } = await renderNew([]);
     click(root, `[data-testid="add-${LINE}"]`);

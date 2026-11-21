@@ -52,12 +52,13 @@ export interface DraftRow {
         @if (!editable()) {
           <p>Estado: {{ stateLabel(saved.shipment.state) }} · Fecha del hecho: {{ saved.shipment.occurredAt | date: 'dd/MM/yyyy HH:mm' }}
             · Responsable: {{ saved.context.actorName }}</p>
+          <p data-testid="recorded-at">Fecha de registro: {{ saved.shipment.recordedAt | date: 'dd/MM/yyyy HH:mm' }}</p>
           @if (saved.shipment.operationId) {
             <p data-testid="confirmed-operation">Salida confirmada con la operación {{ saved.shipment.operationId }}</p>
           }
           @for (line of sortedLines(saved); track line.id) {
             <p data-testid="readonly-line">
-              {{ origin(saved, line.locationId, line.lotId) }} · {{ line.quantity }} {{ unitOf(line.customerOrderLineId) }}
+              {{ savedArticle(saved, line.articleId) }} · {{ origin(saved, line.locationId, line.lotId) }} · {{ line.quantity }} {{ unitOf(line.customerOrderLineId) }}
               @if (saved.shipment.state === 'Confirmed') { · Reserva propia consumida {{ line.ownReservationConsumed }} {{ unitOf(line.customerOrderLineId) }} }
             </p>
           }
@@ -95,6 +96,7 @@ export interface DraftRow {
         <h2>Líneas de la salida</h2>
         @for (row of rows(); track row.orderLineId + row.locationId + row.lotId; let index = $index) {
           <div class="field" data-testid="shipment-line">
+            <span data-testid="line-article">{{ articleOf(row.orderLineId) }}</span>
             <span data-testid="origin">{{ row.origin }}</span>
             <label [for]="'quantity-' + index">Cantidad ({{ unitOf(row.orderLineId) }})</label>
             <input [id]="'quantity-' + index" inputmode="decimal" [value]="row.quantity" (input)="setQuantity(index, value($event))"
@@ -247,6 +249,19 @@ export class ShipmentFormPage implements OnInit {
 
   private line(orderLineId: string): OrderLine | undefined {
     return this.order()?.order.lines.find(line => line.id === orderLineId);
+  }
+
+  /** Convergence C3 (G2; US4.1, FR-018): «SKU · nombre» del artículo de la línea. */
+  articleOf(orderLineId: string): string {
+    const line = this.line(orderLineId);
+    if (!line) return '';
+    const article = this.article(line);
+    return `${article.sku} · ${article.name}`;
+  }
+
+  savedArticle(saved: ShipmentDetail, articleId: string): string {
+    const article = saved.context.articles.find(item => item.id === articleId);
+    return article ? `${article.sku} · ${article.name}` : 'Artículo no disponible';
   }
 
   unitOf(orderLineId: string): string { const line = this.line(orderLineId); return line ? this.article(line).baseUnit : ''; }

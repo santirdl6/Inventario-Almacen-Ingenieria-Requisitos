@@ -51,6 +51,14 @@ describe('ShipmentFormPage · revisar, confirmar y recuperar', () => {
     for (const action of ['save', 'delete', 'review']) expect(root.querySelector(`[data-testid="${action}"]`)).toBeNull();
   });
 
+  it('la salida confirmada identifica el artículo por línea y muestra la fecha de registro (US4.1, FR-018; C3)', async () => {
+    const { root } = await render(RECORD, shipment('Confirmed', '2.000', 'op-antigua'), shipmentContext('"s1"', true, []));
+    const line = text(root.querySelector('[data-testid="readonly-line"]'));
+    expect(line).toContain('ART-01 · Tornillo');
+    expect(line).toContain('N01 · sin lote');
+    expect(text(root.querySelector('[data-testid="recorded-at"]'))).toMatch(/^Fecha de registro: 21\/11\/2026 \d{2}:05$/);
+  });
+
   it('un borrador abierto solo con Inventory.Read no ofrece «Guardar», «Eliminar» ni «Revisar» (D-14)', async () => {
     const { root } = await render(['Inventory.Read']);
     for (const action of ['save', 'delete', 'review']) expect(root.querySelector(`[data-testid="${action}"]`)).toBeNull();
