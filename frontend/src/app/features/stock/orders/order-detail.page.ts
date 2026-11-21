@@ -33,6 +33,9 @@ import { ReserveDialog } from './reserve-dialog';
     @if (detail(); as current) {
       <h1>Pedido {{ current.order.externalReference }}</h1>
       <p>Cliente: {{ current.order.customerReference }} · Estado: {{ label(current.order.state) }}</p>
+      @if (current.context.creationOperationId; as creation) {
+        <p data-testid="creation-operation">Pedido creado con la operación {{ creation }}</p>
+      }
       <p class="meta">
         Datos a las {{ current.context.asOf | date: 'dd/MM/yyyy HH:mm:ss' }}
         <button type="button" data-testid="refresh-order" (click)="load()">Actualizar</button>

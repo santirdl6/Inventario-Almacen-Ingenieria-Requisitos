@@ -69,7 +69,7 @@ Reconciliado con `/speckit-converge` el 2026-11-20.
 | S-04 | **No ejecutado**: aún no hay documentos en borrador (HU-01); «Si hay tiempo» S4 | — |
 | S-06 | Parcial: `article.isActive` en la API (S-01) y «Inactivo» en la UI (Vitest); la consulta con el artículo desactivado queda en S4 | `StockQueryTests`, `stock-query.page.spec.ts` |
 | S-07 | En verde, como conciliación de las asignaciones con `StockBalances.Reserved` y del diario con los saldos | `StockApiSupport.AssertCommitmentsMatchBalancesAsync` en `ReservationTests`, `ReleaseTests` y `StockReliabilityTests` |
-| S-08, S-09, S-19 | En verde | `CustomerOrderTests` |
+| S-08, S-09, S-19 | En verde; el contexto da la operación del alta (C3) | `CustomerOrderTests` (`C3_context_returns_the_creation_operation_…`) |
 | S-10, S-11, S-12 (V-05, 20 rondas), S-18 | En verde | `ReservationTests`, `CustomerOrderTests` |
 | S-13 | **No ejecutado**; «Si hay tiempo» S4 | — |
 | S-14, S-15 | En verde | `ReleaseTests` |
@@ -95,10 +95,10 @@ Las unitarias (Vitest/TestBed) cubren:
 - Estado «Resultado pendiente de comprobar».
 
 Construido: `stock-query.page.spec.ts` (7), `order-form.page.spec.ts` (7), `order-detail.page.spec.ts`
-(12) y las specs de los cambios en archivos de A (`pending-operation-hu05.spec.ts`, 5;
+(14) y las specs de los cambios en archivos de A (`pending-operation-hu05.spec.ts`, 5;
 `operation-status-hu05.spec.ts`, 4). Incluyen el foco al primer error tras un rechazo (C1, FR-027
-y FR-028) y el 412 en los diálogos de reservar y liberar (C2, FR-025). Límites aceptados: G2 y G3
-de [validation/converge-1.md](validation/converge-1.md).
+y FR-028), el 412 en los diálogos de reservar y liberar (C2, FR-025) y la operación del alta en el
+detalle (C3, G2 de [validation/converge-1.md](validation/converge-1.md)).
 
 ## E2E (solo el recorrido del vídeo)
 

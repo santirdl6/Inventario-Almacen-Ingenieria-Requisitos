@@ -110,6 +110,25 @@ describe('OrderDetailPage', () => {
     expect(lines[1]).toContain('Pendiente 3.000 KG');
   });
 
+  // Convergence C3 (G2; FR-026, US2.1): el identificador de la operación del alta sale del
+  // contexto, así que se ve igual tras crear, tras cerrar sesión o al entrar por «Abrir pedido».
+  it('muestra la operación del alta que da el contexto, sin depender de cómo se llegó al pedido', async () => {
+    const { fixture, root } = await render();
+    flushDetail(order(), '"v1"');
+    await settle(fixture);
+    httpMock().expectOne(`/api/v1/customer-orders/${ORDER}/context`)
+      .flush(context('"v1"', { creationOperationId: '90000000-0000-4000-8000-000000000009' }));
+    await settle(fixture);
+    expect(text(root.querySelector('[data-testid="creation-operation"]')))
+      .toBe('Pedido creado con la operación 90000000-0000-4000-8000-000000000009');
+  });
+
+  it('sin operación de alta en el contexto no muestra ese dato', async () => {
+    const { fixture, root } = await render();
+    await flushPair(fixture, order(), '"v1"');
+    expect(root.querySelector('[data-testid="creation-operation"]')).toBeNull();
+  });
+
   it('si orderVersion no coincide con el ETag vuelve a leer y no reserva con un ETag mezclado', async () => {
     const { fixture, root } = await render();
     await flushPair(fixture, order(), '"v1"', '"v2"');

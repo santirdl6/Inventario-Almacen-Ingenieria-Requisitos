@@ -908,8 +908,8 @@ siempre en commit propio. Nunca `git add -A`.
 ## Phase 10: Convergence
 
 Tareas de [validation/converge-1.md](validation/converge-1.md), fuera de la numeración T001–T020
-(siguen siendo 20 tareas). G2 y G3 no generan tarea: B los acepta como límites conocidos de esta
-entrega, con la justificación del informe.
+(siguen siendo 20 tareas). G2 y G3 se aceptaron primero como límites conocidos. A pidió cerrarlos
+para aprobar el PR #9, así que pasan a C3 y C4.
 
 - [X] C1 [US2] [US3] [US4] Cerrar G1 (FR-027, FR-028, accesibilidad de
   [stock-ui](contracts/stock-ui.md#accesibilidad)): tras un rechazo del servidor, el foco va al
@@ -944,4 +944,32 @@ entrega, con la justificación del informe.
     las dos pruebas fallan. Después se restauraron los archivos.
   - Vitest 143/143 (línea base 136); `tsc` de app y specs limpio; `npm run build` correcto.
 
-**C1 en `b87852b`; C2 en el commit «/speckit-implement Convergence C2».**
+- [X] C3 [US2] Cerrar G2 (FR-026, US2.1): el detalle del pedido muestra el identificador de la
+  operación del alta, tanto al crear como al recuperar el pedido (tras cerrar sesión, por «Abrir
+  pedido» o por URL).
+
+  **Hecho (2026-11-21)**:
+  - **Vía**: `GET /customer-orders/{id}/context` añade `creationOperationId`, leído en la misma
+    transacción SNAPSHOT del `OperationResult` del alta. Su `SourceDocumentId` ya era el pedido,
+    con `POST` y el recurso canónico `/api/v1/customer-orders`. Sin cambio de esquema ni de
+    migración, sin ruta nueva y sin tocar el detalle ni su `ETag`. Al venir del servidor, sirve
+    igual en cualquier camino de llegada; pasar estado entre rutas no cubría el regreso tras
+    cerrar sesión ni la URL directa.
+  - `CustomerOrderQueries.ContextAsync` y `CustomerOrderContext` (backend); `stock.models.ts` y
+    `order-detail.page.ts`, que muestra «Pedido creado con la operación {id}» (frontend). Ningún
+    archivo de A.
+  - Pruebas:
+    - Backend: `CustomerOrderTests.C3_context_returns_the_creation_operation_also_after_a_replay_and_never_another_order`.
+      Cubre la clave del alta, el replay, otro pedido con otra operación y el `ETag` sin cambios.
+    - Vitest: 2 en `order-detail.page.spec.ts`, con y sin operación en el contexto.
+  - **Rojo previo anotado**: la de backend fallaba con `KeyNotFoundException`, porque
+    `creationOperationId` no existía; la primera de Vitest, porque faltaba el elemento
+    `creation-operation`. La segunda de Vitest pasa desde el principio: es la guarda del caso
+    `null`.
+  - Verde: `CustomerOrderTests` 16/16; `order-detail.page.spec.ts` 14/14.
+  - **Límite**: `OperationResults` no tiene índice por `SourceDocumentId`, así que la lectura
+    recorre la tabla. Añadir el índice sería un cambio de esquema en una tabla común. Queda
+    anotado para SC-006, sin aplicarlo.
+
+**C1 en `b87852b`; C2 en el commit «/speckit-implement Convergence C2»; C3 en el commit
+«/speckit-implement Convergence C3».**

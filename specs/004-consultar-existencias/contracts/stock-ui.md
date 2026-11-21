@@ -44,7 +44,7 @@ El área `/existencias` ya está declarada en `operation-areas.ts` con `Inventor
 - Revisión antes de confirmar (estado 2) y confirmación (estado 3) con la intención idempotente
   conservada.
 - Los errores por línea se asocian a su campo y los datos válidos se conservan (estado 5).
-- Al confirmar se muestra el identificador y se navega al detalle.
+- Al confirmar se muestra el identificador y se navega al detalle, que también lo muestra (C3).
 
 ## Detalle del pedido, reservar y liberar
 
@@ -56,7 +56,9 @@ El área `/existencias` ya está declarada en `operation-areas.ts` con `Inventor
   La pantalla une ambas por id. Si `context.orderVersion` difiere del `ETag` del detalle, vuelve a
   leer las dos antes de mostrar o permitir reservar o liberar, igual que la ficha de artículo de
   HU-08. «Actualizar» repite las dos lecturas.
-- Cabecera con referencia, cliente y estado en texto. Por línea: artículo (SKU y nombre del
+- Cabecera con referencia, cliente y estado en texto, y «Pedido creado con la operación {id}» con
+  el `creationOperationId` del contexto (Convergence C3, FR-026). Al venir del servidor, se ve
+  igual tras crear, tras cerrar sesión, al entrar por «Abrir pedido» o por URL. Por línea: artículo (SKU y nombre del
   contexto, con «Inactivo» en texto si procede), pedido, servido, pendiente y reservado remanente,
   con la unidad del contexto, y las reservas con sus asignaciones (ubicación y lote del contexto).
 - **Reservar** (por línea, con `Reservations.Manage` y el pedido `Open`): diálogo que lista las
