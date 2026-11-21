@@ -276,7 +276,7 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
     replay 204, otra clave 404); escrituras 403 para GestorMaestros y ResponsableAlmacen, y lectura
     403 para Administrador.
   - Suite 244/1/0; sin cambios de modelo.
-- [ ] T008 [P] [US1] [US5] [INT-HU03-01] `Shipping/ShippingApiSupport.cs` y
+- [X] T008 [P] [US1] [US5] [INT-HU03-01] `Shipping/ShippingApiSupport.cs` y
   `Shipping/ShipmentDraftTests.cs`. Depende de T007. Escribir las pruebas contra las rutas mapeadas
   con cuerpo `NotImplemented` antes de completar T007 y anotar el rojo (501/500 en todas).
   - Soporte: sesión real por rol, pedidos y reservas con los comandos reales de HU-05
@@ -299,6 +299,23 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
     403 en escrituras y 200 en `GET`; Administrador → 403 también en lectura.
 
   (US1.1, US1.6–US1.9, US5.1; FR-002–FR-005, FR-019.)
+
+  **Hecho (2026-11-21)**: `ShippingApiSupport.cs` y `ShipmentDraftTests.cs`, que tiene 18 pruebas (las 6 de T007 más 12):
+  - M1: `IdempotencyConflict` al crear, editar y eliminar.
+  - H-07 completo: el contributor deja de ver la línea; la línea de pedido sigue fijando la definición
+    y rechazando el `DELETE` (409 `HistoryPreventsDeletion`).
+  - Retirada por edición: un `PUT` que quita la única línea del artículo X.
+  - 10 carreras con `LockBarrier` y conexiones independientes, en ambos órdenes: crear/editar
+    borrador frente a `PUT` de definición y `DELETE` del artículo, y eliminar borrador frente a
+    `DELETE`.
+  - H-20 del borrador: GestorMaestros, Comprador y ResponsableAlmacen → 403 al escribir y 200 al
+    leer; Administrador → 403; sin sesión → 401; sin antiforgery → 400.
+  - **Rojo**: no hubo rojo natural, porque T007 ya implementaba el comportamiento. Se comprobó con
+    dos mutaciones temporales, sin commit: (1) sin `ArticlesAsync` al crear, fallan las 2 carreras
+    en las que el borrador va primero; (2) con el contributor siempre «sin uso», fallan las 2 de
+    retirada. Después se restauraron los archivos.
+  - `PUT` y `DELETE` de una salida confirmada → 409 queda para T010, porque necesita `/confirm`.
+  - Suite 256/1/0; sin cambios de modelo.
 - [ ] T009 [US1] [US2] Confirmar (D-04, D-05, D-07). Depende de T007.
   - `ShipmentCommands.ConfirmAsync` y `POST /shipments/{id}/confirm` (`Shipping.Record`), cuerpo
     `{ orderVersion }` en la huella:
