@@ -47,7 +47,7 @@ export interface CountLinesWrite {
   found: { articleId: string; locationId: string; lotCode?: string; countedPhysical: string }[];
 }
 
-export interface CountReviewWrite { lines: { lineId: string; reason: string; correctsShipmentId?: string }[] }
+export interface CountReviewWrite { lines: { lineId: string; reason: string | null; correctsShipmentId?: string }[] }
 
 export interface ShipmentCorrection { lineId: string; shipmentId: string; customerOrderId: string; orderChanged: false; notice: string }
 

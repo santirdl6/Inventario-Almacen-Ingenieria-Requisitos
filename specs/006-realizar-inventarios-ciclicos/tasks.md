@@ -270,7 +270,7 @@ real en salidas, reservas y ubicaciones.
     guardar solo lo escrito, hallazgos (búsqueda de artículo, lote en mayúsculas si lo gestiona) y retirada con
     `DELETE`; enviar guarda antes lo pendiente y marca la fila de `lines[i]`. Sin motivo al contar (H6). 412
     relee y conserva lo escrito; 409 de estado relee. Verde: Vitest 214/214, build correcto.
-- [ ] T016 [US2] [US4] Revisión, confirmación y cancelación: `count-review-dialog.ts`,
+- [X] T016 [US2] [US4] Revisión, confirmación y cancelación: `count-review-dialog.ts`,
   `shipment-link-dialog.ts` (candidatas con todas las páginas, aviso «No cambia lo servido del pedido ni
   las reservas consumidas») y estado cerrado en solo lectura con la operación visible al recuperar
   (`OperationStatusComponent`) y, en cada línea vinculada, la salida corregida (FR-022, US4.2). Aviso
@@ -279,6 +279,17 @@ real en salidas, reservas y ubicaciones.
   [spec § FR-020](spec.md) y el [contrato UI](contracts/cycle-counts-ui.md). Vitest,
   con una prueba de un conteo cerrado con una línea vinculada que muestra el aviso. **Rojo esperado**: la spec no encuentra «Confirmar ajuste».
   Depende de T015 y, para el vínculo, de T012.
+  - **Hecho**: rojo observado: 8 de 9 pruebas de `count-review.page.spec.ts` fallan (no hay «Confirmar
+    ajuste», ni vínculo, ni cierre). Revisión con teórico, contado, diferencia en texto, reservado actual y
+    quién contó; motivo solo en las diferencias y solo aquí (H6), obligatorio antes de abrir la revisión final.
+    «Confirmar ajuste» guarda la revisión si cambió (`PUT …/review`) y confirma con `If-Match`; el éxito muestra
+    «Ajuste registrado. Operación …» y, si hay correcciones, el `notice` de `shipmentCorrections` con
+    `orderChanged: false`. 409 `ReservedStockConflict` ofrece liberar la reserva en Existencias. Fallo de red:
+    `OperationStatusComponent` con «Comprobar resultado» y «Abrir conteo». `shipment-link-dialog.ts` con
+    candidatas de todas las páginas y el aviso «No cambia lo servido del pedido ni las reservas consumidas».
+    Aviso P-07 visible (`data-testid="p07-notice"`) siempre que haya una línea vinculada; en el cerrado, cada
+    línea vinculada muestra la salida (referencia del pedido) y `shipmentCorrectionNotice`. Cancelar con motivo
+    1–500. Verde: Vitest 223/223, build correcto.
 - [ ] T017 [US1] [US2] E2E-03 en `frontend/e2e/hu04-cycle-counts.spec.ts`: operario crea, inicia y cuenta
   con una diferencia; responsable revisa con motivo y confirma; existencias ajustadas y ubicación fuera de
   conteo. Reutiliza las cuentas `operario` y `responsable` y `POST /testing/stock-receipts`; sin cambios en
