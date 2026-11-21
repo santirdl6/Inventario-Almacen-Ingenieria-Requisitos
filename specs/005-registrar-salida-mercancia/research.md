@@ -172,9 +172,9 @@ cabecera y los `INSERT` de consumos de la misma `SaveChanges`. Mecanismo fijado 
   `ConfirmedByOperationId`.
 - Cada fila de consumo lleva `OperationId`, el de la operación que la crea: el `context.OperationId`
   del ejecutor dentro de `change`.
-- `TR_ShipmentReservationConsumptions_ConfirmingOperation` (`AFTER INSERT`): `ROLLBACK` + `THROW` si
-  alguna fila de `inserted` pertenece a una línea cuya cabecera está `Confirmed` con un `OperationId`
-  distinto del de la fila.
+- `TR_ShipmentReservationConsumptions_ConfirmingOperation` (`AFTER INSERT`): `THROW` (decisión M3)
+  si alguna fila de `inserted` pertenece a una línea cuya cabecera está `Confirmed` con un
+  `OperationId` distinto del de la fila.
 - Complemento en `TR_Shipments_ConfirmedImmutable`: en la transición `Draft → Confirmed`, rechaza si
   ya existe algún consumo de sus líneas con un `OperationId` distinto del nuevo de la cabecera. Así,
   un consumo insertado de antemano en un borrador por otra operación no sobrevive a la confirmación.
@@ -191,18 +191,46 @@ El resultado no depende del orden de EF:
 Fuera de la confirmación, cualquier `INSERT` posterior lleva otra operación y se rechaza en la base
 de datos.
 
+**Iteración Convergence C1 (2026-11-21, A, para cerrar P-02): totales declarados en la cabecera.**
+Con lo anterior, una fila con el **mismo** `OperationId` insertada después del commit pasaba el
+trigger. A pide que SQL la rechace también. Mecanismo, que sustituye ese límite:
+
+- Al confirmar, la cabecera guarda `DeclaredConsumptionCount` (número de filas de consumo de la
+  salida) y `DeclaredConsumedQuantity` (su suma) **en la misma sentencia** que la pasa a
+  `Confirmed`. `CK_Shipments_OperationId` exige que en `Draft` las dos columnas sean null y que en
+  `Confirmed` no lo sean. `TR_Shipments_ConfirmedImmutable` las vuelve inmutables, como al resto de
+  la cabecera confirmada.
+- `TR_ShipmentReservationConsumptions_ConfirmingOperation` (`AFTER INSERT`, solo `THROW` 51305):
+  rechaza cualquier fila que lleve el número de consumos de esa salida o su suma por encima de lo
+  declarado, tanto con el mismo `OperationId` como con otro. Antes de confirmar, sin totales
+  declarados, no hay tope.
+- El complemento de `TR_Shipments_ConfirmedImmutable` comprueba en la transición `Draft →
+  Confirmed` que los consumos ya insertados no superan los totales declarados (51306), además de la
+  operación (51302).
+- No se usa `CURRENT_TRANSACTION_ID()`: la regla depende solo de datos guardados.
+
+Sigue sin depender del orden de EF:
+
+- Si la cabecera va primero, cada `INSERT` se compara con los totales ya declarados.
+- Si los consumos van primero, el `UPDATE` de la cabecera compara lo insertado con lo que declara.
+
+Un `INSERT` posterior a la confirmación siempre sobrepasa el número declarado, porque la
+confirmación declara exactamente las filas que inserta. Se rechaza aunque repita la operación.
+
 Límites aceptados:
 
-- Una fila con el **mismo** `OperationId` tras el commit pasaría el trigger. No hay camino para
-  ello: `OperationResults` tiene ese id como PK y el ejecutor devuelve el resultado guardado sin
-  volver a ejecutar.
+- Sin restricciones diferidas, SQL no puede exigir que se inserten **todos** los consumos
+  declarados: solo que no se supere lo declarado. Si la aplicación insertara menos filas de las
+  declaradas, quedaría hueco hasta el total. La confirmación declara exactamente lo que inserta, y la
+  invariante 8 lo comprueba en cada prueba de confirmación (H-14).
 - Un consumo insertado en un borrador que nunca se confirma no se detecta al insertarlo. La
   aplicación solo inserta al confirmar, y esa fila impediría eliminar el borrador (FK `Restrict`
   desde la línea), así que el fallo sería visible.
 
 **Decisión M3 (B, 2026-11-21; analyze-1 M3), aplicada en T004**: los tres triggers solo hacen
 `THROW` (51301 salida confirmada, 51302 consumos de otra operación al confirmar, 51303 líneas de una
-confirmada y 51304 consumo tardío), **sin `ROLLBACK` explícito**. Un `ROLLBACK` dentro del trigger
+confirmada, 51304 consumo tardío de otra operación y, desde C1, 51305 consumo por encima de lo
+declarado y 51306 confirmación con más consumos de los declarados), **sin `ROLLBACK` explícito**. Un `ROLLBACK` dentro del trigger
 cierra la transacción del ejecutor y el cliente recibe el error 3609. Con solo `THROW`, el
 `XACT_ABORT` implícito del trigger aborta la transacción y el error que llega es el del trigger.
 `Hu03SchemaTests` comprueba, dentro de una transacción de EF, que llega 51304 y no 3609, que
@@ -251,6 +279,9 @@ se pueden añadir consumos a una salida ya confirmada. Invariantes:
 - Σ consumos de una línea de salida = su reserva propia consumida = `ShipReserved` del movimiento en
   ese bucket.
 - Cada consumo de una salida confirmada lleva el `OperationId` de su cabecera.
+- Número y suma de los consumos de una salida confirmada = `DeclaredConsumptionCount` y
+  `DeclaredConsumedQuantity` de su cabecera, declarados al confirmar y nunca superados (Convergence
+  C1): un consumo posterior se rechaza aunque repita la operación.
 
 `ShipmentLine.OwnReservationConsumed` del modelo común se mantiene como columna **calculada en la
 lectura** (Σ de consumos), no almacenada, para que la línea confirmada no cambie (D-06). Es una

@@ -20,7 +20,9 @@ Tipos comunes: cantidades `decimal(18,3)` (`StockColumns.Quantity`), UUID genera
 | OccurredAt | datetimeoffset | Fecha y hora del hecho; obligatoria; ≤ ahora + 5 min (D-07). Editable en borrador. |
 | RecordedAt | datetimeoffset | Último registro: alta o edición del borrador; al confirmar, la confirmación. |
 | ActorId | uniqueidentifier | Quien registró `RecordedAt` (sesión, nunca el cliente). El autor del alta consta en su `OperationResult`. |
-| OperationId | uniqueidentifier null | Operación de confirmación. CHECK: `State = 'Confirmed'` ⇔ `OperationId IS NOT NULL`. Índice único filtrado. Sin FK (como `OperationResult.SourceDocumentId`). |
+| OperationId | uniqueidentifier null | Operación de confirmación. CHECK `CK_Shipments_OperationId`: en `Draft`, `OperationId`, `DeclaredConsumptionCount` y `DeclaredConsumedQuantity` son null; en `Confirmed`, ninguno lo es. Índice único filtrado. Sin FK (como `OperationResult.SourceDocumentId`). |
+| DeclaredConsumptionCount | int null | Convergence C1: número de filas de consumo que la confirmación inserta; se fija en la misma sentencia que pasa a `Confirmed`. CHECK `>= 0`. Inmutable (trigger). |
+| DeclaredConsumedQuantity | decimal(18,3) null | Convergence C1: suma de esas filas, en la misma sentencia. CHECK `>= 0`. Inmutable (trigger). |
 | Version | rowversion | `ETag` de la salida. |
 
 Índice `IX_Shipments_CustomerOrder (CustomerOrderId, RecordedAt DESC, Id)` para la lista del pedido.
@@ -57,7 +59,8 @@ está entre 0 y `Quantity` en confirmadas.
 
 Único `(ShipmentLineId, ReservationAllocationId)`. Append-only: `DENY UPDATE, DELETE` a
 `inventory_runtime`. Solo se insertan al confirmar. `TR_ShipmentReservationConsumptions_ConfirmingOperation`
-rechaza un `INSERT` cuya cabecera esté `Confirmed` con otro `OperationId`. El complemento de
+rechaza un `INSERT` cuya cabecera esté `Confirmed` con otro `OperationId` o que supere los totales declarados
+(`DeclaredConsumptionCount`, `DeclaredConsumedQuantity`; Convergence C1). El complemento de
 `TR_Shipments_ConfirmedImmutable` rechaza confirmar si ya hay consumos de otra operación (research
 D-06, iteración 2026-11-21). La regla vale en cualquier orden de sentencias dentro de la
 confirmación.
@@ -94,8 +97,11 @@ Reservation:     Active ──confirm consume hasta remanente 0──▶ Consume
 6. Una sola fila `StockMovements` de tipo `Shipment` por salida confirmada (unicidad común
    tipo/documento/Kind).
 7. Por salida confirmada: todo consumo de sus líneas tiene `OperationId` = `Shipments.OperationId`,
-   así que no se añaden consumos tras confirmar. La garantizan los triggers de la base de datos y se
-   prueba en H-02; H-14 la comprueba además en la conciliación.
+   así que no se añaden consumos de otra operación tras confirmar. La garantizan los triggers de la
+   base de datos y se prueba en H-02; H-14 la comprueba además en la conciliación.
+8. Por salida confirmada (Convergence C1): número de consumos = `DeclaredConsumptionCount` y su suma
+   = `DeclaredConsumedQuantity`. SQL impide superarlos, también con el mismo `OperationId`, así que
+   ningún consumo se añade tras confirmar. Que se alcancen exactamente lo comprueba H-14.
 
 ## Hecho del diario
 
