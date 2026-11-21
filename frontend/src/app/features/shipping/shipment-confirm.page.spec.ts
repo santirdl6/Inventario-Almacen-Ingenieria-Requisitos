@@ -58,13 +58,15 @@ describe('ShipmentFormPage · revisar, confirmar y recuperar', () => {
     expect(text(root)).toContain('Borrador');
   });
 
-  it('un 409 InsufficientStock muestra el detalle y lleva el foco al aviso', async () => {
+  it('un 409 InsufficientStock muestra físico, disponible y la cantidad posible, con el foco en el aviso (US2.2, C2)', async () => {
     const { fixture, root } = await render();
     flushProblem(await openReviewAndConfirm(fixture, root), 409, 'InsufficientStock',
-      'No se pueden servir 2.000 de ART-01 en N01, lote SIN-LOTE (físico 1.000, disponible 1.000).');
+      'No se pueden servir 2.000 de ART-01 en N01, lote SIN-LOTE (físico 1.000, disponible 1.000). '
+      + 'Se pueden servir como máximo 1.000 UD de ART-01 en N01.');
     await settle(fixture);
     const alert = root.querySelector<HTMLElement>('[role="alert"]')!;
     expect(text(alert)).toContain('físico 1.000, disponible 1.000');
+    expect(text(alert)).toContain('Se pueden servir como máximo 1.000 UD de ART-01 en N01.');
     expect(document.activeElement).toBe(alert);
   });
 

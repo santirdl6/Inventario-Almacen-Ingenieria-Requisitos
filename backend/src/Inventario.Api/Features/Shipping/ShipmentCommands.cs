@@ -228,7 +228,17 @@ public sealed class ShipmentCommands(InventoryOperationExecutor executor)
                     CounterpartyReference: order.CustomerReference),
                 lines.Select(line => new ShipmentAllocation(line.ArticleId, line.LocationId, lotCodes[line.LotId], line.Quantity,
                     consumed[line.Id])).ToList());
-            var outcome = await context.Services.GetRequiredService<StockCore>().ApplyAsync(context, command, token);
+            StockOperationOutcome outcome;
+            try
+            {
+                outcome = await context.Services.GetRequiredService<StockCore>().ApplyAsync(context, command, token);
+            }
+            catch (InventoryProblemException problem) when (problem is { Status: 409, Code: "InsufficientStock" })
+            {
+                // Convergence C2 (G1; US2.2, FR-010, FR-024): StockCore, compartido con HU-08, sigue
+                // redactando físico y disponible; HU-03 añade la cantidad posible de cada línea rechazada.
+                throw await WithPossibleQuantityAsync(db, problem, lines, consumed, token);
+            }
 
             // 7–8. Efectos de HU-05 y de la salida; versiones renovadas (regla 4).
             var reservations = await db.Set<Reservation>().Include(reservation => reservation.Allocations)
@@ -424,4 +434,33 @@ public sealed class ShipmentCommands(InventoryOperationExecutor executor)
 
     private static JsonElement Fingerprint(ShipmentWrite write) =>
         JsonSerializer.SerializeToElement(write, OperationResponse.JsonOptions);
+    // Posible = mín(físico, propia consumible + disponible), leído de la base bajo los bloqueos ya
+    // tomados: AsNoTracking ignora lo que ApplyAsync haya aplicado en memoria antes de rechazar.
+    private static async Task<InventoryProblemException> WithPossibleQuantityAsync(InventoryDbContext db,
+        InventoryProblemException problem, IReadOnlyList<ShipmentLine> lines, IReadOnlyDictionary<Guid, decimal> consumed,
+        CancellationToken token)
+    {
+        var articleIds = lines.Select(line => line.ArticleId).Distinct().ToList();
+        var locationIds = lines.Select(line => line.LocationId).Distinct().ToList();
+        var balances = await db.Set<StockBalance>().AsNoTracking()
+            .Where(balance => articleIds.Contains(balance.ArticleId) && locationIds.Contains(balance.LocationId))
+            .ToListAsync(token);
+        var articles = await db.Articles.AsNoTracking().Where(article => articleIds.Contains(article.Id))
+            .ToDictionaryAsync(article => article.Id, token);
+        var locations = await db.Set<Location>().AsNoTracking().Where(location => locationIds.Contains(location.Id))
+            .ToDictionaryAsync(location => location.Id, location => location.Code, token);
+        var parts = new List<string>();
+        foreach (var line in lines)
+        {
+            var balance = balances.SingleOrDefault(value =>
+                value.ArticleId == line.ArticleId && value.LocationId == line.LocationId && value.LotId == line.LotId);
+            var possible = balance is null ? 0m : Math.Max(0m, Math.Min(balance.Physical, consumed[line.Id] + balance.Available));
+            if (line.Quantity <= possible) continue;
+            var article = articles[line.ArticleId];
+            parts.Add($"Se pueden servir como máximo {ShipmentView.Quantity(possible)} {article.BaseUnit} de {article.Sku} "
+                + $"en {locations[line.LocationId]}.");
+        }
+        return parts.Count == 0 ? problem
+            : new InventoryProblemException(problem.Status, problem.Code, $"{problem.Message} {string.Join(" ", parts)}", problem.Errors);
+    }
 }

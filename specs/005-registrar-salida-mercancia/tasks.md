@@ -706,6 +706,30 @@ Tareas `C1…`, fuera de la numeración T001–T018 (siguen siendo 18 tareas).
     limpio. Aplicar, revertir a HU-05 y reaplicar con `dotnet ef database update` sobre una base
     temporal, ya eliminada.
 
+- [X] C2 [G1 de converge-1] El 409 `InsufficientStock` de la confirmación explica también la
+  cantidad posible (US2.2, FR-010, FR-024), sin tocar `StockCore`, que es compartido con HU-08.
+
+  **Hecho (2026-11-21)**:
+  - `ShipmentCommands.ConfirmAsync` captura el 409 `InsufficientStock` que lanza
+    `StockCore.ApplyAsync` y lo relanza con el mismo estado, código y `errors`. Al `detail` de
+    `StockCore` le añade, por cada línea rechazada, «Se pueden servir como máximo {P} {unidad} de
+    {SKU} en {ubicación}.».
+  - P = mín(físico, propia consumible + disponible). Se lee con `AsNoTracking` bajo los bloqueos
+    ya tomados, para ignorar lo que `ApplyAsync` hubiera aplicado en memoria antes de rechazar.
+  - `StockCore` y sus pruebas, y los demás flujos (reservas, HU-08), no cambian.
+  - Pruebas:
+    - `ShipmentConfirmTests.H10_us22_insufficient_stock_explains_the_possible_quantity`: el
+      escenario US2.2 (físico 10, reserva ajena 3, salida de 8 → posible 7, nada cambia).
+    - `H10_afterwards_…` comprueba ahora «como máximo 1.000» y «como máximo 4.000».
+    - Vitest: el aviso de `shipment-confirm.page.spec.ts` muestra el texto completo.
+  - Rojo:
+    - Backend: las dos pruebas fallaban con «Assert.Contains() Failure: Sub-string not found».
+    - Vitest: la UI ya muestra el `detail` tal cual, así que no hubo rojo natural. Una mutación
+      temporal sin commit (cortar el `detail` tras el primer «).») hizo fallar la prueba, «expected
+      'No se pueden servir 2.000 de ART-01 e…' to contain 'Se pueden servir como máximo 1.000 UD…'».
+      Después se deshizo.
+  - Verde: Shipping 85/85 y la spec de confirmación 7/7.
+
 ---
 
 ## Si hay tiempo (fuera de las 18 tareas, en este orden)

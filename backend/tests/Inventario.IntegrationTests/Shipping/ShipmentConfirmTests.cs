@@ -167,14 +167,50 @@ public sealed class ShipmentConfirmTests(IdentityFixture fixture) : IClassFixtur
         {
             var problem = await StockApiSupport.ProblemAsync(rejected, HttpStatusCode.Conflict, "InsufficientStock");
             Assert.Contains("disponible 1.000", problem.GetProperty("detail").GetString());
+            // Convergence C2 (G1): también la cantidad posible.
+            Assert.Contains("como máximo 1.000", problem.GetProperty("detail").GetString());
         }
         // B: propia 3 + disponible 1 → posible 4; 5 se rechaza.
         var (moreB, _) = await CreateDraftAsync(operario, Body(orderB, DateTimeOffset.UtcNow.AddHours(-1), (lineB, seed.Location, seed.Lot, "5")));
         using (var rejected = await ConfirmAsync(operario, moreB, orderB))
-            await StockApiSupport.ProblemAsync(rejected, HttpStatusCode.Conflict, "InsufficientStock");
+        {
+            var problem = await StockApiSupport.ProblemAsync(rejected, HttpStatusCode.Conflict, "InsufficientStock");
+            Assert.Contains("como máximo 4.000", problem.GetProperty("detail").GetString());
+        }
         var balance = (await support.Stock.BalanceAsync(seed.Article, seed.Location))!;
         Assert.Equal(4m, balance.Physical);
         Assert.Equal(3m, balance.Reserved);
+    }
+
+    // H-10, US2.2 (Convergence C2, G1): físico 10 y reserva ajena 3; una salida de 8 sin reserva
+    // propia se rechaza explicando la cantidad posible (7) y no cambia nada.
+    [Fact]
+    public async Task H10_us22_insufficient_stock_explains_the_possible_quantity()
+    {
+        using var factory = fixture.Factory();
+        using var support = new StockApiSupport(fixture, factory);
+        var operario = await support.SessionAsync("Operario");
+        var responsable = await support.SessionAsync("ResponsableAlmacen");
+        var seed = await SeedAsync(support, operario, physical: 10m, ordered: "10");
+        var (orderB, lineB, _) = await StockApiSupport.CreateOrderAsync(operario, seed.Article, "5");
+        await ReserveAsync(responsable, orderB, lineB, seed.Location, seed.Lot, "3");
+        var (id, _) = await CreateDraftAsync(operario, Body(seed, "8"));
+
+        using (var rejected = await ConfirmAsync(operario, id, seed.Order))
+        {
+            var problem = await StockApiSupport.ProblemAsync(rejected, HttpStatusCode.Conflict, "InsufficientStock");
+            var detail = problem.GetProperty("detail").GetString()!;
+            Assert.Contains("físico 10.000", detail);
+            Assert.Contains("disponible 7.000", detail);
+            Assert.Contains("Se pueden servir como máximo 7.000", detail);
+        }
+
+        var balance = (await support.Stock.BalanceAsync(seed.Article, seed.Location))!;
+        Assert.Equal(10m, balance.Physical);
+        Assert.Equal(3m, balance.Reserved);
+        await using var database = fixture.ApplicationDatabase();
+        Assert.False(await database.Set<StockMovement>().AsNoTracking().AnyAsync(value => value.SourceDocumentId == id));
+        Assert.Equal(ShipmentState.Draft, (await database.Set<Shipment>().AsNoTracking().SingleAsync(value => value.Id == id)).State);
     }
 
     // H-11 (regla 5): servir desde otro bucket no libera en silencio la reserva sobrante.

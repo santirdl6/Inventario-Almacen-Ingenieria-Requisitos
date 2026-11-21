@@ -87,9 +87,10 @@ superar el pendiente (`errors.lines[i].quantity`) → 409 `CountScopeFrozen` →
 **Construido** (T009, `488bb5a`):
 
 - Sin `orderVersion` en el cuerpo, 422 `errors.orderVersion`, antes de leer nada.
-- El `detail` de `InsufficientStock` lo redacta `StockCore`: dice el físico y el disponible del
-  bucket, pero **no la cantidad posible** (incumplimiento G1 de
-  [converge-1](../validation/converge-1.md)).
+- El `detail` de `InsufficientStock` lo redacta `StockCore` con el físico y el disponible del bucket.
+  **Convergence C2** (G1 de [converge-1](../validation/converge-1.md)): `ShipmentCommands` añade, por
+  cada línea rechazada, «Se pueden servir como máximo {P} {unidad} de {SKU} en {ubicación}.», con
+  P = mín(físico, propia + disponible). `StockCore` no cambia.
 - La respuesta 200 sale sin `ETag`. La cabecera declara `DeclaredConsumptionCount` y
   `DeclaredConsumedQuantity` (Convergence C1, `a6ec4b2`).
 

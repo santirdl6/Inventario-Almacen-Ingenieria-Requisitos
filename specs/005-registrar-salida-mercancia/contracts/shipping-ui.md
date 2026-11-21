@@ -71,7 +71,7 @@ Diálogo accesible (`cdkTrapFocus`, Escape cierra, foco vuelve al botón):
 | Confirmada (200) | «Salida registrada. Operación {operationId}»; se recargan salida y pedido; la vista pasa a solo lectura. |
 | Salida confirmada abierta después | En solo lectura, «Salida confirmada con la operación {operationId}», con el `operationId` de `GET /shipments/{id}`. Se ve igual en otra sesión, por «Abrir salida» o por URL (FR-023, US4.2; analyze-1 H2). |
 | 422 | Errores por campo y por línea; foco al primer `aria-invalid`; datos conservados. |
-| 409 `InsufficientStock` | Aviso con el `detail` (físico, disponible, cantidad posible) junto a la línea; foco al aviso. **Construido**: el aviso va arriba de la página y el `detail` no da la cantidad posible (converge-1 G1, G3). |
+| 409 `InsufficientStock` | Aviso con el `detail` (físico, disponible, cantidad posible) junto a la línea; foco al aviso. **Construido**: el aviso va arriba de la página (G3, límite aceptado en converge-1). El `detail` da la cantidad posible desde Convergence C2 (G1). |
 | 409 `ReservedStockConflict` | Aviso «Antes de servir desde otro origen hay que liberar {cantidad} reservadas de la línea {SKU}. Pídelo a un responsable del almacén» con enlace al pedido en `/existencias/pedidos/:id`. |
 | 409 `CustomerOrderNotOpen` / `CountScopeFrozen` / `DocumentAlreadyConfirmed` | Aviso con el motivo; recarga del estado actual. **Construido**: aviso con el motivo y foco, sin recargar (converge-1 G4). |
 | 412 | «Los datos cambiaron desde que los revisaste»: recarga salida, pedido y revisión sin perder las cantidades escritas del borrador en edición. |
