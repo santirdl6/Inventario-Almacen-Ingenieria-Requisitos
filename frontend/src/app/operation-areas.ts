@@ -20,7 +20,8 @@ export const OPERATION_AREAS: readonly OperationArea[] = [
     loadChildren: () => import('./features/locations/locations.routes').then(module => module.LOCATIONS_ROUTES) },
   { path: 'existencias', label: 'Existencias', story: 'HU-05', permission: 'Inventory.Read',
     loadChildren: () => import('./features/stock/stock.routes').then(module => module.STOCK_ROUTES) },
-  { path: 'salidas', label: 'Salidas', story: 'HU-03', permission: 'Shipping.Record',
+  // HU-03 (D-14): consultar salidas solo exige Inventory.Read (US4.3); las acciones piden Shipping.Record.
+  { path: 'salidas', label: 'Salidas', story: 'HU-03', permission: 'Inventory.Read',
     loadChildren: () => import('./features/shipping/shipping.routes').then(module => module.SHIPPING_ROUTES) },
   { path: 'inventarios', label: 'Inventarios', story: 'HU-04', permission: 'Counts.Record',
     loadChildren: () => import('./features/cycle-counts/cycle-counts.routes').then(module => module.CYCLE_COUNTS_ROUTES) }
