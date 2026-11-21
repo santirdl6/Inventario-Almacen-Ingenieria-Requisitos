@@ -15,7 +15,7 @@ docker compose --profile test run --build --rm --entrypoint dotnet tests test In
 node scripts/measure-hu06-alerts.mjs smoke
 ```
 
-Chromium se ejecutó desde `frontend/` con `INVENTORY_E2E_PROFILE=hu07 HU08_E2E_PROJECT=inventario-hu07-e2e-hu06 HU08_E2E_BASE_URL=http://localhost:8083 npx playwright test stock-alerts.spec.ts`. La [revisión A+B](shared-review.md) se registró como confirmada por el usuario. La aceptación H5 sigue pendiente.
+Chromium se ejecutó desde `frontend/` con `INVENTORY_E2E_PROFILE=hu07 HU08_E2E_PROJECT=inventario-hu07-e2e-hu06 HU08_E2E_BASE_URL=http://localhost:8083 npx playwright test stock-alerts.spec.ts`. El usuario indicó verbalmente que la revisión A+B se realizó; su registro verificable sigue pendiente. La aceptación H5 sigue pendiente.
 
 ## Ensayo completo en el servidor local
 

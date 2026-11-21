@@ -56,9 +56,11 @@ Lista compacta: cada tarea agrupa cambios relacionados; `[P]` indica archivos di
 
 ## Fase 7: Validación transversal
 
-- [X] T016 Coordinar y registrar revisión A+B de migración, reglas y escritores; actualizar acuerdos y alcance de consumidores en `.specify/memory/project/` y `specs/009-configurar-alertas-stock-minimo/validation/shared-review.md` antes de integrar. Mantener H5 y su aceptación operativa en `specs/001-reparto-specs-inventario/integration-tasks.md`.
+- [ ] T015 Preparar o adaptar instrumentación de pruebas para medir la duración del evaluador y el generador del perfil de carga en `scripts/measure-hu06-alerts.mjs` y `backend/tests/Inventario.IntegrationTests/`; reutilizar herramientas existentes cuando sea viable. Ejecutar Q06-01–06, pruebas backend/frontend, migraciones y compilación de `specs/009-configurar-alertas-stock-minimo/quickstart.md`; medir SC-004 con ese perfil y registrar resultados o motivo de inconclusión en `specs/009-configurar-alertas-stock-minimo/validation/acceptance.md`. Mantener sin aprobar cualquier control no ejecutado.
 
-**Cierre: 15 de 15 tareas completadas.** [Validación técnica local](validation/acceptance.md) y [revisión A+B confirmada por el usuario](validation/shared-review.md). T015 se retiró por decisión del usuario; el ensayo completo SC-004 queda diferido y no se acredita como aprobado.
+- [ ] T016 Coordinar y registrar revisión A+B de migración, reglas y escritores; actualizar acuerdos y alcance de consumidores en `.specify/memory/project/` y `specs/009-configurar-alertas-stock-minimo/validation/shared-review.md` antes de integrar. Mantener H5 y su aceptación operativa en `specs/001-reparto-specs-inventario/integration-tasks.md`.
+
+**Estado: 14 de 16 tareas completadas.** T015 (ensayo SC-004) y T016 (registro de revisión A+B) quedan abiertas.
 
 ## Dependencias y ejecución
 

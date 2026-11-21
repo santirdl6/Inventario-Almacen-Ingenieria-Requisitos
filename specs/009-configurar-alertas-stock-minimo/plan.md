@@ -4,7 +4,7 @@
 
 **Fecha**: 2026-11-21 · **Spec**: [HU-06](spec.md) · Persona A · Hito H4.
 
-**Estado**: completado en su alcance funcional, con [validación local](validation/acceptance.md) y [revisión A+B confirmada por el usuario](validation/shared-review.md). El ensayo completo SC-004 queda fuera del cierre por decisión del usuario.
+**Estado**: implementación y validación funcional local completadas. El ensayo SC-004 y el registro verificable de la revisión A+B siguen pendientes.
 La consulta usa `Alerts.Read` y la preselección editable en compras fue confirmada por el usuario.
 
 ## Summary
