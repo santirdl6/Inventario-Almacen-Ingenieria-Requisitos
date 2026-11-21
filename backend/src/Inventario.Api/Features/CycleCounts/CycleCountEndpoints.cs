@@ -65,6 +65,27 @@ public static class CycleCountEndpoints
             .Produces<CycleCountMutation>().ProducesProblem(400).ProducesProblem(403).ProducesProblem(404).ProducesProblem(409)
             .ProducesProblem(412).ProducesProblem(422).ProducesProblem(428);
 
+        // T009 (US2; FR-008–FR-012): revisar motivos, confirmar el ajuste y cancelar (Inventory.Adjust).
+        counts.MapPut("/{id:guid}/review", (Guid id, JsonElement body, HttpContext context, CycleCountCommands commands,
+                CancellationToken token) =>
+                commands.ReviewAsync(LocationEndpoints.Key(context), id, CycleCountReviewWrite.Read(body),
+                    context.Request.Headers.IfMatch.ToString(), token))
+            .RequireAuthorization(CycleCountCommands.AdjustPermission).Accepts<CycleCountReviewWrite>("application/json")
+            .Produces<CycleCountMutation>().ProducesProblem(400).ProducesProblem(403).ProducesProblem(404).ProducesProblem(409)
+            .ProducesProblem(412).ProducesProblem(422).ProducesProblem(428);
+        counts.MapPost("/{id:guid}/confirm", (Guid id, HttpContext context, CycleCountCommands commands, CancellationToken token) =>
+                commands.ConfirmAsync(LocationEndpoints.Key(context), id, context.Request.Headers.IfMatch.ToString(), token))
+            .RequireAuthorization(CycleCountCommands.AdjustPermission)
+            .Produces<CycleCountConfirmation>().ProducesProblem(400).ProducesProblem(403).ProducesProblem(404).ProducesProblem(409)
+            .ProducesProblem(412).ProducesProblem(422).ProducesProblem(428).ProducesProblem(503);
+        counts.MapPost("/{id:guid}/cancel", (Guid id, JsonElement body, HttpContext context, CycleCountCommands commands,
+                CancellationToken token) =>
+                commands.CancelAsync(LocationEndpoints.Key(context), id, CycleCountCancelWrite.Read(body),
+                    context.Request.Headers.IfMatch.ToString(), token))
+            .RequireAuthorization(CycleCountCommands.AdjustPermission).Accepts<CycleCountCancelWrite>("application/json")
+            .Produces<CycleCountCancellation>().ProducesProblem(400).ProducesProblem(403).ProducesProblem(404).ProducesProblem(409)
+            .ProducesProblem(412).ProducesProblem(422).ProducesProblem(428).ProducesProblem(503);
+
         // Lecturas (D-12): detalle versionado, contexto sin ETag y lista paginada.
         counts.MapGet("", async (string? state, int? page, int? pageSize, CycleCountQueries queries, HttpContext context,
                 CancellationToken token) =>

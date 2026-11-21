@@ -97,6 +97,72 @@ public sealed record CountedWrite(string? LineId, string? CountedPhysical);
 
 public sealed record FoundWrite(string? ArticleId, string? LocationId, string? LotCode, string? CountedPhysical);
 
+/// <summary>
+/// Cuerpo de PUT /cycle-counts/{id}/review (T009): motivo por línea; vacío lo retira. El vínculo a una
+/// salida (correctsShipmentId) llega en T012 y hasta entonces es un campo desconocido.
+/// </summary>
+public sealed record CycleCountReviewWrite(IReadOnlyList<ReviewLineWrite>? Lines)
+{
+    public static CycleCountReviewWrite Read(JsonElement body)
+    {
+        var root = CycleCountJson.Object(body);
+        List<ReviewLineWrite>? lines = null;
+        foreach (var property in root.EnumerateObject())
+            switch (property.Name)
+            {
+                case "lines": lines = CycleCountJson.Items(property.Value, ReadLine); break;
+                default: throw InventoryProblemException.Validation(property.Name, "Este campo no forma parte de la revisión.");
+            }
+        return new(lines);
+    }
+
+    private static ReviewLineWrite ReadLine(JsonElement item)
+    {
+        string? line = null, reason = null;
+        foreach (var property in item.EnumerateObject())
+            switch (property.Name)
+            {
+                case "lineId": line = CycleCountJson.NormalizeId(CycleCountJson.Text(property.Value)); break;
+                case "reason":
+                    var text = CycleCountJson.Text(property.Value);
+                    reason = string.IsNullOrEmpty(text) ? null : text;
+                    break;
+                default: throw InventoryProblemException.Validation(property.Name, "Este campo no forma parte de la línea revisada.");
+            }
+        return new(line, reason);
+    }
+
+    public JsonElement Fingerprint() => JsonSerializer.SerializeToElement(
+        new { lines = (Lines ?? []).OrderBy(line => line.LineId, StringComparer.Ordinal).ToList() }, OperationResponse.JsonOptions);
+}
+
+public sealed record ReviewLineWrite(string? LineId, string? Reason);
+
+/// <summary>Cuerpo de POST /cycle-counts/{id}/cancel: motivo de 1 a 500 caracteres.</summary>
+public sealed record CycleCountCancelWrite(string? Reason)
+{
+    public static CycleCountCancelWrite Read(JsonElement body)
+    {
+        var root = CycleCountJson.Object(body);
+        string? reason = null;
+        foreach (var property in root.EnumerateObject())
+            switch (property.Name)
+            {
+                case "reason": reason = CycleCountJson.Text(property.Value); break;
+                default: throw InventoryProblemException.Validation(property.Name, "Este campo no forma parte de la cancelación.");
+            }
+        return new(string.IsNullOrEmpty(reason) ? null : reason);
+    }
+}
+
+/// <summary>Respuesta de POST /cycle-counts/{id}/confirm (sin ETag): el movimiento solo si hubo diferencias.</summary>
+public sealed record CycleCountConfirmation(Guid OperationId, Guid CountId, Guid? MovementId, IReadOnlyList<AdjustedLine> AdjustedLines);
+
+public sealed record AdjustedLine(Guid LineId, string Difference);
+
+/// <summary>Respuesta de POST /cycle-counts/{id}/cancel (sin ETag).</summary>
+public sealed record CycleCountCancellation(Guid OperationId, Guid CountId);
+
 /// <summary>Lectura estricta de JSON compartida por los cuerpos de conteos.</summary>
 internal static class CycleCountJson
 {

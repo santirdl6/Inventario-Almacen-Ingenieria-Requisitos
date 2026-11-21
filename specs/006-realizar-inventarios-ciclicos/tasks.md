@@ -153,7 +153,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 **Objetivo**: revisar motivos, confirmar el ajuste o cancelar, en un commit.
 **Prueba independiente**: spec US2 (físico de A en U1 = 8, ajuste −2 trazable, U1 liberada).
 
-- [ ] T009 [US2] [INT-HU04-02] Revisar, confirmar y cancelar (D-05, D-06, D-07):
+- [X] T009 [US2] [INT-HU04-02] Revisar, confirmar y cancelar (D-05, D-06, D-07):
   `PUT …/review` (`Inventory.Adjust`, motivos por línea; el vínculo a salida llega en T012),
   `POST …/confirm` (bloqueos de D-03; revalidar teórico → 409 `CountTheoreticalChanged` y reservado →
   409 `ReservedStockConflict` conservando la congelación; un movimiento `Adjustment` con soporte
@@ -164,6 +164,14 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   la segunda mitad de C-12 (US3.7, SC-002): tras confirmar y tras cancelar, confirmar una salida,
   reservar, desactivar y cambiar el tipo vuelven a admitirse. **Rojo esperado**: 404 en
   `/confirm`; después, `ReservedStockConflict` ausente si no se revalida. Depende de T004 y T008.
+  - **Hecho**: rojo observado: 404 en `/review`, `/confirm` y `/cancel` (7 de 9 pruebas). Segundo rojo por
+    mutación temporal sin commit (quitar la revalidación del reservado): el 409 sigue llegando como
+    `ReservedStockConflict` porque `StockCore` rechaza la bajada (D-13), pero sin nombrar contado y
+    reservado (contrato § Errores), y la prueba C-09 falla; restaurado. `correctsShipmentId` en la
+    revisión es campo desconocido (422) hasta T012. Respuesta de confirmar: `adjustedLines` como lista
+    `{ lineId, difference }`. Verde: `CycleCountConfirmTests` 6/6 (C-08 ×2, C-09, C-10, C-11, C-16, con
+    invariantes 1–5 y 7 en cada confirmación) y `CountScopeFrozenTests` 3/3 (segunda mitad de C-12);
+    suite 316/1 omitida.
 
 **Checkpoint MVP**: con T003–T009 el ciclo conteo → diferencias → ajuste funciona y la congelación es
 real en salidas, reservas y ubicaciones.

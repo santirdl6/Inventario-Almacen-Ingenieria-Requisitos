@@ -88,6 +88,41 @@ public sealed class CountScopeFrozenTests(IdentityFixture fixture) : IClassFixtu
         Assert.True(kind.StatusCode == HttpStatusCode.OK, await kind.Content.ReadAsStringAsync());
     }
 
+    [Fact]
+    public async Task After_confirming_and_after_cancelling_the_scope_accepts_writers_again()
+    {
+        using var factory = fixture.Factory();
+        using var support = new StockApiSupport(fixture, factory);
+        var operario = await support.SessionAsync("Operario");
+        var responsable = await support.SessionAsync("ResponsableAlmacen");
+        var seed = await ShippingApiSupport.SeedAsync(support, operario, 10m, "6");
+
+        // Tras cancelar (desde Counting): confirmar una salida y reservar vuelven a admitirse.
+        var (cancelled, _, cancelledTag) = await CycleCountApiSupport.StartedAsync(operario, seed.Location);
+        using (var cancel = await CycleCountApiSupport.CancelAsync(responsable, cancelled, cancelledTag, "Conteo repetido"))
+            Assert.True(cancel.StatusCode == HttpStatusCode.OK, await cancel.Content.ReadAsStringAsync());
+        var (shipment, _) = await ShippingApiSupport.CreateDraftAsync(operario, ShippingApiSupport.Body(seed, "2"));
+        using (var confirm = await ShippingApiSupport.ConfirmAsync(operario, shipment, seed.Order))
+            Assert.True(confirm.StatusCode == HttpStatusCode.OK, await confirm.Content.ReadAsStringAsync());
+        await ShippingApiSupport.ReserveAsync(responsable, seed.Order, seed.OrderLine, seed.Location, seed.Lot, "1");
+
+        // Tras confirmar (sin diferencias): cambiar el tipo, y con la ubicación vacía, desactivarla.
+        var empty = await support.LocationAsync("N04-" + StockApiSupport.Unique(6));
+        var (confirmed, _, confirmedTag) = await CycleCountApiSupport.StartedAsync(operario, empty);
+        confirmedTag = await CycleCountApiSupport.OkAsync(CycleCountApiSupport.SubmitAsync(operario, confirmed, confirmedTag));
+        using (var approve = await CycleCountApiSupport.ConfirmAsync(responsable, confirmed, confirmedTag))
+            Assert.True(approve.StatusCode == HttpStatusCode.OK, await approve.Content.ReadAsStringAsync());
+        var (current, etag) = await LocationsTestSupport.GetAsync(operario, empty);
+        Assert.False(current.GetProperty("inOpenCount").GetBoolean());
+        using (var kind = await LocationsTestSupport.UpdateAsync(operario, empty, current, etag, kind: "Receiving"))
+            Assert.True(kind.StatusCode == HttpStatusCode.OK, await kind.Content.ReadAsStringAsync());
+        (current, etag) = await LocationsTestSupport.GetAsync(operario, empty);
+        using (var deactivate = await LocationsTestSupport.UpdateAsync(operario, empty, current, etag, isActive: false))
+            Assert.True(deactivate.StatusCode == HttpStatusCode.OK, await deactivate.Content.ReadAsStringAsync());
+        var (seeded, _) = await LocationsTestSupport.GetAsync(operario, seed.Location);
+        Assert.False(seeded.GetProperty("inOpenCount").GetBoolean());
+    }
+
     private async Task<Guid> AllocationAsync(Guid reservation)
     {
         await using var database = fixture.ApplicationDatabase();

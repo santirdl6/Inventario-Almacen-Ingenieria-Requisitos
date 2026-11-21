@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Inventario.Api.Domain.Locations;
 using Inventario.Api.Domain.Stock;
+using Inventario.Api.Features.Stock.Core;
 using Inventario.Api.Infrastructure.Http;
 using Inventario.Api.Infrastructure.Persistence;
 using Inventario.Api.Infrastructure.Persistence.Operations;
@@ -241,6 +242,170 @@ public sealed class CycleCountCommands(InventoryOperationExecutor executor)
             await db.SaveChangesAsync(token);
             return Mutation(200, context, count, withLocation: false);
         }, cancellation);
+    }
+
+    /// <summary>
+    /// PUT /cycle-counts/{id}/review (T009; FR-008, D-07): Inventory.Adjust fija o retira el motivo de las
+    /// líneas con diferencia, sin cambiar el contado. Solo bloquea cycle-count:{id} (D-03).
+    /// </summary>
+    public Task<OperationResponse> ReviewAsync(Guid operation, Guid id, CycleCountReviewWrite write, string? ifMatch,
+        CancellationToken cancellation)
+    {
+        var request = new OperationRequest(operation, "PUT", $"{Resource}/{id:D}/review", AdjustPermission, write.Fingerprint());
+        return executor.ExecuteAsync(request, async (context, token) =>
+        {
+            var errors = new Dictionary<string, string[]>();
+            var requested = write.Lines ?? [];
+            if (requested.Count == 0) errors["lines"] = ["Indica al menos una línea."];
+            var items = new List<(int Index, Guid LineId, string? Reason)>();
+            for (var index = 0; index < requested.Count; index++)
+            {
+                var line = Id(requested[index].LineId, $"lines[{index}].lineId", "La línea no es válida.", errors);
+                if (requested[index].Reason is { Length: > CountLine.ReasonMaxLength })
+                    errors[$"lines[{index}].reason"] = [$"El motivo no puede superar {CountLine.ReasonMaxLength} caracteres."];
+                else if (line is not null) items.Add((index, line.Value, requested[index].Reason));
+            }
+            if (items.Select(item => item.LineId).Distinct().Count() != items.Count)
+                errors["lines"] = ["Cada línea solo puede aparecer una vez."];
+            if (errors.Count > 0)
+                throw new InventoryProblemException(422, "ValidationFailed", "Revisa los motivos marcados.", errors);
+
+            var db = context.Database;
+            await context.Locks.DocumentsAsync([new DocumentLock(CycleCountDocuments.CycleCount, id)], token);
+            var count = await LoadAsync(db, id, ifMatch, token, CycleCountState.AwaitingApproval);
+            foreach (var (index, lineId, reason) in items)
+            {
+                var line = count.Lines.SingleOrDefault(value => value.Id == lineId);
+                if (line is null) errors[$"lines[{index}].lineId"] = ["La línea no pertenece al conteo."];
+                else if (reason is not null && !line.HasDifference)
+                    errors[$"lines[{index}].reason"] = ["Solo las líneas con diferencia llevan motivo."];
+            }
+            if (errors.Count > 0)
+                throw new InventoryProblemException(422, "ValidationFailed", "Revisa los motivos marcados.", errors);
+            foreach (var (_, lineId, reason) in items)
+                count.Review(lineId, reason, context.ActorId);
+            Touch(db, count);
+            await db.SaveChangesAsync(token);
+            return Mutation(200, context, count, withLocation: false);
+        }, cancellation);
+    }
+
+    /// <summary>
+    /// POST /cycle-counts/{id}/confirm (T009; FR-009–FR-011; D-03, D-05–D-07, D-13). Bloquea
+    /// cycle-count:{id}, todas las ubicaciones y los artículos de todas las líneas; exige motivo en cada
+    /// diferencia; revalida el teórico (409 CountTheoreticalChanged) y el reservado (409
+    /// ReservedStockConflict) conservando la congelación; aplica un único movimiento Adjustment con
+    /// StockCore y libera el alcance con la aprobación. No modifica líneas. Sin SaveChanges aquí: el
+    /// ejecutor guarda todo con el OperationResult (FK del diario).
+    /// </summary>
+    public Task<OperationResponse> ConfirmAsync(Guid operation, Guid id, string? ifMatch, CancellationToken cancellation)
+    {
+        var request = new OperationRequest(operation, "POST", $"{Resource}/{id:D}/confirm", AdjustPermission, Empty());
+        return executor.ExecuteAsync(request, async (context, token) =>
+        {
+            var db = context.Database;
+            await context.Locks.DocumentsAsync([new DocumentLock(CycleCountDocuments.CycleCount, id)], token);
+            // Alcance y líneas solo cambian bajo cycle-count:{id}: leídos ya bajo ese bloqueo.
+            var scope = await db.Set<CountLocation>().AsNoTracking().Where(location => location.CountId == id)
+                .Select(location => location.LocationId).ToListAsync(token);
+            var lineArticles = await db.Set<CountLine>().AsNoTracking().Where(line => line.CountId == id)
+                .Select(line => line.ArticleId).Distinct().ToListAsync(token);
+            await context.Locks.LocationsAsync(scope, token);
+            await context.Locks.ArticlesAsync(lineArticles, token);
+
+            var count = await LoadAsync(db, id, ifMatch, token, CycleCountState.AwaitingApproval);
+            var lines = count.Lines.OrderBy(line => line.Id).ToList();
+            var missing = lines.Select((line, index) => (line, index)).Where(pair => pair.line.HasDifference && pair.line.Reason is null)
+                .ToDictionary(pair => $"lines[{pair.index}].reason", _ => new[] { "Indica el motivo de esta diferencia." });
+            if (missing.Count > 0)
+                throw new InventoryProblemException(422, "ValidationFailed", "Cada diferencia necesita su motivo.", missing);
+
+            // D-05: teórico y reservado actuales por bucket, leídos tras los bloqueos.
+            var articleIds = lines.Select(line => line.ArticleId).Distinct().ToList();
+            var balances = await (
+                    from balance in db.Set<StockBalance>().AsNoTracking()
+                    join lot in db.Set<Lot>().AsNoTracking() on balance.LotId equals lot.Id
+                    where articleIds.Contains(balance.ArticleId) && scope.Contains(balance.LocationId)
+                    select new { balance.ArticleId, balance.LocationId, LotCode = lot.Code, balance.Physical, balance.Reserved })
+                .ToListAsync(token);
+            var names = await BucketNamesAsync(db, articleIds, scope, token);
+            foreach (var line in lines)
+            {
+                var balance = balances.SingleOrDefault(value => value.ArticleId == line.ArticleId && value.LocationId == line.LocationId
+                    && value.LotCode == line.LotCode);
+                var physical = balance?.Physical ?? 0m;
+                if (physical != line.TheoreticalPhysical)
+                    throw new InventoryProblemException(409, "CountTheoreticalChanged",
+                        $"El físico de {names(line)} es {CycleCountView.Quantity(physical)} y al iniciar era "
+                        + $"{CycleCountView.Quantity(line.TheoreticalPhysical)}: alguien lo movió sin respetar el conteo. Revísalo antes de confirmar.");
+            }
+            foreach (var line in lines)
+            {
+                var reserved = balances.SingleOrDefault(value => value.ArticleId == line.ArticleId && value.LocationId == line.LocationId
+                    && value.LotCode == line.LotCode)?.Reserved ?? 0m;
+                if (line.CountedPhysical < reserved)
+                    throw new InventoryProblemException(409, "ReservedStockConflict",
+                        $"En {names(line)} el contado ({CycleCountView.Quantity(line.CountedPhysical)}) es menor que lo reservado "
+                        + $"({CycleCountView.Quantity(reserved)}). Libera antes la reserva necesaria; el conteo sigue abierto.");
+            }
+
+            var adjusted = lines.Where(line => line.HasDifference).ToList();
+            Guid? movementId = null;
+            if (adjusted.Count > 0)
+            {
+                var now = DateTimeOffset.UtcNow;
+                var command = StockCore.PrepareAdjustment(new StockCommandContext(
+                        new StockDocumentRef(CycleCountDocuments.CycleCount, id), now, AdjustmentReason,
+                        SupportReference: count.CountCode, CounterpartyNotApplicableReason: AdjustmentCounterparty),
+                    adjusted.Select(line => new AdjustmentAllocation(line.ArticleId, line.LocationId, line.LotCode, line.Difference!.Value))
+                        .ToList());
+                movementId = (await context.Services.GetRequiredService<StockCore>().ApplyAsync(context, command, token)).MovementId;
+            }
+            count.Confirm(context.OperationId, movementId, context.ActorId, DateTimeOffset.UtcNow);
+            return OperationResponse.Json(200, new CycleCountConfirmation(context.OperationId, id, movementId,
+                adjusted.Select(line => new AdjustedLine(line.Id, CycleCountView.Quantity(line.Difference!.Value))).ToList()), id);
+        }, cancellation);
+    }
+
+    /// <summary>
+    /// POST /cycle-counts/{id}/cancel (T009; FR-012): Inventory.Adjust cancela un conteo abierto con motivo,
+    /// conserva sus líneas y libera el alcance, sin efectos en stock. Bloquea todas las ubicaciones (D-03).
+    /// </summary>
+    public Task<OperationResponse> CancelAsync(Guid operation, Guid id, CycleCountCancelWrite write, string? ifMatch,
+        CancellationToken cancellation)
+    {
+        var request = new OperationRequest(operation, "POST", $"{Resource}/{id:D}/cancel", AdjustPermission,
+            JsonSerializer.SerializeToElement(write, OperationResponse.JsonOptions));
+        return executor.ExecuteAsync(request, async (context, token) =>
+        {
+            if (write.Reason is null)
+                throw InventoryProblemException.Validation("reason", "Indica el motivo de la cancelación.");
+            if (write.Reason.Length > CycleCount.CancelReasonMaxLength)
+                throw InventoryProblemException.Validation("reason", $"El motivo no puede superar {CycleCount.CancelReasonMaxLength} caracteres.");
+            var db = context.Database;
+            await context.Locks.DocumentsAsync([new DocumentLock(CycleCountDocuments.CycleCount, id)], token);
+            var scope = await db.Set<CountLocation>().AsNoTracking().Where(location => location.CountId == id)
+                .Select(location => location.LocationId).ToListAsync(token);
+            await context.Locks.LocationsAsync(scope, token);
+            var count = await LoadAsync(db, id, ifMatch, token,
+                CycleCountState.Draft, CycleCountState.Counting, CycleCountState.AwaitingApproval);
+            count.Cancel(context.OperationId, write.Reason, context.ActorId, DateTimeOffset.UtcNow);
+            return OperationResponse.Json(200, new CycleCountCancellation(context.OperationId, id), id);
+        }, cancellation);
+    }
+
+    private const string AdjustmentReason = "Ajuste por conteo cíclico";
+    private const string AdjustmentCounterparty = "Ajuste de inventario: sin contraparte externa";
+
+    /// <summary>Texto «SKU en ubicación, lote L» de cada bucket para los mensajes de conflicto.</summary>
+    private static async Task<Func<CountLine, string>> BucketNamesAsync(InventoryDbContext db, IReadOnlyList<Guid> articleIds,
+        IReadOnlyList<Guid> locationIds, CancellationToken token)
+    {
+        var skus = await db.Articles.AsNoTracking().Where(article => articleIds.Contains(article.Id))
+            .ToDictionaryAsync(article => article.Id, article => article.Sku, token);
+        var codes = await db.Set<Location>().AsNoTracking().Where(location => locationIds.Contains(location.Id))
+            .ToDictionaryAsync(location => location.Id, location => location.Code, token);
+        return line => $"{skus[line.ArticleId]} en {codes[line.LocationId]}, lote {line.LotCode}";
     }
 
     internal sealed record CountedItem(Guid LineId, decimal Quantity);
