@@ -11,4 +11,11 @@ public sealed class StockPolicy
     public Guid ArticleId { get; private set; }
     public decimal MinimumAvailable { get; private set; }
     public byte[] Version { get; private set; } = [];
+
+    public void SetMinimum(decimal value)
+    {
+        if (value < 0 || value >= 1_000_000_000_000_000m || decimal.Round(value, 3) != value)
+            throw new ArgumentOutOfRangeException(nameof(value));
+        MinimumAvailable = value;
+    }
 }

@@ -18,6 +18,7 @@ public sealed class ArticleDefinitionReadiness(InventoryDbContext database, Arti
     internal static void Validate(IModel model, IEnumerable<IArticleFirstReferenceContributor> links)
     {
         var required = ArticleUsageCoverageValidator.RequiredTypes(model);
+        required.Remove(typeof(Inventario.Api.Domain.Stock.StockAlert));
         var linked = links.SelectMany(link => link.ReferencingEntityTypes).ToHashSet();
         if (!required.SetEquals(linked))
             throw new InventoryProblemException(503, "DependencyUnavailable", "Falta integrar el seguimiento de primera referencia de un consumidor.");

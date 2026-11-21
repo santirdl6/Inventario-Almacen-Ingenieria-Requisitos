@@ -183,7 +183,13 @@ a partir de sus reservas (HU-03); el núcleo comprueba que no excede el reservad
 entrada ⇒ HasHistory. Si `H0_StockCore` aún no está aplicada (ventana HU-08 Expand), no hay
 tablas y devuelve sin uso. Pendiente para las historias: el lector `IArticleMovementReader`
 del historial de artículo, CustomerOrder/Reservation (HU-03/HU-05), congelación de conteos
-y ajustes (HU-04), alertas (HU-06) y correcciones.
+y ajustes (HU-04). HU-06 y la compensación de recepciones disponen de los puntos descritos a continuación.
+
+### Evaluación de alertas — HU-06
+
+`StockCore.ApplyAsync` y `StockCore.CorrectReceiptAsync` invocan el evaluador después de sus efectos y antes del commit. Los escritores futuros de HU-03/04/05 que no pasen por esos puntos deben invocarlo con el mismo `OperationContext` y el lock del artículo; los que ya pasen por el núcleo no lo invocan de nuevo. Política y ciclo de vida usan el mismo evaluador. Los totales incluyen todos los buckets y los deltas pendientes de EF; el replay no reevalúa.
+
+La migración aditiva `20261121200510_HU06StockAlerts` protege la unicidad de la alerta activa. La FK restringe el borrado de artículos con episodios, incluso resueltos; una alerta derivada del umbral no constituye primer uso de la definición. [Contrato, alcance de escritores y revisión confirmada](../../../../specs/009-configurar-alertas-stock-minimo/contracts/integration.md).
 
 ## Continuación autorizada del correo de compras — diseño HU-07
 

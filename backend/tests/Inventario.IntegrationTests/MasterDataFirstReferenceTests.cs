@@ -17,7 +17,7 @@ public sealed class MasterDataFirstReferenceTests(IdentityFixture fixture) : ICl
         using var factory = fixture.Factory(); using var scope = factory.Services.CreateScope();
         scope.ServiceProvider.GetRequiredService<ArticleDefinitionReadiness>().EnsureReady();
         var db = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-        Assert.Equal(["Lot", "PurchaseOrderLine", "StockBalance", "StockEntry"],
+        Assert.Equal(["Lot", "PurchaseOrderLine", "StockAlert", "StockBalance", "StockEntry"],
             ArticleUsageCoverageValidator.RequiredTypes(db.Model).Select(type => type.Name).Order(StringComparer.Ordinal));
     }
 

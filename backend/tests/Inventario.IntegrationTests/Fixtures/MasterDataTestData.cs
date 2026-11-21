@@ -84,7 +84,7 @@ public static class MasterDataTestData
         if (profile is not ("hu08" or "hu07")
             || database != (purchasing ? PurchasingE2EDatabase : E2EDatabase) || host != "sqlserver")
             throw new ArgumentException("El provisionamiento requiere una base dedicada que corresponda al perfil HU-08/HU-07 y el servicio sqlserver.");
-        var roles = purchasing ? E2ERoles.Append("Comprador").ToArray() : E2ERoles;
+        var roles = purchasing ? E2ERoles.Concat(["Comprador", "ResponsableAlmacen"]).ToArray() : E2ERoles;
         if (accounts.Count != roles.Length || !accounts.Select(account => account.Role).Order(StringComparer.Ordinal)
             .SequenceEqual(roles.Order(StringComparer.Ordinal)))
             throw new ArgumentException("Las cuentas deben coincidir exactamente con los roles del perfil E2E solicitado.");
