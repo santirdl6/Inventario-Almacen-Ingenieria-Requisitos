@@ -510,7 +510,7 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
     descartaba; el enlace decía «Abrir pedido» para una salida.
   - Vitest 149, 151 y 154 tras cada commit (base 147); `tsc` de app y specs y `npm run build` en
     verde.
-- [ ] T014 [US1] [US4] Datos, búsqueda y pedido. Depende de T006, T012 y T013.
+- [X] T014 [US1] [US4] Datos, búsqueda y pedido. Depende de T006, T012 y T013.
   - `features/shipping/data/shipping.models.ts` y `shipments-api.service.ts`: `lookup`, `detail(id)`
     con **dos lecturas** (detalle con `ETag` y contexto; relee hasta 3 veces si
     `shipmentVersion !== etag`), `listByOrder`, y las mutaciones con `pending.begin(…, appRoute)` +
@@ -532,6 +532,20 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
     el placeholder, que no tiene esas rutas.
 
   (US1.11, US4.1, US4.3; FR-001a, FR-018, FR-025.)
+
+  **Hecho (2026-11-21)**:
+  - `ed443f3` (⚑ H0): área `salidas` con `Inventory.Read` y su spec.
+  - El commit de esta marca: `shipping.models.ts` y `shipments-api.service.ts` (lookup, `detail` con
+    dos lecturas, `listByOrder` y mutaciones con `begin(…, appRoute)` + `send()`), las rutas con
+    `permissionGuard` en `pedidos/:orderId/nueva`, `order-lookup.page` y `order-shipments.page`.
+  - `shipment-form.page.ts` queda como esqueleto, porque las rutas lo cargan; lo construye T015.
+  - Desviación (M2 del análisis): el total de una salida solo lleva unidad si todas las líneas del
+    pedido comparten la misma; si no, se muestra «—» (FR-025).
+  - Rojo previo:
+    - spec de áreas, 3/3: el área pedía `Shipping.Record`;
+    - rutas, 2/2 contra el placeholder: solo existía `''`;
+    - búsqueda y pedido, 6/6, con los esqueletos vacíos.
+  - Verde: 8/8 en las specs nuevas; Vitest 162/162 (base 154); `tsc` de app y specs sin errores.
 - [ ] T015 [US1] Preparar y editar el borrador. Depende de T014.
   - `shipment-form.page.ts` (nueva y `:id` en borrador): fecha del hecho por defecto ahora;
     «Añadir» por línea con pendiente; **propuesta** desde las asignaciones activas del pedido, por
