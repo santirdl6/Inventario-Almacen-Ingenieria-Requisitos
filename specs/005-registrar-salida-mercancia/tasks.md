@@ -64,7 +64,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
 ## Phase 1: Coordinación con A (pendiente explícita, no bloquea el código)
 
-- [ ] T001 ⏸ **PENDIENTE: solicitar la revisión de A en el PR de HU-03** (COORD-01), sin bloquear la
+- [X] T001 **Solicitar la revisión de A en el PR de HU-03** (COORD-01), sin bloquear la
   implementación, de:
   - (a) los diffs de [plan.md § Cambios al modelo común](plan.md#cambios-al-modelo-común-pendientes-de-a):
     P-01 (borrador eliminable, salida confirmada inmutable, `OwnReservationConsumed` derivado),
@@ -78,6 +78,14 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   Registrar decisión, fecha y revisor en `plan.md` (nuevo apartado «Estado de la revisión de A»).
   Si A rechaza algo, ajustar solo las tareas afectadas: si rechaza P-02, T004 y T009 pasan a la
   invariante agregada de D-08 (alternativa).
+
+  **Hecho (2026-11-21)**: A dio luz verde para cerrar T001 y aplicar T002. Registro en
+  [plan.md § Estado de la revisión de A](plan.md#estado-de-la-revisión-de-a):
+  - confirmados expresamente: P-01, P-02 (totales declarados de C1, `a6ec4b2`, y detalle por
+    asignación), P-06 y los triggers de D-06;
+  - P-03, P-04, P-05 y P-08: cubiertos por la luz verde general; confirmación ítem a ítem pendiente;
+  - P-07: con la limitación pedida por A (`34af23d`).
+  Ninguno rechazado: no cambia ninguna tarea.
 - [ ] T002 ⏸ **PENDIENTE, bloqueada por T001 y por la fusión del PR #9**: aplicar los diffs aprobados
   P-01…P-05, P-07 y P-08 en `.specify/memory/project/data-model.md`,
   `.specify/memory/project/contracts/api.md`, `.specify/memory/project/contracts/stock-operations.md`,
