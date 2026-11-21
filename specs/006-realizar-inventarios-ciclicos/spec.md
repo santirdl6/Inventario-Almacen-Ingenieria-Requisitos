@@ -34,6 +34,13 @@ visibles; motivo e identidad de quien ajusta; actualización al confirmar conser
 Los enlaces anteriores son referencias normativas; esta especificación describe necesidades
 y resultados de negocio. Las decisiones de implementación corresponden al futuro plan de HU-04.
 
+## Clarifications
+
+### Session 2026-11-21
+
+- Q: ¿Se bloquea liberar reservas sobre una ubicación en conteo, o sigue permitido? → A: Sigue permitido, con permiso de gestión de reservas y motivo, como fija el modelo común: es la vía para resolver un contado inferior al reservado (US2.4, V-10). Se bloquean reservar, confirmar salidas, recibir, desactivar y cambiar el tipo. Bloquear también la liberación sería un cambio compartido (AGENTS.md) y dejaría la cancelación como única salida de ese caso (US3.3, FR-015). Decisión por recomendación, pendiente de confirmar por B.
+- Q: ¿La corrección de una salida confirmada errónea se hace contando las ubicaciones afectadas o con un ajuste directo sin conteo? → A: Contando: se crea un conteo sobre las ubicaciones de origen afectadas y, antes de confirmarlo, cada línea con diferencia puede vincularse a la salida confirmada que corrige. El ajuste es el del conteo; no hay un segundo escritor de ajustes ni una corrección directa (US4.1, FR-018). Decisión por recomendación, pendiente de confirmar por B.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Contar una parte del almacén y ver las diferencias (Priority: P1)
@@ -133,9 +140,9 @@ conteo, las mismas operaciones vuelven a admitirse.
 2. **Given** la misma situación, **When** se intenta reservar existencias en esa ubicación,
    **Then** se rechaza del mismo modo.
 3. **Given** la misma situación, **When** se intenta liberar una reserva con asignaciones en esa
-   ubicación, **Then** [NEEDS CLARIFICATION: el modelo común permite liberar durante el conteo para
-   resolver un contado inferior al reservado (US2.4, V-10), pero la petición pide bloquear también
-   la liberación. ¿Se bloquea liberar o se mantiene permitido con motivo?]
+   ubicación, **Then** se admite con el permiso de gestión de reservas y motivo, como en el modelo
+   común: el reservado baja y el físico no cambia, de modo que el conteo pueda confirmarse si el
+   contado quedaba por debajo del reservado (US2.4).
 4. **Given** la misma situación, **When** se intenta desactivar la ubicación o cambiar su tipo,
    **Then** se rechaza con el motivo «ubicación en conteo», y las consultas de ubicaciones la
    muestran como en conteo.
@@ -159,25 +166,26 @@ salida, para que el inventario vuelva a coincidir con la realidad sin alterar el
 **Why this priority**: HU-03 no revierte salidas confirmadas y deja esta corrección a HU-04
 (clarificación Q3 y P-07). Es necesaria, pero menos frecuente que el ciclo de conteo.
 
-**Independent Test**: Una salida confirmada registró 6 unidades desde U1, pero solo salieron 4. Con
-la vía que se decida en la clarificación, el responsable registra la corrección vinculada a esa
-salida, con motivo; el físico de U1 sube en 2, el historial muestra el ajuste con la referencia a la
+**Independent Test**: Una salida confirmada registró 6 unidades desde U1, pero solo salieron 4. Se
+cuenta U1, se registra el contado real, el responsable vincula la diferencia de +2 a esa salida y
+confirma con motivo; el físico de U1 sube en 2, el historial muestra el ajuste con la referencia a la
 salida, y la salida, lo servido del pedido (6) y el consumo de reservas no cambian.
 
 **Acceptance Scenarios**:
 
-1. **Given** una salida confirmada errónea, **When** el responsable registra su corrección,
-   **Then** [NEEDS CLARIFICATION: ¿la corrección se hace contando las ubicaciones afectadas (un
-   conteo cuyas líneas se vinculan a la salida) o con un ajuste directo vinculado a la salida, sin
-   conteo?]
+1. **Given** una salida confirmada errónea y un conteo pendiente de aprobación sobre sus ubicaciones
+   de origen, **When** el responsable vincula a esa salida las líneas con diferencia que la corrigen
+   y confirma el conteo, **Then** el ajuste de esas líneas queda vinculado a la salida; no existe otra
+   vía de corrección sin conteo.
 2. **Given** una corrección registrada, **When** se consulta el historial, **Then** el ajuste
    muestra su motivo, quién lo autorizó, cuándo y la referencia a la salida original; la salida
    original y su movimiento siguen intactos.
 3. **Given** una corrección registrada, **When** se consulta el pedido de cliente, **Then** lo
    servido, el pendiente, el estado del pedido y el consumo de las reservas son los mismos que antes
    de la corrección; la pantalla lo indica expresamente.
-4. **Given** una salida en borrador o inexistente, **When** se intenta vincularla a una corrección,
-   **Then** se rechaza: solo se corrigen salidas confirmadas.
+4. **Given** una salida en borrador o inexistente, o una línea de conteo cuyo artículo, ubicación y
+   lote no coinciden con ningún origen de la salida, **When** se intenta vincularlas, **Then** se
+   rechaza: solo se corrigen salidas confirmadas y en los buckets que tocaron.
 
 ---
 
@@ -243,8 +251,8 @@ recargar; un usuario sin permiso de registro de conteos no puede crear ni inicia
   congelado; si al confirmar el físico de un bucket no coincide con el teórico capturado, se rechaza
   la confirmación sin cambios y se informa del bucket (defensa frente a un escritor que no comprobó
   la congelación).
-- **Contado por debajo del reservado**: no se confirma (US2.4); se resuelve liberando reservas según
-  la regla que se fije en US3.3, o cancelando el conteo.
+- **Contado por debajo del reservado**: no se confirma (US2.4); se resuelve liberando reservas con
+  motivo, permitido durante el conteo (US3.3), o cancelando el conteo.
 - **Ubicación vacía**: un conteo puede incluir una ubicación sin existencias; solo tendrá hallazgos o
   ninguna línea.
 - **Ubicación desactivada antes de iniciar**: no se puede iniciar un conteo con ubicaciones
@@ -257,9 +265,10 @@ recargar; un usuario sin permiso de registro de conteos no puede crear ni inicia
   entradas en ubicaciones congeladas; HU-04 aporta la comprobación común y la prueba de que el
   lector deja de ser constante.
 - **Salida corregida ya contada**: si la ubicación de la salida errónea ya se ajustó por otro conteo,
-  una segunda corrección duplicaría el efecto; la corrección muestra los ajustes posteriores de la
-  ubicación antes de confirmarla.
-- **Corrección que dejaría el físico negativo o por debajo del reservado**: se rechaza.
+  el nuevo conteo parte de ese físico ya ajustado y no duplica el efecto; al vincular, la revisión
+  muestra los ajustes ya vinculados a la salida.
+- **Corrección por debajo del reservado**: el contado nunca es negativo y, si queda por debajo del
+  reservado, se aplica US2.4.
 
 ## Requirements *(mandatory)*
 
@@ -314,8 +323,8 @@ recargar; un usuario sin permiso de registro de conteos no puede crear ni inicia
   DEBE rechazar con el motivo «ubicación en conteo» (`CountScopeFrozen` del contrato común), sin
   cambios parciales: confirmar salidas con algún origen en ella, reservar existencias en ella,
   registrar recepciones con destino en ella, desactivarla y cambiar su tipo.
-- **FR-015**: La liberación de reservas con asignaciones en una ubicación congelada DEBE seguir la
-  regla fijada en US3.3. [Pendiente de la misma clarificación.]
+- **FR-015**: La liberación de reservas con asignaciones en una ubicación congelada DEBE seguir
+  permitida, con el permiso de gestión de reservas y motivo, sin cambiar el físico (US3.3).
 - **FR-016**: Las consultas de ubicaciones DEBEN mostrar si cada ubicación está en un conteo abierto,
   con el valor real; la comprobación de conteo abierto NO DEBE seguir siendo constante una vez
   habilitados los conteos.
@@ -326,19 +335,21 @@ recargar; un usuario sin permiso de registro de conteos no puede crear ni inicia
 **Corrección de salidas confirmadas (Q3 y P-07 de HU-03)**
 
 - **FR-018**: El sistema DEBE permitir a los usuarios con permiso de ajuste corregir el físico de las
-  ubicaciones de origen de una salida confirmada errónea mediante un ajuste trazable vinculado a esa
-  salida, con motivo, por la vía que fije US4.1.
+  ubicaciones de origen de una salida confirmada errónea mediante el conteo de esas ubicaciones:
+  antes de confirmar, cada línea con diferencia de un bucket que la salida tocó puede vincularse a
+  esa salida, y su ajuste queda vinculado a ella, con motivo (US4.1). NO DEBE existir otra vía de
+  ajuste sin conteo.
 - **FR-019**: La corrección NO DEBE modificar la salida original, su movimiento, lo servido ni el
   pendiente del pedido, su estado ni el consumo de las reservas; la pantalla DEBE indicarlo. Cambiar
   lo servido o el consumo exigiría un cambio compartido (AGENTS.md) fuera de esta feature.
-- **FR-020**: La corrección DEBE rechazarse si la salida no está confirmada o si dejaría el físico
-  de un bucket negativo o por debajo de su reservado.
+- **FR-020**: El vínculo DEBE rechazarse si la salida no está confirmada o si la línea no
+  corresponde a un bucket de origen de esa salida; la confirmación sigue las reglas de FR-011.
 
 **Trazabilidad**
 
 - **FR-021**: Cada ajuste DEBE registrar identificador, tipo, artículo, ubicación, lote, cantidad
   positiva, unidad, sentido, fecha y hora del hecho y del registro, quien contó, quien autorizó,
-  motivo, el conteo (o la salida corregida) como documento de soporte y, como contraparte, el
+  motivo, el conteo como documento de soporte y, si la hay, la salida corregida vinculada, y como contraparte el
   motivo expreso de no aplicación, ya que un ajuste no tiene contraparte externa.
 - **FR-022**: El historial de existencias DEBE mostrar los ajustes con sus datos y permitir llegar
   al conteo o a la salida que los originó.
@@ -430,9 +441,10 @@ Esta especificación define la aceptación; no declara realizadas pruebas ni rev
   aprobación, confirmado o cancelado), creador, inicio, aprobador y motivo de cancelación.
 - **Ubicación del conteo**: cada ubicación del alcance y si está congelada.
 - **Línea de conteo**: artículo, ubicación, lote, teórico capturado, contado, diferencia, motivo,
-  quien contó y cuándo, y si es esperada o hallazgo.
+  quien contó y cuándo, si es esperada o hallazgo y, opcionalmente, la salida confirmada que corrige.
 - **Movimiento de ajuste — referencia compartida**: hecho del historial al alza o a la baja, con
-  soporte (conteo o salida corregida), motivo, autorización y contraparte no aplicable.
+  el conteo como soporte, la salida corregida si la hay, motivo, autorización y contraparte no
+  aplicable.
 - **Salida confirmada — de HU-03**: documento al que se vincula una corrección; no cambia.
 - **Existencia por ubicación y lote — referencia compartida**: físico y reservado; el ajuste cambia
   solo el físico.
@@ -469,8 +481,9 @@ Esta especificación define la aceptación; no declara realizadas pruebas ni rev
 - El contado no oculta el teórico al operario: la pantalla muestra teórico y diferencia mientras se
   cuenta (conteo no ciego), conforme al contrato de interacción común.
 - Un ajuste no tiene contraparte externa: registra el motivo expreso de no aplicación, nunca una
-  referencia de contraparte. El documento de soporte es el conteo o, en una corrección, la salida
-  corregida.
+  referencia de contraparte, también cuando corrige una salida (el cliente del pedido no participa
+  en el ajuste). El documento de soporte es siempre el conteo; la salida corregida es una referencia
+  vinculada.
 - El motivo es texto libre obligatorio por diferencia; no se introduce un catálogo de motivos.
 - La fecha y hora del hecho de un ajuste es la de su confirmación; el inicio y el contado conservan
   sus propios instantes.
