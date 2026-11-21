@@ -231,9 +231,14 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
   - **INT-HU03-01, contrato de escritores** (H-07): `DELETE` → 204, sin filas ni movimientos;
     `ShipmentArticleUsageContributor` deja de ver la línea; la del pedido sigue fijando la
     definición y rechazando el borrado; replay → 204; otra clave → 404.
+  - **Retirada por edición** (H-07, analyze-1 H4): en un pedido con líneas de los artículos X e Y,
+    un `PUT` del borrador que quita la única línea de X deja la de Y. El contributor deja de ver X
+    en la salida y lo sigue viendo en Y. X conserva la definición bloqueada y el borrado rechazado
+    por la línea de pedido. La marca histórica no se revierte.
   - **Carreras (INT-HU03-01), `LockBarrier`, ambos órdenes**: crear borrador / `PUT` de definición
     del artículo y crear borrador / `DELETE` del artículo (el escritor de A recibe 409 o 412; el
-    artículo con referencias no se borra); eliminar borrador / `DELETE` del artículo.
+    artículo con referencias no se borra); **editar borrador / `PUT` de definición y editar
+    borrador / `DELETE` del artículo** (analyze-1 H4); eliminar borrador / `DELETE` del artículo.
   - **Permisos** (parte de H-20): sin sesión 401; sin antiforgery 400; GestorMaestros y Comprador →
     403 en escrituras y 200 en `GET`; Administrador → 403 también en lectura.
 
