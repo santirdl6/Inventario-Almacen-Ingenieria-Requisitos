@@ -40,7 +40,7 @@ concurrencia se repiten tres veces.
 | H-14 | Conciliación tras H-08…H-13: invariantes 1–8 de [data-model.md](data-model.md#invariantes-comprobables-quickstart-h-14). | Todas se cumplen. | FR-017, constitución IV |
 | H-15 | **INT-HU03-02**: pedido y reserva de ART-01; desactivar ART-01; preparar y confirmar. | 200; contexto con `isActive = false`; historial y saldos coherentes; alta de pedido nuevo (HU-05) sigue en 409. | US3.1–3.2, FR-014 |
 | H-16 | **V-05 extendido** (20 repeticiones, ambos órdenes): físico 10 sin reservas; dos salidas de 8 de pedidos distintos. | Una 200 y otra 409 `InsufficientStock`; físico 2. | US5.4, FR-022, SC-003 |
-| H-17 | Carreras con `LockBarrier`, ambos órdenes: dos salidas del mismo pedido que superan el pendiente; salida/reserva y salida/liberación sobre el mismo bucket; salida/desactivación del artículo (INT-HU03-02); borrador (crear y editar)/`PUT` de definición y borrador (crear, editar y eliminar)/`DELETE` del artículo (INT-HU03-01); salida/`PUT` de definición (T011; analyze-1 H4). | Nunca servido > pedido, reservado > físico, consumido + liberado > asignado ni físico < 0; perdedores con 409, 412 o 422; artículo con borrador no se borra. | US3.3, US5.5–5.6, FR-022 |
+| H-17 | Carreras con `LockBarrier`, ambos órdenes: dos salidas del mismo pedido que superan el pendiente; salida/reserva y salida/liberación sobre el mismo bucket; salida/desactivación del artículo (INT-HU03-02); borrador (crear y editar)/`PUT` de definición y borrador (crear, editar y eliminar)/`DELETE` del artículo (INT-HU03-01); salida/`PUT` de definición (T011; analyze-1 H4). **Construido** (T011): además, salida de la línea X frente a reserva de la línea Y del mismo pedido, que solo serializa `customer-order` (regla 1). | Nunca servido > pedido, reservado > físico, consumido + liberado > asignado ni físico < 0; perdedores con 409, 412 o 422; artículo con borrador no se borra. | US3.3, US5.5–5.6, FR-022 |
 | H-18 | **V-07**: confirmar; repetir con la misma clave; con la misma clave y otro `orderVersion`; con otra clave. | Replay; 409 `IdempotencyConflict`; 409 `DocumentAlreadyConfirmed`; un solo movimiento. | US5.2, FR-021 |
 | H-19 | **V-08**: `FailAfterSaveInterceptor` en alta, edición, eliminación y confirmación; repetir con la misma clave. | Ningún efecto parcial ni `OperationResult`; el reintento aplica un solo efecto. | US5.7, FR-020 |
 | H-20 | Permisos: sin sesión, sin antiforgery, gestor, comprador y administrador en cada ruta; operario sin `Reservations.Manage` confirma consumiendo reservas. | 401; 400; lectura permitida y 403 en escrituras; 403 al administrador también en lectura; el operario confirma. | US4.3, US5.1, FR-019 |
@@ -57,6 +57,11 @@ borrador (guardar, editar, 412, eliminar con confirmación); revisión (cifras d
 cantidad posible, «Inactivo» sin bloquear); salida confirmada reabierta con su operación; errores con foco al
 primer error; `ReservedStockConflict` con enlace al pedido; cambios de archivos de A en specs nuevas
 de B (`mutationPermission`, `APP_ROUTE` y enlace «Abrir salida»).
+
+**Construido** (T013–T016): 33 pruebas en 8 specs de `features/shipping` (`shipping.routes`,
+`order-lookup.page`, `order-shipments.page`, `shipment-form.page`, `shipment-confirm.page`,
+`shipment-review-dialog`, `pending-operation-hu03` y `operation-status-hu03`), con datos comunes en
+`testing/shipping-testing.ts`. Vitest completo: 180 pruebas.
 
 ## E2E-02 (Playwright)
 
@@ -124,3 +129,20 @@ de la rama (suite backend, `has-pending-model-changes`, Vitest, `tsc`, Playwrigh
 - **V-04, V-05 extendido, V-07 y V-08**: H-10, H-11, H-16, H-18 y H-19, sobre `8275c43`.
 
 Sigue fuera: SC-006, SC-007 y `CountScopeFrozen` (INT-HU04-03).
+
+### Verificación de la convergencia (C1 y /speckit-converge, 2026-11-21)
+
+Sobre `a6ec4b2`, con el mismo entorno que T018. El detalle está en
+[validation/converge-1.md](validation/converge-1.md).
+
+| Comprobación | Resultado | Línea base |
+|--------------|-----------|------------|
+| Suite backend | 290 aprobadas, 1 omitida (V-14), 0 fallidas | 287/1/0 en T018 |
+| `has-pending-model-changes` | Sin cambios | — |
+| Vitest | 180/180 en 43 archivos | 180 en T018 |
+| Playwright (`--grep-invert SC-005`), una ejecución | 17/17 | 17/17 en T018 |
+
+**Nota de proceso**: todas las tareas de HU-03 hechas en esta entrega (T003–T018 y C1) se
+ejecutaron con la skill `/speckit-implement` cargada. T001 y T002, de coordinación con A, siguen
+pendientes. Las desviaciones y los incumplimientos sin corregir (G1–G4) están en
+[converge-1](validation/converge-1.md).

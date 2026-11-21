@@ -116,14 +116,17 @@ Reservation:     Active ──confirm consume hasta remanente 0──▶ Consume
 
 ## Migración
 
-`HU03_Shipments`, generada sobre `20261120113458_HU05_CustomerOrdersReservations` (research D-10):
+`20261121135335_HU03_Shipments` (construida; regenerada en Convergence C1, antes `20261121114907`), generada sobre
+`20261120113458_HU05_CustomerOrdersReservations` (research D-10):
 
 - Tablas, FK, CHECK e índices de este documento.
 - A mano:
-  - `TR_Shipments_ConfirmedImmutable`, con el complemento de la transición `Draft → Confirmed`;
+  - `TR_Shipments_ConfirmedImmutable`, con el complemento de la transición `Draft → Confirmed` (51302
+    otra operación; 51306 más consumos de los declarados, C1);
   - `TR_ShipmentLines_ConfirmedImmutable`;
-  - `TR_ShipmentReservationConsumptions_ConfirmingOperation` (D-06);
+  - `TR_ShipmentReservationConsumptions_ConfirmingOperation` (D-06: 51304 otra operación; 51305 por
+    encima de lo declarado, C1);
   - `DENY UPDATE, DELETE ON OBJECT::dbo.ShipmentReservationConsumptions TO inventory_runtime`.
-- `HasTrigger` en las tres configuraciones EF.
+- `HasTrigger` en las tres configuraciones EF. Todos los triggers solo hacen `THROW` (decisión M3).
 - `Down` elimina triggers, permisos y tablas en orden inverso.
 - Constante `ShipmentSchema.Migration` para el contributor de uso (D-09).

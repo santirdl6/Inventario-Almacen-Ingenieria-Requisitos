@@ -30,7 +30,8 @@ El área `salidas` de `operation-areas.ts` pasa a `Inventory.Read` (research D-1
 - Tabla de líneas: artículo (SKU, nombre, «Inactivo» si procede), unidad, pedido, servido, pendiente
   y reservado remanente (de `GET /customer-orders/{id}` + `/context` de HU-05).
 - Tabla de salidas: estado en texto («Borrador», «Confirmada»), fecha del hecho, registro,
-  responsable, líneas y total; enlace a `/salidas/:id`.
+  responsable, líneas y total; enlace a `/salidas/:id`. **Construido** (T014): el total lleva unidad
+  solo si todas las líneas del pedido comparten la misma; si no, «—» (FR-025, analyze-1 M2).
 - Pedido servido: aviso «El pedido está servido: no admite nuevas salidas» y sin «Nueva salida».
 
 ## Preparar y editar un borrador
@@ -45,7 +46,9 @@ El área `salidas` de `operation-areas.ts` pasa a `Inventory.Read` (research D-1
 - Cada fila muestra ubicación, lote o «sin lote», cantidad con unidad, y el pendiente de su línea.
 - «Guardar borrador» crea (`POST`) o sustituye (`PUT`) y navega o se queda en `/salidas/:id`.
 - «Eliminar borrador» pide confirmación en un diálogo y, tras el 204, vuelve al pedido con el aviso
-  «Borrador eliminado. No se ha modificado ninguna existencia».
+  «Borrador eliminado. No se ha modificado ninguna existencia». **Construido** (T015, `8487830`): la
+  confirmación es una sección `alertdialog` dentro de la página, y el aviso viaja en el estado de la
+  navegación (`history.state`).
 
 ## Revisar y confirmar
 
@@ -58,6 +61,8 @@ Diálogo accesible (`cdkTrapFocus`, Escape cierra, foco vuelve al botón):
 - Línea con cantidad mayor que la posible: aviso en texto en esa fila (no solo color); el botón
   «Confirmar salida» sigue disponible porque el servidor decide.
 - «Confirmar salida» envía `orderVersion` del contexto leído para la revisión.
+- **Construido** (T016, `fab4cbe`): «Revisar y confirmar» solo está activo con el borrador guardado,
+  sin cambios pendientes, porque las cifras salen del contexto de la salida guardada.
 
 ## Resultados y errores
 
@@ -66,9 +71,9 @@ Diálogo accesible (`cdkTrapFocus`, Escape cierra, foco vuelve al botón):
 | Confirmada (200) | «Salida registrada. Operación {operationId}»; se recargan salida y pedido; la vista pasa a solo lectura. |
 | Salida confirmada abierta después | En solo lectura, «Salida confirmada con la operación {operationId}», con el `operationId` de `GET /shipments/{id}`. Se ve igual en otra sesión, por «Abrir salida» o por URL (FR-023, US4.2; analyze-1 H2). |
 | 422 | Errores por campo y por línea; foco al primer `aria-invalid`; datos conservados. |
-| 409 `InsufficientStock` | Aviso con el `detail` (físico, disponible, cantidad posible) junto a la línea; foco al aviso. |
+| 409 `InsufficientStock` | Aviso con el `detail` (físico, disponible, cantidad posible) junto a la línea; foco al aviso. **Construido**: el aviso va arriba de la página y el `detail` no da la cantidad posible (converge-1 G1, G3). |
 | 409 `ReservedStockConflict` | Aviso «Antes de servir desde otro origen hay que liberar {cantidad} reservadas de la línea {SKU}. Pídelo a un responsable del almacén» con enlace al pedido en `/existencias/pedidos/:id`. |
-| 409 `CustomerOrderNotOpen` / `CountScopeFrozen` / `DocumentAlreadyConfirmed` | Aviso con el motivo; recarga del estado actual. |
+| 409 `CustomerOrderNotOpen` / `CountScopeFrozen` / `DocumentAlreadyConfirmed` | Aviso con el motivo; recarga del estado actual. **Construido**: aviso con el motivo y foco, sin recargar (converge-1 G4). |
 | 412 | «Los datos cambiaron desde que los revisaste»: recarga salida, pedido y revisión sin perder las cantidades escritas del borrador en edición. |
 | Respuesta perdida | Estado 7 de ui.md con `OperationStatusComponent`: «Resultado pendiente de comprobar», «Comprobar», «Repetir la misma intención» y «Abrir salida» (`appRoute`). |
 

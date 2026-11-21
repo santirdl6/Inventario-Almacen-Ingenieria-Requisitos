@@ -98,7 +98,7 @@ implementación. La evidencia se recogerá con los casos del [quickstart](quicks
 | III. Uso intuitivo | Búsqueda por referencia, propuesta editable, revisión con propio/ajeno/posible, errores por línea con foco, estados en texto. La validación con operarios (SC-007, V-13) queda fuera de esta entrega. | Vitest, E2E-02 | PASS* | PASS* |
 | IV. Trazabilidad | Un movimiento `Shipment` con actor, instantes, motivo, soporte (`ExternalReference`) y contraparte (`CustomerReference`); consumos por asignación append-only (D-08); salida confirmada inmutable por trigger (D-06); sin reversión en HU-03, la corrección pasa a HU-04 (Q3). | H-02, H-08, H-14 | PASS | PASS |
 | V. Integridad | Ejecutor común; bloqueos documentos → ubicaciones → artículos antes de leer; `If-Match` de la salida y `orderVersion` del pedido; renovación de versiones (regla 4); idempotencia y unicidad del diario; atomicidad; carreras con conexiones reales. | H-10…H-12, H-16…H-19 | PASS | PASS |
-| Revisión y gobernanza | Cambios al modelo común y a archivos de A como diff (P-01…P-07), sin aplicarlos. Desviación anotada: `OwnReservationConsumed` deja de almacenarse y pasa a derivarse de la tabla de consumos (P-01, P-02). | Revisión de A en el PR | PASS | PASS |
+| Revisión y gobernanza | Cambios al modelo común y a archivos de A como diff (P-01…P-08), sin aplicarlos. Desviación anotada: `OwnReservationConsumed` deja de almacenarse y pasa a derivarse de la tabla de consumos (P-01, P-02). | Revisión de A en el PR | PASS | PASS |
 
 \* Desviación registrada en Complexity Tracking: sin validación con operarios ni medición de
 rendimiento, HU-03 puede integrarse pero no darse por **aceptada**.
@@ -123,10 +123,16 @@ specs/005-registrar-salida-mercancia/
 │   ├── shipping-api.md      # 8 rutas HTTP
 │   └── shipping-ui.md       # /salidas
 ├── checklists/requirements.md
-└── tasks.md                 # /speckit-tasks (no creado todavía)
+├── tasks.md                 # T001–T018 (T003–T018 hechas) y Convergence C1
+└── validation/              # analyze-1.md, converge-1.md
 ```
 
 ### Source Code (repository root)
+
+Estructura **construida** (reconciliada en `/speckit-converge`, 2026-11-21). Respecto al diseño
+inicial: la migración tiene su nombre real; hay `ShipmentQueryTests.cs` (H-21, T012) y
+`shipping.routes.spec.ts`; las specs de `/salidas` comparten `testing/shipping-testing.ts`; y la
+revisión y la confirmación se prueban en `shipment-confirm.page.spec.ts` (analyze-1 M4).
 
 ```text
 backend/src/Inventario.Api/
@@ -143,17 +149,18 @@ backend/src/Inventario.Api/
 ├── Features/Stock/StockEndpoints.cs                  # (B, HU-05) + GET /customer-orders/lookup
 ├── Features/Stock/Core/StockArticleUsage.cs          # (B, H0) AddStockCore registra el contributor de HU-03
 ├── Infrastructure/Persistence/Configurations/{Shipment,ShipmentLine,ShipmentReservationConsumption}Configuration.cs
-├── Infrastructure/Persistence/Migrations/<timestamp>_HU03_Shipments.cs
+├── Infrastructure/Persistence/Migrations/20261121135335_HU03_Shipments.cs   # regenerada en C1 (antes 20261121114907)
 └── Program.cs                                        # (común) AddShipping() y api.MapShippingEndpoints()
 
 backend/tests/Inventario.IntegrationTests/
 ├── Shipping/
-│   ├── Hu03DomainTests.cs, Hu03SchemaTests.cs        # H-01, H-02
-│   ├── ShippingApiSupport.cs                         # sesión, pedidos, reservas y salidas reales
+│   ├── Hu03DomainTests.cs, Hu03SchemaTests.cs        # H-01, H-02 (con consumo tardío y C1)
+│   ├── ShippingApiSupport.cs                         # sesión, pedidos, reservas, salidas e invariantes 1–8
 │   ├── CustomerOrderLookupTests.cs                   # H-03
-│   ├── ShipmentDraftTests.cs                         # H-04…H-07, carreras de INT-HU03-01
-│   ├── ShipmentConfirmTests.cs                       # H-08…H-15, H-18, H-20, H-21
-│   ├── ShipmentConcurrencyTests.cs                   # H-16, H-17 con LockBarrier, ambos órdenes
+│   ├── ShipmentDraftTests.cs                         # H-04…H-07, M1, retirada por edición, carreras INT-HU03-01, H-20 del borrador
+│   ├── ShipmentConfirmTests.cs                       # H-08…H-15, H-18, H-20 de la confirmación
+│   ├── ShipmentQueryTests.cs                         # H-21
+│   ├── ShipmentConcurrencyTests.cs                   # H-16, H-17 con LockBarrier, ambos órdenes, más la carrera de otra línea
 │   └── ShipmentReliabilityTests.cs                   # H-19 (V-08)
 └── Stock/Hu05SchemaTests.cs                          # (B, HU-05) conjunto exacto + ShipmentLine
 
@@ -162,13 +169,14 @@ frontend/src/app/
 ├── core/operations/pending-operation.store.ts        # (A) mutationPermission + APP_ROUTE (P-06)
 ├── core/operations/operation-status.component.ts     # (A) texto del enlace (P-06)
 └── features/shipping/
-    ├── shipping.routes.ts                            # '', pedidos/:orderId, pedidos/:orderId/nueva, :id
+    ├── shipping.routes.ts (+ .spec)                  # '', pedidos/:orderId, pedidos/:orderId/nueva (guard), :id
     ├── data/{shipping.models,shipments-api.service}.ts
     ├── data/{pending-operation-hu03,operation-status-hu03}.spec.ts   # pruebas de los cambios en archivos de A
-    ├── order-lookup.page.ts
-    ├── order-shipments.page.ts
-    ├── shipment-form.page.ts                         # nueva y borrador (propuesta D-13)
-    └── shipment-review-dialog.ts
+    ├── order-lookup.page.ts (+ .spec)
+    ├── order-shipments.page.ts (+ .spec)
+    ├── shipment-form.page.ts (+ .spec, shipment-confirm.page.spec.ts)   # nueva, borrador, revisar, confirmar, solo lectura
+    ├── shipment-review-dialog.ts (+ .spec)
+    └── testing/shipping-testing.ts                   # datos comunes de las specs de /salidas
 frontend/e2e/shipping.spec.ts                         # E2E-02
 ```
 
@@ -236,7 +244,7 @@ Ningún documento ni archivo común o de A se edita en esta rama sin aviso y rev
 | ID | Documento o archivo (dueño) | Cambio propuesto | Motivo |
 |----|-----------------------------|------------------|--------|
 | P-01 | `data-model.md` § Shipment y ShipmentLine (común) | Borrador eliminable (Q1); confirmada inmutable, sin reversión en HU-03 (Q3); `OperationId` obligatorio solo en `Confirmed`; único `(ShipmentId, CustomerOrderLineId, LocationId, LotId)`; `OwnReservationConsumed` derivado de los consumos, no almacenado. | Spec FR-002, FR-004, FR-013; research D-06, D-08. |
-| P-02 | `data-model.md`, nueva entidad (común) | `ShipmentReservationConsumption(Id, ShipmentLineId, ReservationAllocationId, Quantity > 0, OperationId)`, append-only. Ningún consumo nuevo tras confirmar: `OperationId` de la fila = `Shipments.OperationId`, impuesto por trigger en cualquier orden de EF (iteración 2026-11-21, a petición de A). | Constitución IV: qué reserva se consumió. Decisión de B (D-08). |
+| P-02 | `data-model.md`, nueva entidad (común) | `ShipmentReservationConsumption(Id, ShipmentLineId, ReservationAllocationId, Quantity > 0, OperationId)`, append-only. Ningún consumo nuevo tras confirmar: `OperationId` de la fila = `Shipments.OperationId` y, desde Convergence C1, la cabecera declara `DeclaredConsumptionCount` y `DeclaredConsumedQuantity`, que SQL no deja superar con ninguna operación (a petición de A). | Constitución IV: qué reserva se consumió. Decisión de B (D-08). |
 | P-03 | `contracts/api.md`, tabla «HU-03 y HU-05» (común) | Añadir `DELETE /shipments/{id}`; `GET /shipments/{id}` con solo datos propios y `ETag`; `GET /shipments/{id}/context` sin `ETag`; `GET /shipments?customerOrderId=`; cuerpo `orderVersion` y respuesta sin `ETag` en `/confirm`. | Q1, FR-012, FR-018; lección 1; D-05, D-12. |
 | P-04 | `contracts/api.md`, nueva fila (común) | `GET /customer-orders/lookup?externalReference=` (Inventory.Read), exacta y sin lista. | FR-001a; D-11. Sustituye para HU-03 a P-04 de HU-05 (búsqueda por prefijo), que sigue sin implementar. |
 | P-05 | `contracts/stock-operations.md` § Alcance y disciplina de escritura (común) | Tipo `shipment` y orden `customer-order-reference < customer-order < reservation-release < reservation < shipment`; reservas a bloquear leídas antes y `orderVersion` revalidado bajo bloqueo; motivo, soporte y contraparte de la salida. | D-03, D-05, D-07. Amplía P-06 de HU-05. |
@@ -266,5 +274,8 @@ Ningún documento ni archivo común o de A se edita en esta rama sin aviso y rev
 | Triggers de inmutabilidad en lugar de `DENY DELETE` (D-06). | Q1 exige borrar borradores; un `DENY` no distingue estados. | Defensa solo en la aplicación, más débil; tablas de borrador separadas, que cambian el modelo común. | Decisión de B (2026-11-20); P-01. |
 | `OwnReservationConsumed` derivado, no almacenado (D-06, D-08). | Evita modificar líneas al confirmar y depender del orden de sentencias de EF bajo el trigger. | Almacenarlo y confiar en el orden de EF, frágil. | P-01, revisión de A. |
 | Consumos ligados a la operación que confirma: tercer trigger y columna `OperationId` en consumos (D-06, iteración 2026-11-21). | A pide que la base de datos impida insertar consumos tras confirmar; el `DENY` solo cubre `UPDATE`/`DELETE`. | Trigger de `INSERT` contra la cabecera `Confirmed`, que rompe la confirmación según el orden de EF. | Decisión de B (2026-11-21); P-02, revisión de A. |
+| Totales de consumo declarados en la cabecera (Convergence C1, `a6ec4b2`). | A pide que SQL rechace también un consumo tardío con el mismo `OperationId`; triggers solo con `THROW` (51305, 51306). | Confiar en que `OperationResults` impide repetir la operación, como límite aceptado. | A, cierre de P-02 (2026-11-21). |
+| Total de la lista de salidas con «—» si las líneas del pedido tienen unidades distintas (T014, `3708acb`). | FR-025 exige la unidad junto a cada cantidad; sumar unidades distintas no tiene sentido (analyze-1 M2). | Mostrar el total sin unidad. | Decisión de B al implementar. |
+| «Revisar y confirmar» solo con el borrador guardado (T016, `fab4cbe`). | La revisión usa las cifras del contexto de la salida guardada; con cambios sin guardar no coincidirían. | Revisar lo escrito sin guardar, con cifras que el servidor no ha calculado. | Decisión de B al implementar. |
 | Congelación por conteo al confirmar sin prueba. | `IsInOpenCountAsync` devuelve `false` hasta HU-04. | — | INT-HU04-03. |
 | Corrección de salidas confirmadas fuera de HU-03 (Q3). | Clarificación de B. | Reversión vinculada en HU-03, que amplía el alcance. | HU-04, con la tarea receptora de P-07. |

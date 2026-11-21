@@ -56,6 +56,11 @@ Cabeceras: `Idempotency-Key` (UUID); en `PUT`, `If-Match` de la salida.
   `CustomerOrderNotOpen`); línea del pedido; lote del artículo; bucket con saldo
   (409 `InsufficientStock` si no existe); fracciones; Σ por línea de pedido ≤ pendiente actual (422).
   En `PUT`: salida en `Draft` (409 `DocumentAlreadyConfirmed`) y `If-Match` (428/412).
+  **Construido** (T007, `c09ae87`): tras 404 y 409 del pedido, primero los 422 de línea del
+  pedido (`lines[i].customerOrderLineId`), ubicación inexistente (`lines[i].locationId`) y lote ajeno
+  (`lines[i].lotId`); después 409 `InsufficientStock` del bucket sin existencias
+  (`errors.lines[i].locationId`); y al final los 422 de fracciones y pendiente
+  (`lines[i].quantity`). Un artículo inactivo se admite (FR-014).
 - Respuesta: `{ "operationId", "shipment": ShipmentView }`, `ETag` y, en `POST`, `Location:
   /api/v1/shipments/{id}`.
 
@@ -78,6 +83,15 @@ Orden de rechazos (research D-04): 404 → 409 `DocumentAlreadyConfirmed` → 42
 superar el pendiente (`errors.lines[i].quantity`) → 409 `CountScopeFrozen` → 409
 `ReservedStockConflict` (remanente sobrante; `detail` con la línea y la cantidad a liberar) → 409
 `InsufficientStock` (`detail` con físico, disponible y cantidad posible) → 503 `LockTimeout`.
+
+**Construido** (T009, `488bb5a`):
+
+- Sin `orderVersion` en el cuerpo, 422 `errors.orderVersion`, antes de leer nada.
+- El `detail` de `InsufficientStock` lo redacta `StockCore`: dice el físico y el disponible del
+  bucket, pero **no la cantidad posible** (incumplimiento G1 de
+  [converge-1](../validation/converge-1.md)).
+- La respuesta 200 sale sin `ETag`. La cabecera declara `DeclaredConsumptionCount` y
+  `DeclaredConsumedQuantity` (Convergence C1, `a6ec4b2`).
 
 ```json
 {

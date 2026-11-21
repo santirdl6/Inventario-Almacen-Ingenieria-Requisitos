@@ -319,6 +319,8 @@ complemento de la cabecera, desde la iteración del 2026-11-21) y
 migraciones anteriores. Si se integra antes otra migración (PR #9 o de A), se regenera la local
 (plan global §5).
 
+**Construido**: `20261121114907_HU03_Shipments` en T004 (`7c50c9f`), regenerada en Convergence C1 (`a6ec4b2`) como `20261121135335_HU03_Shipments` con las columnas `DeclaredConsumptionCount` y `DeclaredConsumedQuantity`. No estaba fusionada en la integración. Aplicar, revertir a HU-05 y reaplicar con `dotnet ef database update` se comprobó en T004 y en C1.
+
 ## D-11. Localizar el pedido por referencia externa (FR-001a)
 
 **Decisión**: `GET /customer-orders/lookup?externalReference=…` (Inventory.Read) en
@@ -348,7 +350,9 @@ implementar la búsqueda paginada.
   revisión por línea: físico, reservado, reservado propio, reservado ajeno y cantidad posible
   (`min(F, own + D)` acotado por el pendiente). Ordenado por Id de línea.
 - `GET /shipments?customerOrderId=…&page=&pageSize=` (Inventory.Read): salidas del pedido, borradores
-  y confirmadas, por `RecordedAt` descendente y Id; paginado con `Paging` de HU-02.
+  y confirmadas, por `RecordedAt` descendente y Id; paginado. **Construido** (T012, `d09371b`): no hay
+  un `Paging` común en el código; página y tamaño (1–100, 422 fuera de rango) se validan como en
+  `MasterDataQueryOptions` y se reutiliza `PageResult<T>`.
 
 La UI comprueba que `shipmentVersion` del contexto coincide con el `ETag` del detalle y recarga si no,
 como HU-05.
@@ -384,6 +388,20 @@ no aporta validación, que ocurre al guardar y al confirmar.
   confirmar, en un diálogo con `cdkTrapFocus` y Escape.
 - En el selector de buckets, las filas con físico 0 quedan fuera por defecto (`includeEmpty=false`).
 
+**Construido** (T014–T016; `3708acb`, `8487830`, `fab4cbe`):
+
+- El selector de orígenes lee **todas** las páginas con `StockApiService.allRows` de HU-05
+  (analyze-1 H3).
+- `permissionGuard('Shipping.Record')` solo en `pedidos/:orderId/nueva`.
+- El total de la lista de salidas lleva unidad solo si todas las líneas del pedido comparten la
+  misma; si no, «—» (analyze-1 M2).
+- «Revisar y confirmar» solo con el borrador guardado.
+- Eliminar pide confirmación en la página y vuelve al pedido con el aviso en `history.state`.
+- La salida confirmada y el borrador sin `Shipping.Record` se abren en solo lectura. La confirmada
+  muestra «Salida confirmada con la operación {id}» también al reabrirla (analyze-1 H2).
+- «Inactivo» se muestra en la revisión sin bloquear (H5).
+- `OperationStatusComponent` ofrece «Abrir salida».
+
 **Cambios en archivos de A** (P-06): `pending-operation.store.ts` (`mutationPermission()` reconoce
 `/api/v1/shipments` y sus subrutas → `Shipping.Record`; `APP_ROUTE` admite `/salidas/…`) y
 `operation-status.component.ts` (texto del enlace según la ruta: «Abrir salida» o «Abrir pedido»).
@@ -399,5 +417,18 @@ Carreras con conexiones independientes **en ambos órdenes** (lección 7): salid
 extendido, 20 repeticiones), salida/reserva, salida/liberación, salida/desactivación del artículo
 (INT-HU03-02), borrador/edición de definición y borrador/borrado del artículo (INT-HU03-01). Fallo
 inducido antes del commit (V-08). Vitest para las pantallas y Playwright para E2E-02.
+
+**Construido**:
+
+- **T008**: carreras de crear, editar y eliminar el borrador frente a `PUT` de definición y `DELETE`
+  del artículo (10 casos).
+- **T011**: 12 carreras de la confirmación, una de ellas frente a `PUT` de definición.
+- **T011, carrera extra**: confirmar la línea del artículo X frente a reservar la línea del artículo
+  Y del mismo pedido. Solo `customer-order` serializa esas dos escrituras; se añadió porque, sin ese
+  bloqueo, ninguna de las otras carreras fallaba (`4634b05`).
+- **Barrera**: retiene en la lectura de `CustomerOrders` (salida, reserva y liberación) o de
+  `Articles` (escritores de A). Eliminar el borrador primero se retiene en `Shipments`.
+- **Sin rojo natural** en T008, T010 y T011: se comprobó con mutaciones temporales sin commit,
+  anotadas en tasks.md.
 
 **Alternativas**: dobles de HU-05. Se descartan: INT-HU03-01 exige probar los escritores reales.

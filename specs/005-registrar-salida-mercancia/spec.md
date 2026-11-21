@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-20
 
-**Status**: Draft
+**Status**: Implementada (T003–T018 y Convergence C1; 2026-11-21). Integrable, no aceptada: faltan SC-006 y SC-007 (ver «Estado de la entrega»).
 
 **Input**: User description: "HU-03 «Registrar salida de mercancía» (Persona B). Directorio de feature: specs/005-registrar-salida-mercancia, rama ya creada: b/hu-03-registrar-salida-mercancia. HU-03 consume los pedidos de cliente y reservas de HU-05 para registrar la salida (operación Ship), consume reservas al servir, renueva la versión de la cabecera del pedido y respeta specs/004-consultar-existencias/contracts/hu03-integration.md. Modelo común: idempotencia, If-Match/ETag, InventoryLocks, diario de solo adición, contraparte con exactamente uno de CounterpartyReference o CounterpartyNotApplicableReason, permiso Shipping.Record. Máximo 3 [NEEDS CLARIFICATION]. Solo specify."
 
@@ -468,6 +468,25 @@ Esta especificación define la aceptación; no declara realizadas pruebas ni rev
 - **SC-007**: Los operarios representativos que participan en la validación preparan, revisan y
   confirman una salida con reserva propia y otra sin reserva sin asistencia técnica y sin errores de
   registro no detectados.
+
+## Estado de la entrega
+
+Reconciliado con `/speckit-converge` el 2026-11-21 ([informe](validation/converge-1.md)). Los
+requisitos no cambian.
+
+- **Construido**: T003–T018 y Convergence C1. La evidencia por requisito está en el informe.
+- **Fuera de esta entrega, con justificación**:
+  - SC-006 (rendimiento) y SC-007 (validación con operarios, principio III): HU-03 se integra, pero
+    no se da por aceptada (plan, Complexity Tracking).
+  - El rechazo por conteo abierto de FR-010: `IsInOpenCountAsync` devuelve `false` hasta
+    INT-HU04-03.
+  - La corrección de salidas confirmadas erróneas pasa a HU-04 (clarificación Q3; P-07).
+- **Incumplimientos detectados en la convergencia**, pendientes de decidir con B (informe G1–G4):
+  - el rechazo por existencias no explica la cantidad posible (US2.2, FR-010, FR-024);
+  - las líneas de la salida no identifican el artículo en la vista de solo lectura ni en el
+    borrador (US4.1, FR-018);
+  - el aviso de existencias no va junto a la línea;
+  - los 409 de estado no recargan el estado actual (shipping-ui).
 
 ## Assumptions
 
