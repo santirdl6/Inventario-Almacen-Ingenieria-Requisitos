@@ -61,6 +61,16 @@ public sealed class CustomerOrder
         return order;
     }
 
+    /// <summary>
+    /// HU-03 (research D-04): Open → Fulfilled cuando todas las líneas quedan sin pendiente. Un pedido
+    /// servido sigue servido; Cancelled no es alcanzable en esta entrega y no se toca.
+    /// </summary>
+    public void DeriveFulfilment()
+    {
+        if (State == CustomerOrderState.Open && lines.All(line => line.PendingQuantity == 0))
+            State = CustomerOrderState.Fulfilled;
+    }
+
     internal static string RequiredText(string? value, int maximumLength, string field)
     {
         var trimmed = value?.Trim() ?? "";
@@ -101,4 +111,13 @@ public sealed class CustomerOrderLine
 
     /// <summary>Pendiente = pedido − servido; se calcula, no se almacena.</summary>
     public decimal PendingQuantity => OrderedQuantity - ShippedQuantity;
+
+    /// <summary>HU-03 (research D-04): suma lo servido por una salida confirmada, sin superar lo pedido.</summary>
+    public void Ship(decimal quantity)
+    {
+        CustomerOrder.PositiveQuantity(quantity, nameof(quantity));
+        if (quantity > PendingQuantity)
+            throw new InvalidOperationException("No se puede servir más que el pendiente de la línea.");
+        ShippedQuantity += quantity;
+    }
 }

@@ -96,4 +96,17 @@ public sealed class ReservationAllocation
         ReleasedQuantity += quantity;
         RemainingQuantity = AllocatedQuantity - ConsumedQuantity - ReleasedQuantity;
     }
+
+    /// <summary>
+    /// HU-03 (research D-04): consume parte del remanente al servir una salida. ConsumedQuantity solo
+    /// crece y nunca supera lo comprometido; el bucket y la reserva propia los decide el comando.
+    /// </summary>
+    public void Consume(decimal quantity)
+    {
+        CustomerOrder.PositiveQuantity(quantity, nameof(quantity));
+        if (quantity > RemainingQuantity)
+            throw new InvalidOperationException("No se puede consumir más que el remanente de la asignación.");
+        ConsumedQuantity += quantity;
+        RemainingQuantity = AllocatedQuantity - ConsumedQuantity - ReleasedQuantity;
+    }
 }
