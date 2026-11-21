@@ -437,6 +437,13 @@ queda como estaba (la skill solo añade).
 - [ ] C7 Decidir el recorrido historial → conteo de la prueba independiente de US2: documentarlo en
   el quickstart o pedir a A un enlace del soporte `cycle-count` a `/inventarios/{id}` en
   `article-history.component.ts`, según US2 y US4.2 (partial, G7).
-- [ ] C8 ⚑ Cerrar T034 de HU-02 (`specs/003-gestionar-ubicaciones/tasks.md`) con la evidencia de HU-04
+- [X] C8 ⚑ Cerrar T034 de HU-02 (`specs/003-gestionar-ubicaciones/tasks.md`) con la evidencia de HU-04
   (T005) y añadir un Vitest de `location-detail.page` con `inOpenCount: true`, según FR-016 (partial,
   G8).
+  - **Hecho**: sin rojo natural. El aviso «En conteo» ya existía en `location-detail.page.ts`; el defecto era
+    de cobertura: todas las specs usaban `inOpenCount: false`, y el arnés de la spec fijaba `false` en
+    `/stock` aunque el detalle dijera `true`. No se hizo mutación: `location-detail.page.ts` tiene un commit
+    de A (`dfc1fd1`) y no se toca. Nueva prueba en `location-detail.page.spec.ts` (solo de B): con
+    `inOpenCount: true` muestra «En conteo: la ubicación está incluida en un inventario abierto.»; con
+    `false`, no. El arnés usa el valor del detalle. T034 de HU-02 cerrada con la evidencia de HU-04 y
+    quickstart de HU-02 actualizado. Verde: Vitest 230/230. Sin cambios de backend.

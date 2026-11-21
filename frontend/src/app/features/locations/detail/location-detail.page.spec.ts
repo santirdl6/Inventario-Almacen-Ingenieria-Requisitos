@@ -20,11 +20,20 @@ describe('LocationDetailPage', () => {
     httpMock().expectOne(`/api/v1/locations/${location.id}`).flush(location, { headers: { ETag: '"V1"' } });
     httpMock().expectOne(r => r.url === `/api/v1/locations/${location.id}/stock`).flush({
       asOf: '2026-11-18T10:00:00Z', location: { id: location.id, code: location.code, description: location.description, kind: location.kind, isActive: location.isActive },
-      items, hasReservations: location.hasReservations, inOpenCount: false, page: 1, pageSize: 25, totalCount: items.length
+      items, hasReservations: location.hasReservations, inOpenCount: location.inOpenCount, page: 1, pageSize: 25, totalCount: items.length
     });
     await settle(fixture);
     return fixture.nativeElement as HTMLElement;
   }
+
+  it('una ubicación en un conteo abierto muestra «En conteo»; fuera de conteo, no (HU-02 T034, FR-016 de HU-04; C8)', async () => {
+    const root = await render(detail({ inOpenCount: true }));
+    expect(text(root.querySelector('[data-testid="open-count"]'))).toBe('En conteo: la ubicación está incluida en un inventario abierto.');
+    httpMock().verify();
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ imports: [LocationDetailPage], providers: locationsTestProviders({ id: detail().id }) });
+    expect((await render(detail({ inOpenCount: false }))).querySelector('[data-testid="open-count"]')).toBeNull();
+  });
 
   it('una ubicación vacía lo indica y muestra sus datos, tipo y estado; sin gestión no ofrece editar', async () => {
     const root = await render();
