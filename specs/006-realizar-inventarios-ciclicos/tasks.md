@@ -49,7 +49,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
 ## Phase 1: Coordinación con A (no bloquea el código)
 
-- [ ] T001 ⏸ Solicitar la revisión de A en el PR de HU-04 (COORD-01) de los diffs P-01…P-08 de
+- [X] T001 Solicitar la revisión de A en el PR de HU-04 (COORD-01) de los diffs P-01…P-08 de
   [plan.md § Cambios al modelo común](plan.md#cambios-al-modelo-común-pendientes-de-a): P-01/P-02
   (`data-model.md` común), P-03/P-04 (`contracts/api.md`), P-05 (`contracts/stock-operations.md`,
   incluido el aviso al escritor de recepciones de HU-01), P-06 (archivos de A de T013), P-07 y P-08.
@@ -61,6 +61,9 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     de conteo usan solo `CounterpartyNotApplicableReason`; (c) que el conteo vinculado a una salida es un
     ajuste del físico y la limitación P-07 queda visible. El resto de P-01…P-08 no tiene aprobación de A
     registrada: la tarea sigue abierta.
+  - **Hecho (2026-11-21)**: A da su visto bueno expreso a P-01…P-08 sobre el corte `3e2ad7e`. Registrado
+    en [plan.md § Estado de la revisión de A](plan.md#estado-de-la-revisión-de-a). Lo que A deja para
+    T018 se anota en esa tarea.
 - [X] T002 ⚑ Registrar en `specs/001-reparto-specs-inventario/integration-tasks.md` (coordinación A+B)
   la parte inicial de P-07: la tarea receptora de la corrección de salidas (P-07 de HU-03) queda
   asignada a HU-04 US4 (FR-018–FR-020), y la nota de P-05 para HU-01. Sin marcar INT-HU04-01/02/03
@@ -272,6 +275,9 @@ real en salidas, reservas y ubicaciones.
   suite completa; estado de [spec.md](spec.md); en `integration-tasks.md` marcar INT-HU04-01/02/03 con su
   evidencia (P-07); evidencia V-09/V-10 en el quickstart común (P-08). Sin código. Depende de T010, T011,
   T012 y, si se hicieron, T017.
+  - **Acordado con A en T001 (2026-11-21)**: los cierres de INT-HU04-01/02/03 se ligan a su evidencia
+    (P-07); en el quickstart común publicar la evidencia de la matriz C e incluir V-07, V-08 y V-12 del
+    plan, y dejar identificada la prueba de recepción de V-09 que queda pendiente de HU-01 (P-08, P-05).
 
 ---
 

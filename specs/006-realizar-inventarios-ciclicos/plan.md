@@ -208,6 +208,20 @@ Ningún documento ni archivo común o de A se edita en esta rama sin aviso y rev
 | P-07 | `specs/001-reparto-specs-inventario/integration-tasks.md` (coordinación A+B) | Registrar la tarea receptora de la corrección de salidas (P-07 de HU-03) como cubierta por US4; marcar INT-HU04-01/02/03 solo con implementación y evidencia; nota del pendiente de HU-01 (P-05). | Spec «Integraciones recibidas»; AGENTS.md. |
 | P-08 | `quickstart.md` común | Evidencia de HU-04 (V-09, V-10, V-07, V-08, V-12) al ejecutar la matriz C. | Como P-08 de HU-03. |
 
+### Estado de la revisión de A
+
+**Revisor**: Persona A. **Fecha**: 2026-11-21. **Corte revisado**: `3e2ad7e`. **Decisión**: visto bueno
+expreso a P-01…P-08; T001 se cierra.
+
+| Ítem | Estado |
+|------|--------|
+| P-01/P-02 (campos e inmutabilidad del conteo cerrado; un solo movimiento de ajuste por conteo con diferencias, una entrada por diferencia, motivo en su línea; `CounterpartyNotApplicableReason`) | Confirmado expresamente por A. |
+| P-03/P-04 (rutas y contrato HTTP; `ETag` en el detalle, contexto sin `ETag`; 409 `CountStateConflict` y `CountTheoreticalChanged`) | Confirmado expresamente por A. |
+| P-05 (`cycle-count` en el orden de bloqueos; `Adjust` vía `StockCore`; liberación de reservas admitida durante el conteo) | Confirmado expresamente por A. En HU-01 la recepción comprobará la congelación bajo los bloqueos de **todas** las ubicaciones de destino, antes de `Receive`. |
+| P-06 (T013) | Confirmado expresamente por A: `pending-operation.store.ts` y `operation-status.component.ts` en un commit propio; `Counts.Record` para crear, editar, iniciar, registrar líneas y enviar; `Inventory.Adjust` para revisar, confirmar y cancelar; rutas `/inventarios/nuevo` y `/inventarios/{uuid}`; enlace «Abrir conteo». Cualquier otro archivo de A: consultar antes. |
+| P-07 | Confirmado expresamente por A: la corrección de HU-03 queda cubierta por US4, con aviso visible de que el ajuste solo corrige el físico. Los cierres de INT-HU04-01/02/03 quedan ligados a su evidencia en T018. |
+| P-08 | Confirmado expresamente por A: publicar la evidencia de la matriz C en el quickstart común; al cerrar T018 incluir V-07, V-08 y V-12 y dejar identificada la prueba de recepción de V-09 pendiente de HU-01. |
+
 ### Archivos de B fuera de la feature que se tocan
 
 - `Features/Stock/Core/StockCore.cs` y `StockCommands.cs` (H0): operación `Adjust` (D-13).
