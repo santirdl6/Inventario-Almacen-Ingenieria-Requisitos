@@ -482,7 +482,7 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
 
 ## Phase 5: Frontend /salidas (US1–US4)
 
-- [ ] T013 ⚑ **tres commits aparte (archivos de A, P-06)**. Depende de nada del backend.
+- [X] T013 ⚑ **tres commits aparte (archivos de A, P-06)**. Depende de nada del backend.
   - **Rojo esperado** en specs nuevas de B, sin tocar las de A:
     `features/shipping/data/pending-operation-hu03.spec.ts` (`mutationPermission('/api/v1/shipments')`
     es `null`; `begin(…, '/salidas/{uuid}')` descarta la ruta) y
@@ -498,6 +498,18 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
   - Nada más cambia en esos archivos. Vitest completo en verde tras cada commit.
 
   (D-14; shipping-ui § Navegación y recuperación.)
+
+  **Hecho (2026-11-21)**, en tres commits ⚑ sobre los dos archivos de A que declara la tarea (no hay
+  un tercero):
+  - (a) `1249e44`: `mutationPermission()`.
+  - (b) `ccc945e`: `APP_ROUTE` (constante `UUID` y alternativa `/salidas/(pedidos/)?{uuid}`).
+  - (c) el de esta marca: `openLabel()` en `OperationStatusComponent`; `route()` no cambia.
+  - Pruebas en las specs nuevas de B: `pending-operation-hu03.spec.ts` (4) y
+    `operation-status-hu03.spec.ts` (3).
+  - Rojo previo en cada una: `mutationPermission` devolvía null; `appRoute` de `/salidas` se
+    descartaba; el enlace decía «Abrir pedido» para una salida.
+  - Vitest 149, 151 y 154 tras cada commit (base 147); `tsc` de app y specs y `npm run build` en
+    verde.
 - [ ] T014 [US1] [US4] Datos, búsqueda y pedido. Depende de T006, T012 y T013.
   - `features/shipping/data/shipping.models.ts` y `shipments-api.service.ts`: `lookup`, `detail(id)`
     con **dos lecturas** (detalle con `ETag` y contexto; relee hasta 3 veces si
