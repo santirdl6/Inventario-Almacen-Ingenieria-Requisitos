@@ -86,13 +86,16 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     `Hu03/Hu04SchemaTests`, `Hu05SchemaTests` no tiene `CountLine` y HU-08 responde 503. Verde: suite
     296/1 omitida, `has-pending-model-changes` limpio. `Hu03SchemaTests` pasa a comprobar que HU-03
     sigue en la cadena (ya no es la última). Migración `20261121152857_HU04_CycleCounts`.
-- [ ] T004 [P] ⚑ [INT-HU04-02] Operación `Adjust` en `StockCore` (D-13):
+- [X] T004 [P] ⚑ [INT-HU04-02] Operación `Adjust` en `StockCore` (D-13):
   `Features/Stock/Core/StockCommands.cs` (`StockOperation.Adjust` → `MovementKind.Adjustment`) y
   `StockCore.cs` (`PrepareAdjustment` con diferencia con signo; `AdjustUp` crea lote y saldo si faltan;
   `AdjustDown` con `ReservedStockConflict` bajo el reservado e `InsufficientStock` sobre el físico;
   artículo inactivo admitido). Pruebas en `Stock/StockCoreAdjustTests.cs` (C-02). **Rojo esperado**:
   no compila / `ArgumentOutOfRangeException` porque `Adjust` no existe. Paralela a T003: solo usa las
   tablas de H0.
+  - **Hecho**: rojo observado: no compila (`AdjustmentAllocation`/`PrepareAdjustment` no existen). Verde:
+    `StockCoreAdjustTests` 4/4; el cuerpo normalizado lleva el signo solo en bajadas (huellas previas
+    intactas); el arnés usa `Inventory.Adjust` para `Adjust`. Suite 300/1 omitida.
 - [ ] T005 ⚑ 🔀 PR #10 [US3] [INT-HU04-03] Lector de congelación real (D-04):
   `Features/Locations/ILocationUsage.cs` (HU-02) consulta `CountLocations` con `IsFrozen = 1`, y
   `Features/Locations/Commands/LocationCommands.cs` (HU-02) comprueba la congelación antes que

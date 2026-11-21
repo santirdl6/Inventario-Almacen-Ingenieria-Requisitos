@@ -23,6 +23,7 @@ internal sealed class StockTestHarness(IdentityFixture fixture, IServiceProvider
     public const string Receive = "Receiving.Record";
     public const string Reserve = "Reservations.Manage";
     public const string Ship = "Shipping.Record";
+    public const string Adjust = "Inventory.Adjust";
 
     public IdentityFixture Fixture => fixture;
 
@@ -57,6 +58,7 @@ internal sealed class StockTestHarness(IdentityFixture fixture, IServiceProvider
     {
         StockOperation.Receive => Receive,
         StockOperation.Ship => Ship,
+        StockOperation.Adjust => Adjust,
         _ => Reserve
     };
 

@@ -33,6 +33,8 @@ public sealed partial class StockCore
     {
         if (operation == StockOperation.Ship)
             throw new ArgumentException("Una salida usa ShipmentAllocation con su reserva propia.", nameof(operation));
+        if (operation == StockOperation.Adjust)
+            throw new ArgumentException("Un ajuste usa AdjustmentAllocation con la diferencia con signo.", nameof(operation));
         return Normalize(operation, context, allocations.Select(line =>
             new StockLine(line.ArticleId, line.LocationId, line.LotCode, line.Quantity, 0m)).ToList());
     }
@@ -40,6 +42,12 @@ public sealed partial class StockCore
     public static StockCommand PrepareShipment(StockCommandContext context, IReadOnlyList<ShipmentAllocation> allocations) =>
         Normalize(StockOperation.Ship, context, allocations.Select(line =>
             new StockLine(line.ArticleId, line.LocationId, line.LotCode, line.Quantity, line.OwnReservedToConsume)).ToList());
+
+    // HU-04 (D-13): AdjustUp si la diferencia es positiva y AdjustDown si es negativa. El cuerpo normalizado
+    // conserva el signo, así que +1 y −1 no son la misma intención.
+    public static StockCommand PrepareAdjustment(StockCommandContext context, IReadOnlyList<AdjustmentAllocation> allocations) =>
+        Normalize(StockOperation.Adjust, context, allocations.Select(line =>
+            new StockLine(line.ArticleId, line.LocationId, line.LotCode, Math.Abs(line.Difference), 0m, line.Difference < 0m)).ToList());
 
     public static OperationResponse Response(StockOperationOutcome outcome) =>
         OperationResponse.Json(200, outcome, outcome.SourceDocumentId);
@@ -100,7 +108,7 @@ public sealed partial class StockCore
             var lot = lots.SingleOrDefault(lot => lot.ArticleId == line.Article.Id && lot.Code == line.LotCode);
             if (lot is null)
             {
-                if (command.Operation != StockOperation.Receive)
+                if (!line.Creates)
                     throw StockProblems.InsufficientStock(
                         $"No hay existencias de {line.Article.Sku} en {line.Location.Code} con lote {line.LotCode}.");
                 lot = line.Article.TracksLot ? Lot.Tracked(line.Article.Id, line.LotCode) : Lot.Untracked(line.Article.Id);
@@ -112,7 +120,7 @@ public sealed partial class StockCore
                 .FindAsync([line.Article.Id, line.Location.Id, lot.Id], cancellationToken);
             if (balance is null)
             {
-                if (command.Operation != StockOperation.Receive)
+                if (!line.Creates)
                     throw StockProblems.InsufficientStock(
                         $"No hay existencias de {line.Article.Sku} en {line.Location.Code} con lote {lot.Code}.");
                 balance = new StockBalance(line.Article.Id, line.Location.Id, lot.Id);
@@ -163,6 +171,18 @@ public sealed partial class StockCore
                 if (consume > 0) effects.Add((StockEffect.ShipReserved, consume));
                 if (unreserved > 0) effects.Add((StockEffect.ShipAvailable, unreserved));
                 return effects;
+            case StockOperation.Adjust when !line.Decrease:
+                return [(StockEffect.AdjustUp, line.Quantity)];
+            case StockOperation.Adjust:
+                // D-13: nunca por encima del físico ni dejando el físico por debajo de lo reservado.
+                if (line.Quantity > balance.Physical)
+                    throw StockProblems.InsufficientStock(
+                        $"No se pueden ajustar −{Format(line.Quantity)} de {where}: el físico es {Format(balance.Physical)}.");
+                if (balance.Physical - line.Quantity < balance.Reserved)
+                    throw StockProblems.ReservedConflict(
+                        $"El ajuste de −{Format(line.Quantity)} de {where} deja el físico por debajo de lo reservado "
+                        + $"({Format(balance.Reserved)}). Libera antes la reserva necesaria.");
+                return [(StockEffect.AdjustDown, line.Quantity)];
             default:
                 throw new ArgumentOutOfRangeException(nameof(operation));
         }
@@ -177,7 +197,7 @@ public sealed partial class StockCore
             throw StockProblems.Validation($"lines[{index}].locationId", "La ubicación no existe.");
 
         // R-05: un artículo desactivado no admite nuevas recepciones ni reservas,
-        // pero sí liberar y servir compromisos existentes.
+        // pero sí liberar y servir compromisos existentes, y ajustarse por conteo (INT-HU04-02).
         if (!article.IsActive && operation is StockOperation.Receive or StockOperation.Reserve)
             throw StockProblems.ArticleInactive($"El artículo {article.Sku} está desactivado.");
         if (!location.IsActive && operation is StockOperation.Receive or StockOperation.Reserve)
@@ -205,7 +225,8 @@ public sealed partial class StockCore
             lotCode = Lot.UntrackedCode;
         }
 
-        return new ResolvedLine(article, location, lotCode, line.Quantity, line.OwnReserved);
+        return new ResolvedLine(article, location, lotCode, line.Quantity, line.OwnReserved, line.Decrease,
+            operation == StockOperation.Receive || (operation == StockOperation.Adjust && !line.Decrease));
     }
 
     private static StockCommand Normalize(StockOperation operation, StockCommandContext context, List<StockLine> lines)
@@ -274,7 +295,8 @@ public sealed partial class StockCore
                 articleId = line.ArticleId,
                 locationId = line.LocationId,
                 lotCode = line.LotCode,
-                quantity = Format(line.Quantity),
+                // Solo un ajuste a la baja lleva signo; el resto de huellas no cambia.
+                quantity = Format(line.Decrease ? -line.Quantity : line.Quantity),
                 ownReservedToConsume = Format(line.OwnReserved)
             })
         }, OperationResponse.JsonOptions)!.AsObject();
@@ -301,10 +323,14 @@ public sealed partial class StockCore
     [GeneratedRegex("^[a-z][a-z0-9-]{0,31}$", RegexOptions.CultureInvariant)]
     private static partial Regex DocumentType();
 
-    private sealed record ResolvedLine(Article Article, Location Location, string LotCode, decimal Quantity, decimal OwnReserved);
+    // Creates: la operación puede crear el lote y el saldo que falten (recepción y ajuste al alza).
+    private sealed record ResolvedLine(Article Article, Location Location, string LotCode, decimal Quantity, decimal OwnReserved,
+        bool Decrease, bool Creates);
 }
 
-internal sealed record StockLine(Guid ArticleId, Guid LocationId, string? LotCode, decimal Quantity, decimal OwnReserved);
+// Decrease: solo en un ajuste a la baja (Quantity es el valor absoluto de la diferencia).
+internal sealed record StockLine(Guid ArticleId, Guid LocationId, string? LotCode, decimal Quantity, decimal OwnReserved,
+    bool Decrease = false);
 
 // Comando validado y normalizado. NormalizedBody va en OperationRequest: el ejecutor de A
 // calcula con él la huella de idempotencia.
@@ -365,6 +391,7 @@ internal static class StockOperationExtensions
         StockOperation.Reserve => MovementKind.Reservation,
         StockOperation.Release => MovementKind.Release,
         StockOperation.Ship => MovementKind.Shipment,
+        StockOperation.Adjust => MovementKind.Adjustment,
         _ => throw new ArgumentOutOfRangeException(nameof(operation))
     };
 }
