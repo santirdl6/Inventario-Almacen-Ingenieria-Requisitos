@@ -237,12 +237,17 @@ real en salidas, reservas y ubicaciones.
 
 ## Phase 7: Frontend y E2E (US1, US2, US4)
 
-- [ ] T013 ⚑ [US1] Archivos de A (P-06), en su propio commit:
+- [X] T013 ⚑ [US1] Archivos de A (P-06), en su propio commit:
   `frontend/src/app/core/operations/pending-operation.store.ts` (`mutationPermission()` de
   `/api/v1/cycle-counts…` según la tabla P-06; `APP_ROUTE` con `^/inventarios/(nuevo|{uuid})$`) y
   `operation-status.component.ts` (enlace «Abrir conteo»), con sus specs. **Rojo esperado**: la spec del
   store devuelve `null` para `/api/v1/cycle-counts/{id}/confirm`. Sin dependencias de backend: puede
   hacerse en cualquier momento tras T001.
+  - **Hecho**: rojo observado: `mutationPermission()` devuelve `null` para las nueve escrituras y el panel
+    no ofrece «Abrir conteo» (6 de 8 pruebas). Los dos archivos de A van en su propio commit, solo con el
+    cambio aprobado en P-06; las specs, en `features/cycle-counts/data/*-hu04.spec.ts` para no tocar las
+    de A (como HU-03). Lecturas (`context`, `shipment-candidates`) y rutas mal formadas siguen en `null`.
+    Verde: Vitest 195/195 (187 + 8), build correcto.
 - [ ] T014 [US1] Servicio, rutas, lista y nuevo: `cycle-counts-api.service.ts`, `cycle-counts.routes.ts`
   (sustituye el placeholder, H0), `count-list.page.ts` y `count-new.page.ts` con `allRows` para las
   ubicaciones, `begin(…, appRoute)` + `send()`, foco al primer error. Vitest en sus `.spec.ts`.
