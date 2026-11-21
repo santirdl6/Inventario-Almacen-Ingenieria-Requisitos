@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 
-type AccountKey = 'gestor' | 'lector' | 'administrador';
+type AccountKey = 'gestor' | 'lector' | 'administrador' | 'responsable';
 type Account = { email: string; password: string; role: string };
 type Me = { id: string; email: string; roles: string[]; permissions: string[] };
 export type Session = { request: APIRequestContext; csrfToken: string; me: Me };
@@ -33,7 +33,9 @@ function configuration(): { baseURL: string; env: NodeJS.ProcessEnv } {
       DB_NAME: 'InventoryHu08E2E',
       APP_BIND_ADDRESS: '127.0.0.1',
       APP_PORT: url.port,
-      MAILPIT_PORT: '8026'
+      MAILPIT_PORT: '8026',
+      // HU-05 (D-17): la siembra de existencias solo se activa en este proyecto E2E.
+      TESTING_ENABLE_STOCK_SEEDING: 'true'
     }
   };
 }
@@ -126,7 +128,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       password: `Test_${randomUUID()}!aA9`, role
     });
     const accounts = {
-      gestor: account('GestorMaestros'), lector: account('Operario'), administrador: account('Administrador')
+      gestor: account('GestorMaestros'), lector: account('Operario'), administrador: account('Administrador'),
+      // HU-05 (E2E-01): reservar y liberar exigen Reservations.Manage.
+      responsable: account('ResponsableAlmacen')
     };
     let provisioningAttempted = false;
     try {

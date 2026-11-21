@@ -24,6 +24,11 @@ internal static class MasterDataProblemMapper
                     "Ya existe una ubicación con ese pasillo, estantería y nivel, también puede estar inactiva.",
                     new Dictionary<string, string[]> { ["aisle"] = [place], ["rack"] = [place], ["level"] = [place] });
             }
+            // HU-05 (D-10): carrera entre dos altas de pedido con la misma referencia externa; el
+            // comando la detecta antes bajo el bloqueo de la referencia. Va antes de la rama de _Code.
+            if (sql.Number is 2601 or 2627 && sql.Message.Contains("UX_CustomerOrders_ExternalReference", StringComparison.Ordinal))
+                return new(409, "DuplicateCode", "Esa referencia de pedido ya está utilizada.",
+                    new Dictionary<string, string[]> { ["externalReference"] = ["Introduce una referencia que no esté usada."] });
             if (sql.Number is 2601 or 2627 && (sql.Message.Contains("_Code", StringComparison.Ordinal)
                 || sql.Message.Contains("_Sku", StringComparison.Ordinal)))
             {

@@ -320,3 +320,29 @@ E2E usa `HU08_E2E_PROJECT=inventario-pr6-e2e`, puerto 8083 y base aislada, con r
 de cuentas y parada de contenedores al terminar. La evidencia y comandos particulares
 están en [la revisión HU-02](../../../specs/003-gestionar-ubicaciones/validation/pr-review-2026-11-19.md).
 Conteos de HU-04 y las desviaciones operativas SC-005/SC-006 mantienen su alcance declarado.
+
+## 10. HU-05 — Evidencia de integración del 2026-11-21
+
+Consulta de existencias, pedido de cliente mínimo, reservas y liberaciones (HU-05, PR #9, aprobado
+por A el 2026-11-21 con la Convergence C1–C4). Ejecutado sobre `363de56`:
+
+- **Backend**: 207 pruebas SQL aprobadas, 1 omitida (V-14) y 0 fallidas, con `git archive` y
+  `mcr.microsoft.com/dotnet/sdk:10.0` sobre la red de Compose. EF sin cambios de modelo.
+- **Escenarios comunes cubiertos**:
+  - V-05 (20 rondas);
+  - V-04 en su parte de reserva, la de salida queda para HU-03;
+  - V-08 (`FailAfterSaveInterceptor`);
+  - el contrato de escritores de INT-HU05-01/02, con carreras con `LockBarrier` en ambos órdenes
+    y la conciliación de asignaciones, diario y saldo.
+- **Frontend**:
+  - Vitest 147/147;
+  - `tsc` de app, specs y E2E sin errores;
+  - build correcto;
+  - Playwright 16/16 con `--grep-invert SC-005`, en el proyecto `inventario-hu08-e2e` y con
+    E2E-01 incluido.
+- **Pendiente**:
+  - `CountScopeFrozen` al reservar (INT-HU04-03);
+  - la búsqueda de pedidos por prefijo (P-04 de HU-05, S1);
+  - SC-006 y SC-007, que impiden dar HU-05 por aceptada.
+
+Detalle por caso en el [quickstart de HU-05](../../../specs/004-consultar-existencias/quickstart.md#evidencia).

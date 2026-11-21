@@ -72,7 +72,10 @@ describe('LocationDetailPage', () => {
     const reload = httpMock().match(r => r.url.startsWith(`/api/v1/locations/${detail().id}`));
     expect(reload.map(r => r.request.url).sort()).toEqual([`/api/v1/locations/${detail().id}`, `/api/v1/locations/${detail().id}/stock`]);
     expect(text(root.querySelector('[data-testid="notice"]'))).toBe('Ubicación P01-E01-N01 desactivada.');
-  });
+    // Abre el diálogo de PrimeNG y espera dos ciclos de estabilidad: sola termina holgada, pero
+    // dentro de la suite completa, con los workers cargados, ha superado de forma intermitente
+    // el límite de 5 s. Mismo margen que locations.routes.spec.ts y operation-areas.spec.ts.
+  }, 20_000);
 
   it('al cerrar el diálogo sin confirmar, el foco vuelve al botón que lo abrió', async () => {
     const root = await render(detail(), [], ['Inventory.Read', 'Locations.Manage']);
