@@ -157,8 +157,57 @@ Para que el trigger de líneas no dependa del orden en que EF emite las sentenci
 la línea, sino que se obtiene como Σ de la tabla de consumos (D-08). Así, al confirmar solo cambian
 la cabecera de la salida, las filas de HU-05 y las filas nuevas de consumo, y una línea de una salida
 confirmada no cambia nunca. Editar un borrador inserta, actualiza o borra líneas de una cabecera en
-`Draft`, que el trigger admite. La prueba de esquema (H-02) comprueba ambos triggers con el usuario
+`Draft`, que el trigger admite. La prueba de esquema (H-02) comprueba los triggers con el usuario
 de ejecución `inventory_runtime`.
+
+**Iteración del plan (2026-11-21, revisión de A de P-01 y P-02): consumos ligados a la operación que
+confirma.** El `DENY UPDATE, DELETE` de D-08 no impide **insertar** filas de consumo nuevas en una
+salida ya confirmada. Tampoco sirve un trigger de `INSERT` que rechace cuando la cabecera está
+`Confirmed`, porque rompería la propia confirmación: EF no garantiza el orden entre el `UPDATE` de la
+cabecera y los `INSERT` de consumos de la misma `SaveChanges`. Mecanismo fijado (decisión de B):
+
+- La cabecera ya guarda la operación que la confirma. `Shipments.OperationId` se fija al confirmar
+  (`CHECK State = 'Confirmed' ⇔ OperationId IS NOT NULL`, único filtrado) y
+  `TR_Shipments_ConfirmedImmutable` lo vuelve inmutable. No hace falta otra columna
+  `ConfirmedByOperationId`.
+- Cada fila de consumo lleva `OperationId`, el de la operación que la crea: el `context.OperationId`
+  del ejecutor dentro de `change`.
+- `TR_ShipmentReservationConsumptions_ConfirmingOperation` (`AFTER INSERT`): `ROLLBACK` + `THROW` si
+  alguna fila de `inserted` pertenece a una línea cuya cabecera está `Confirmed` con un `OperationId`
+  distinto del de la fila.
+- Complemento en `TR_Shipments_ConfirmedImmutable`: en la transición `Draft → Confirmed`, rechaza si
+  ya existe algún consumo de sus líneas con un `OperationId` distinto del nuevo de la cabecera. Así,
+  un consumo insertado de antemano en un borrador por otra operación no sobrevive a la confirmación.
+- `HasTrigger` del trigger nuevo en `ShipmentReservationConsumptionConfiguration`, como en las otras
+  dos tablas (plan, riesgos).
+
+El resultado no depende del orden de EF:
+
+- Si la cabecera se actualiza primero, el `INSERT` encuentra `Confirmed` con el mismo
+  `OperationId` y se admite.
+- Si el `INSERT` va primero, encuentra `Draft` y se admite. Después, el `UPDATE` comprueba que los
+  consumos ya insertados llevan su `OperationId`.
+
+Fuera de la confirmación, cualquier `INSERT` posterior lleva otra operación y se rechaza en la base
+de datos.
+
+Límites aceptados:
+
+- Una fila con el **mismo** `OperationId` tras el commit pasaría el trigger. No hay camino para
+  ello: `OperationResults` tiene ese id como PK y el ejecutor devuelve el resultado guardado sin
+  volver a ejecutar.
+- Un consumo insertado en un borrador que nunca se confirma no se detecta al insertarlo. La
+  aplicación solo inserta al confirmar, y esa fila impediría eliminar el borrador (FK `Restrict`
+  desde la línea), así que el fallo sería visible.
+
+**Alternativas** a la iteración:
+
+- (a) Trigger de `INSERT` contra la cabecera `Confirmed`: rompe la confirmación según el orden de
+  EF.
+- (b) Insertar los consumos en una segunda `SaveChanges` tras confirmar la cabecera: depende del
+  orden de llamadas y no protege frente a otro escritor.
+- (c) FK compuesta `(ShipmentId, OperationId)` hacia la cabecera: obliga a añadir `ShipmentId` y
+  vuelve a depender de que la cabecera tenga ya su `OperationId` al insertar.
 
 **Alternativas** (ofrecidas a B): a) solo en la aplicación, sin defensa SQL; b) tablas de borrador
 separadas con `DENY` en las de confirmadas, que cambian el modelo común. B eligió los triggers.
@@ -181,12 +230,16 @@ separadas con `DENY` en las de confirmadas, que cambian el modelo común. B elig
 ## D-08. Registro de consumo por asignación (decisión de B)
 
 **Decisión**: nueva tabla `ShipmentReservationConsumptions(Id, ShipmentLineId, ReservationAllocationId,
-Quantity > 0)`, una fila por asignación consumida en cada línea, append-only (`DENY UPDATE, DELETE`
-para `inventory_runtime`), único `(ShipmentLineId, ReservationAllocationId)`. Invariantes:
+Quantity > 0, OperationId)`, una fila por asignación consumida en cada línea. Es append-only
+(`DENY UPDATE, DELETE` para `inventory_runtime`) y tiene único `(ShipmentLineId,
+ReservationAllocationId)`. `OperationId` es la operación que crea la fila. Un trigger de
+`INSERT` exige que coincida con la que confirmó la cabecera (D-06, iteración 2026-11-21), así que no
+se pueden añadir consumos a una salida ya confirmada. Invariantes:
 
 - Σ consumos de una asignación = su `ConsumedQuantity` (conciliación H-14).
 - Σ consumos de una línea de salida = su reserva propia consumida = `ShipReserved` del movimiento en
   ese bucket.
+- Cada consumo de una salida confirmada lleva el `OperationId` de su cabecera.
 
 `ShipmentLine.OwnReservationConsumed` del modelo común se mantiene como columna **calculada en la
 lectura** (Σ de consumos), no almacenada, para que la línea confirmada no cambie (D-06). Es una
@@ -218,7 +271,8 @@ histórica no se revierte (R-05).
 **Decisión**: aditiva, generada con `dotnet ef migrations add HU03_Shipments` sobre
 `20261120113458_HU05_CustomerOrdersReservations` (la última presente; lección 5). Crea `Shipments`,
 `ShipmentLines` y `ShipmentReservationConsumptions` con las restricciones de
-[data-model.md](data-model.md#migración). A mano: los dos triggers (D-06) y
+[data-model.md](data-model.md#migración). A mano: los tres triggers (D-06; el de consumos y el
+complemento de la cabecera, desde la iteración del 2026-11-21) y
 `DENY UPDATE, DELETE ON ShipmentReservationConsumptions TO inventory_runtime`. No modifica
 migraciones anteriores. Si se integra antes otra migración (PR #9 o de A), se regenera la local
 (plan global §5).

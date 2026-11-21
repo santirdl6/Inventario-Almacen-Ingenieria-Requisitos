@@ -53,9 +53,14 @@ está entre 0 y `Quantity` en confirmadas.
 | ShipmentLineId | uniqueidentifier | FK `ShipmentLines` (Restrict). |
 | ReservationAllocationId | uniqueidentifier | FK `ReservationAllocations` (Restrict). Misma línea de pedido y bucket que la línea de salida (comando). |
 | Quantity | decimal(18,3) | CHECK `> 0`. |
+| OperationId | uniqueidentifier | Operación que crea la fila (`context.OperationId` de la confirmación). Obligatoria. Sin FK, como `Shipments.OperationId`. |
 
 Único `(ShipmentLineId, ReservationAllocationId)`. Append-only: `DENY UPDATE, DELETE` a
-`inventory_runtime`. Solo se insertan al confirmar.
+`inventory_runtime`. Solo se insertan al confirmar. `TR_ShipmentReservationConsumptions_ConfirmingOperation`
+rechaza un `INSERT` cuya cabecera esté `Confirmed` con otro `OperationId`. El complemento de
+`TR_Shipments_ConfirmedImmutable` rechaza confirmar si ya hay consumos de otra operación (research
+D-06, iteración 2026-11-21). La regla vale en cualquier orden de sentencias dentro de la
+confirmación.
 
 ## Cambios de estado en entidades de HU-05 (los aplica la confirmación)
 
@@ -88,6 +93,9 @@ Reservation:     Active ──confirm consume hasta remanente 0──▶ Consume
 5. Diario y saldo: `AssertJournalMatchesBalanceAsync` de HU-05.
 6. Una sola fila `StockMovements` de tipo `Shipment` por salida confirmada (unicidad común
    tipo/documento/Kind).
+7. Por salida confirmada: todo consumo de sus líneas tiene `OperationId` = `Shipments.OperationId`,
+   así que no se añaden consumos tras confirmar. La garantizan los triggers de la base de datos y se
+   prueba en H-02; H-14 la comprueba además en la conciliación.
 
 ## Hecho del diario
 
@@ -105,7 +113,11 @@ Reservation:     Active ──confirm consume hasta remanente 0──▶ Consume
 `HU03_Shipments`, generada sobre `20261120113458_HU05_CustomerOrdersReservations` (research D-10):
 
 - Tablas, FK, CHECK e índices de este documento.
-- A mano: `TR_Shipments_ConfirmedImmutable` y `TR_ShipmentLines_ConfirmedImmutable` (D-06) y
-  `DENY UPDATE, DELETE ON OBJECT::dbo.ShipmentReservationConsumptions TO inventory_runtime`.
+- A mano:
+  - `TR_Shipments_ConfirmedImmutable`, con el complemento de la transición `Draft → Confirmed`;
+  - `TR_ShipmentLines_ConfirmedImmutable`;
+  - `TR_ShipmentReservationConsumptions_ConfirmingOperation` (D-06);
+  - `DENY UPDATE, DELETE ON OBJECT::dbo.ShipmentReservationConsumptions TO inventory_runtime`.
+- `HasTrigger` en las tres configuraciones EF.
 - `Down` elimina triggers, permisos y tablas en orden inverso.
 - Constante `ShipmentSchema.Migration` para el contributor de uso (D-09).
