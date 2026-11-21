@@ -457,3 +457,12 @@ queda como estaba (la skill solo añade).
     `inOpenCount: true` muestra «En conteo: la ubicación está incluida en un inventario abierto.»; con
     `false`, no. El arnés usa el valor del detalle. T034 de HU-02 cerrada con la evidencia de HU-04 y
     quickstart de HU-02 actualizado. Verde: Vitest 230/230. Sin cambios de backend.
+
+## Phase 11: Convergence
+
+Tareas de [converge-2](validation/converge-2.md) (2026-11-21). **Sin implementar**: se revisan con B.
+
+- [ ] C9 ⚑ Publicar en el quickstart de HU-04 § Evidencia y en el quickstart común § 11 los resultados
+  de Phase 10 (backend 347/1/0, Vitest 230/230, `tsc` y build, Playwright 18/18). En el común, añadir
+  también el filtro `correctsShipmentId` y el aviso de `/salidas/{id}` (C3). Según plan § Evidencia y
+  P-08 (partial, G9).
