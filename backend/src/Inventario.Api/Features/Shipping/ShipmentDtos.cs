@@ -120,3 +120,37 @@ internal sealed record ShipmentConsumptionRow(Guid Id, Guid ShipmentLineId, Guid
 
 /// <summary>Respuesta de POST y PUT: operación y salida, con ETag en la cabecera.</summary>
 public sealed record ShipmentMutation(Guid OperationId, ShipmentView Shipment);
+
+/// <summary>
+/// Cuerpo de POST /shipments/{id}/confirm: la versión del pedido que se revisó (D-05). Forma parte de
+/// la huella, así que repetir la clave con otra versión es IdempotencyConflict.
+/// </summary>
+public sealed record ShipmentConfirmWrite(string? OrderVersion)
+{
+    public static ShipmentConfirmWrite Read(JsonElement body)
+    {
+        if (body.ValueKind != JsonValueKind.Object)
+            throw new InventoryProblemException(400, "InvalidRequest", "Se requiere un objeto JSON.");
+        string? version = null;
+        foreach (var property in body.EnumerateObject())
+            switch (property.Name)
+            {
+                case "orderVersion":
+                    version = property.Value.ValueKind switch
+                    {
+                        JsonValueKind.Null => null,
+                        JsonValueKind.String => property.Value.GetString()!.Trim(),
+                        _ => throw new InventoryProblemException(400, "InvalidRequest", "orderVersion debe ser una cadena.")
+                    };
+                    break;
+                default: throw InventoryProblemException.Validation(property.Name, "Este campo no forma parte de la confirmación.");
+            }
+        return new(version);
+    }
+}
+
+/// <summary>Respuesta de POST /shipments/{id}/confirm, sin ETag (el diario se guarda con el resultado).</summary>
+public sealed record ShipmentConfirmation(Guid OperationId, Guid ShipmentId, Guid MovementId, Guid CustomerOrderId,
+    string OrderState, IReadOnlyList<ShipmentConfirmedLine> Lines);
+
+public sealed record ShipmentConfirmedLine(Guid Id, string Quantity, string OwnReservationConsumed);

@@ -52,6 +52,14 @@ public static class ShipmentEndpoints
             .RequireAuthorization(ShipmentCommands.Permission)
             .Produces(204).ProducesProblem(400).ProducesProblem(403).ProducesProblem(404).ProducesProblem(409)
             .ProducesProblem(412).ProducesProblem(428);
+        // T009 (US1, US2; FR-007–FR-016): confirmar con If-Match de la salida y orderVersion; 200 sin ETag.
+        shipments.MapPost("/{id:guid}/confirm", (Guid id, JsonElement body, HttpContext context, ShipmentCommands commands,
+                CancellationToken token) =>
+                commands.ConfirmAsync(LocationEndpoints.Key(context), id, ShipmentConfirmWrite.Read(body),
+                    context.Request.Headers.IfMatch.ToString(), token))
+            .RequireAuthorization(ShipmentCommands.Permission).Accepts<ShipmentConfirmWrite>("application/json")
+            .Produces<ShipmentConfirmation>().ProducesProblem(400).ProducesProblem(403).ProducesProblem(404).ProducesProblem(409)
+            .ProducesProblem(412).ProducesProblem(422).ProducesProblem(428).ProducesProblem(503);
         return api;
     }
 }

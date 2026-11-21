@@ -1,7 +1,11 @@
 using System.Text.Json;
 using Inventario.Api.Domain.Locations;
 using Inventario.Api.Domain.Shipping;
+using Inventario.Api.Features.Locations;
 using Inventario.Api.Domain.Stock;
+using Inventario.Api.Features.Stock;
+using Inventario.Api.Features.Stock.Core;
+using Inventario.Api.Features.Stock.CustomerOrders;
 using Inventario.Api.Infrastructure.Http;
 using Inventario.Api.Infrastructure.Persistence;
 using Inventario.Api.Infrastructure.Persistence.Operations;
@@ -97,6 +101,159 @@ public sealed class ShipmentCommands(InventoryOperationExecutor executor)
             db.Remove(shipment);
             await db.SaveChangesAsync(token);
             return new OperationResponse(204, null, sourceDocumentId: id);
+        }, cancellation);
+    }
+
+    /// <summary>
+    /// Confirmar (T009; research D-03–D-05, D-07; reglas 1–6 del contrato HU-03 de HU-05). Bloquea en
+    /// una sola llamada el pedido, las reservas a consumir y la salida; después ubicaciones y
+    /// artículos. Decide con el lector del pedido tras los bloqueos y aplica la salida con StockCore.
+    /// Todo queda en el mismo commit que el OperationResult: sin SaveChanges aquí (FK del diario).
+    /// </summary>
+    public Task<OperationResponse> ConfirmAsync(Guid operation, Guid id, ShipmentConfirmWrite write, string? ifMatch,
+        CancellationToken cancellation)
+    {
+        var request = new OperationRequest(operation, "POST", $"{Resource}/{id:D}/confirm", Permission,
+            JsonSerializer.SerializeToElement(write, OperationResponse.JsonOptions));
+        return executor.ExecuteAsync(request, async (context, token) =>
+        {
+            if (string.IsNullOrWhiteSpace(write.OrderVersion))
+                throw InventoryProblemException.Validation("orderVersion", "Revisa la salida antes de confirmarla.");
+            var db = context.Database;
+
+            // 1. Relaciones inmutables, antes de bloquear: salida → pedido; líneas → línea de pedido,
+            // bucket y artículo; reservas activas de esas líneas con remanente en esos buckets.
+            var header = await db.Set<Shipment>().AsNoTracking().Include(value => value.Lines)
+                .SingleOrDefaultAsync(value => value.Id == id, token)
+                ?? throw new InventoryProblemException(404, "NotFound", "La salida no existe.");
+            var orderLineIds = header.Lines.Select(line => line.CustomerOrderLineId).Distinct().ToList();
+            var buckets = header.Lines.Select(line => (line.CustomerOrderLineId, line.LocationId, line.LotId)).ToHashSet();
+            var candidates = await db.Set<Reservation>().AsNoTracking().Include(reservation => reservation.Allocations)
+                .Where(reservation => orderLineIds.Contains(reservation.CustomerOrderLineId) && reservation.State == ReservationState.Active)
+                .ToListAsync(token);
+            var reservationIds = candidates.Where(reservation => reservation.Allocations.Any(allocation => allocation.RemainingQuantity > 0
+                    && buckets.Contains((reservation.CustomerOrderLineId, allocation.LocationId, allocation.LotId))))
+                .Select(reservation => reservation.Id).ToHashSet();
+
+            // 2. Bloqueos: documentos en una sola llamada → ubicaciones → artículos (D-03, regla 1).
+            await context.Locks.DocumentsAsync([new DocumentLock(StockDocuments.CustomerOrder, header.CustomerOrderId),
+                .. reservationIds.Select(reservation => new DocumentLock(StockDocuments.Reservation, reservation)),
+                new DocumentLock(ShippingDocuments.Shipment, id)], token);
+            var locationIds = header.Lines.Select(line => line.LocationId).Distinct().ToList();
+            await context.Locks.LocationsAsync(locationIds, token);
+            await context.Locks.ArticlesAsync(header.Lines.Select(line => line.ArticleId).Distinct().ToList(), token);
+
+            // 3. Salida, If-Match y versión revisada del pedido, leídos tras los bloqueos (D-04, D-05).
+            var shipment = await db.Set<Shipment>().Include(value => value.Lines).SingleAsync(value => value.Id == id, token);
+            if (shipment.State != ShipmentState.Draft)
+                throw new InventoryProblemException(409, "DocumentAlreadyConfirmed", "La salida ya está confirmada.");
+            EntityTags.RequireMatch(ifMatch, shipment.Version);
+            var snapshot = await context.Services.GetRequiredService<ICustomerOrderReader>()
+                .ReadAsync(context, shipment.CustomerOrderId, token)
+                ?? throw new InventoryProblemException(404, "NotFound", "El pedido no existe.");
+            if (EntityTags.Format(snapshot.Version) != write.OrderVersion)
+                throw new InventoryProblemException(412, "VersionConflict",
+                    "El pedido cambió desde que revisaste la salida (otra salida, reserva o liberación). Revisa las cifras de nuevo.");
+            if (snapshot.State != nameof(CustomerOrderState.Open))
+                throw new InventoryProblemException(409, "CustomerOrderNotOpen",
+                    $"El pedido {snapshot.ExternalReference} no está abierto: no admite nuevas salidas.");
+            var lines = shipment.Lines.OrderBy(line => line.Id).ToList();
+            var orderLines = snapshot.Lines.ToDictionary(line => line.Id);
+
+            var pendingErrors = new Dictionary<string, string[]>();
+            foreach (var group in lines.Select((line, index) => (line, index)).GroupBy(pair => pair.line.CustomerOrderLineId))
+            {
+                var pending = orderLines[group.Key].Pending;
+                if (group.Sum(pair => pair.line.Quantity) <= pending) continue;
+                foreach (var (_, index) in group)
+                    pendingErrors[$"lines[{index}].quantity"] =
+                        [$"La suma de esta línea de pedido supera su pendiente actual ({ShipmentView.Quantity(pending)})."];
+            }
+            if (pendingErrors.Count > 0)
+                throw new InventoryProblemException(422, "ValidationFailed", "La salida supera lo pendiente del pedido.", pendingErrors);
+
+            var usage = context.Services.GetRequiredService<ILocationUsage>();
+            foreach (var location in locationIds)
+                if (await usage.IsInOpenCountAsync(location, token))
+                    throw new InventoryProblemException(409, "CountScopeFrozen",
+                        "Una ubicación de origen está en un conteo abierto. Espera a que termine.");
+
+            // 4. Reserva propia por bucket (regla 2), repartida por Id de asignación (regla 3).
+            var plan = new List<(ShipmentLine Line, ReservationAllocationSnapshot Allocation, decimal Quantity)>();
+            var consumed = new Dictionary<Guid, decimal>();
+            foreach (var line in lines)
+            {
+                var own = orderLines[line.CustomerOrderLineId].ActiveAllocations
+                    .Where(allocation => allocation.LocationId == line.LocationId && allocation.LotId == line.LotId)
+                    .OrderBy(allocation => allocation.AllocationId).ToList();
+                var left = Math.Min(line.Quantity, own.Sum(allocation => allocation.Remaining));
+                consumed[line.Id] = left;
+                foreach (var allocation in own)
+                {
+                    if (left == 0) break;
+                    var take = Math.Min(left, allocation.Remaining);
+                    plan.Add((line, allocation, take));
+                    left -= take;
+                }
+            }
+            // Una reserva creada entre la lectura previa y el bloqueo habría renovado el pedido (412);
+            // si aun así apareciera sin bloquear, no se decide sobre ella.
+            if (plan.Any(item => !reservationIds.Contains(item.Allocation.ReservationId)))
+                throw new InventoryProblemException(412, "VersionConflict", "Las reservas del pedido cambiaron. Revisa la salida de nuevo.");
+
+            // 5. Remanente sobrante (regla 5): sin liberar nada en silencio.
+            foreach (var group in lines.GroupBy(line => line.CustomerOrderLineId))
+            {
+                var orderLine = orderLines[group.Key];
+                var remainingAfter = orderLine.ActiveAllocations.Sum(allocation => allocation.Remaining) - group.Sum(line => consumed[line.Id]);
+                var pendingAfter = orderLine.Pending - group.Sum(line => line.Quantity);
+                if (remainingAfter > pendingAfter)
+                {
+                    var article = await db.Articles.AsNoTracking().Where(value => value.Id == orderLine.ArticleId)
+                        .Select(value => value.Sku).SingleAsync(token);
+                    throw new InventoryProblemException(409, "ReservedStockConflict",
+                        $"Antes de servir desde otro origen hay que liberar {ShipmentView.Quantity(remainingAfter - pendingAfter)} "
+                        + $"reservadas de la línea {article}.");
+                }
+            }
+
+            // 6. StockCore: físico, reservado y disponible de cada bucket; diario ShipReserved/ShipAvailable.
+            var order = await db.Set<CustomerOrder>().Include(value => value.Lines).SingleAsync(value => value.Id == snapshot.Id, token);
+            var lotIds = lines.Select(line => line.LotId).Distinct().ToList();
+            var lotCodes = await db.Set<Lot>().AsNoTracking().Where(lot => lotIds.Contains(lot.Id))
+                .ToDictionaryAsync(lot => lot.Id, lot => lot.Code, token);
+            var command = StockCore.PrepareShipment(new StockCommandContext(
+                    new StockDocumentRef(ShippingDocuments.Shipment, id), shipment.OccurredAt,
+                    $"Salida del pedido {order.ExternalReference}", SupportReference: order.ExternalReference,
+                    CounterpartyReference: order.CustomerReference),
+                lines.Select(line => new ShipmentAllocation(line.ArticleId, line.LocationId, lotCodes[line.LotId], line.Quantity,
+                    consumed[line.Id])).ToList());
+            var outcome = await context.Services.GetRequiredService<StockCore>().ApplyAsync(context, command, token);
+
+            // 7–8. Efectos de HU-05 y de la salida; versiones renovadas (regla 4).
+            var reservations = await db.Set<Reservation>().Include(reservation => reservation.Allocations)
+                .Where(reservation => reservationIds.Contains(reservation.Id)).ToDictionaryAsync(reservation => reservation.Id, token);
+            foreach (var item in plan)
+            {
+                var reservation = reservations[item.Allocation.ReservationId];
+                reservation.Allocations.Single(allocation => allocation.Id == item.Allocation.AllocationId).Consume(item.Quantity);
+                db.Add(ShipmentReservationConsumption.Create(item.Line.Id, item.Allocation.AllocationId, item.Quantity, context.OperationId));
+            }
+            foreach (var reservation in plan.Select(item => reservations[item.Allocation.ReservationId]).Distinct())
+            {
+                reservation.DeriveState();
+                db.Entry(reservation).Property(value => value.State).IsModified = true;
+            }
+            foreach (var group in lines.GroupBy(line => line.CustomerOrderLineId))
+                order.Lines.Single(line => line.Id == group.Key).Ship(group.Sum(line => line.Quantity));
+            order.DeriveFulfilment();
+            // Siempre, aunque no se consuma ninguna reserva: cambia lo servido (regla 4, FR-012).
+            db.Entry(order).Property(value => value.State).IsModified = true;
+            shipment.Confirm(context.OperationId, context.ActorId, DateTimeOffset.UtcNow);
+
+            return OperationResponse.Json(200, new ShipmentConfirmation(context.OperationId, id, outcome.MovementId, order.Id,
+                order.State.ToString(), lines.Select(line => new ShipmentConfirmedLine(line.Id, ShipmentView.Quantity(line.Quantity),
+                    ShipmentView.Quantity(consumed[line.Id]))).ToList()), id);
         }, cancellation);
     }
 

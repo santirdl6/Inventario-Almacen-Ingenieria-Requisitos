@@ -316,7 +316,7 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
     retirada. Después se restauraron los archivos.
   - `PUT` y `DELETE` de una salida confirmada → 409 queda para T010, porque necesita `/confirm`.
   - Suite 256/1/0; sin cambios de modelo.
-- [ ] T009 [US1] [US2] Confirmar (D-04, D-05, D-07). Depende de T007.
+- [X] T009 [US1] [US2] Confirmar (D-04, D-05, D-07). Depende de T007.
   - `ShipmentCommands.ConfirmAsync` y `POST /shipments/{id}/confirm` (`Shipping.Record`), cuerpo
     `{ orderVersion }` en la huella:
     1. Antes de bloquear, relaciones inmutables: salida → pedido; líneas → línea de pedido, bucket y
@@ -338,6 +338,19 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
   - Pruebas en T010 y T011.
 
   (US1.3–US1.5, US2.1–US2.7, US3.1; FR-007–FR-012, FR-014–FR-016, FR-020.)
+
+  **Hecho (2026-11-21)**:
+  - `ShipmentCommands.ConfirmAsync`, `ShipmentConfirmWrite`, `ShipmentConfirmation` y
+    `POST /shipments/{id}/confirm`, con los pasos 1–8 y el orden de rechazos del contrato.
+  - Consumos creados con `context.OperationId`, el mismo de `Shipment.Confirm`; sin `SaveChanges`
+    dentro de `change`.
+  - **Desviación TDD**, como en T007: para que la tarea tenga rojo propio, el núcleo va en
+    `Shipping/ShipmentConfirmTests.cs` (H-08 sin reservas y H-10, V-04). T010 completa el archivo.
+  - Rojo previo: 2/2 fallaban porque `/confirm` no existía.
+  - Verde: 2/2. H-08: físico 4, servido 6, `Fulfilled`, un movimiento `Shipment` con
+    `ShipAvailable` 6, soporte = referencia y contraparte = cliente. H-10: propia 4 `Consumed`, ajena
+    3 intacta, consumo de 4 con `ShipReserved` 4 y `ShipAvailable` 2, y conciliación.
+  - Suite 258/1/0; sin cambios de modelo.
 - [ ] T010 [P] [US1] [US2] [US3] [US5] [INT-HU03-02] `Shipping/ShipmentConfirmTests.cs`. Depende de
   T009, de T008 (`ShippingApiSupport.cs`) y de T006 (pedido de H-03). [P] solo frente a T011:
   archivos de prueba distintos y las mismas dependencias. **Rojo esperado**: escribirlas con `/confirm` respondiendo 501 y

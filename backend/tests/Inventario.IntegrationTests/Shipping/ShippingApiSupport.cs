@@ -89,6 +89,28 @@ internal static class ShippingApiSupport
             created.Headers.ETag!.ToString());
     }
 
+    /// <summary>
+    /// POST /shipments/{id}/confirm con el If-Match de la salida y la versión del pedido revisada
+    /// (D-05). Sin <paramref name="orderVersion"/> usa el ETag actual de GET /customer-orders/{id}.
+    /// </summary>
+    public static async Task<HttpResponseMessage> ConfirmAsync(MasterDataApi session, Guid shipment, Guid order,
+        string? shipmentEtag = null, string? orderVersion = null, Guid? key = null)
+    {
+        shipmentEtag ??= (await DetailAsync(session.Client, shipment)).ETag;
+        orderVersion ??= (await StockApiSupport.OrderAsync(session.Client, order)).ETag;
+        return await session.WriteAsync(HttpMethod.Post, $"{Shipments}/{shipment:D}/confirm", new { orderVersion }, key, shipmentEtag);
+    }
+
+    /// <summary>Reserva por HTTP (HU-05) con el ETag actual del pedido; devuelve la reserva creada.</summary>
+    public static async Task<Guid> ReserveAsync(MasterDataApi responsable, Guid order, Guid line, Guid location, Guid lot, string quantity)
+    {
+        var (_, etag) = await StockApiSupport.OrderAsync(responsable.Client, order);
+        using var response = await StockApiSupport.PostReservationAsync(responsable, line, etag, null, (location, lot, quantity));
+        var text = await response.Content.ReadAsStringAsync();
+        Assert.True(HttpStatusCode.Created == response.StatusCode, text);
+        return JsonDocument.Parse(text).RootElement.GetProperty("reservationId").GetGuid();
+    }
+
     /// <summary>GET /shipments/{id}: cuerpo y ETag.</summary>
     public static async Task<(JsonElement Body, string ETag)> DetailAsync(HttpClient client, Guid id)
     {
