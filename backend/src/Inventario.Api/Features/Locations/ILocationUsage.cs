@@ -14,7 +14,8 @@ public interface ILocationUsage
 
     Task<LocationStockTotals> GetTotalsAsync(Guid locationId, CancellationToken cancellationToken);
 
-    // Conteo abierto sobre la ubicación. Devuelve false hasta que HU-04 aporte CountLocation (T034).
+    // Conteo abierto sobre la ubicación: alguna fila de CountLocations con IsFrozen = 1 (HU-04 D-04,
+    // INT-HU04-03). Se consulta tras location:{id}, en el DbContext y la transacción del comando.
     Task<bool> IsInOpenCountAsync(Guid locationId, CancellationToken cancellationToken);
 }
 
@@ -39,7 +40,8 @@ internal sealed class StockBalanceLocationUsage(InventoryDbContext database) : I
     }
 
     public Task<bool> IsInOpenCountAsync(Guid locationId, CancellationToken cancellationToken) =>
-        Task.FromResult(false);
+        database.Set<CountLocation>().AsNoTracking()
+            .AnyAsync(location => location.LocationId == locationId && location.IsFrozen, cancellationToken);
 
     private IQueryable<StockBalance> Balances(Guid locationId) =>
         database.Set<StockBalance>().AsNoTracking().Where(balance => balance.LocationId == locationId);

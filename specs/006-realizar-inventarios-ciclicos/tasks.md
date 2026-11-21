@@ -96,7 +96,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - **Hecho**: rojo observado: no compila (`AdjustmentAllocation`/`PrepareAdjustment` no existen). Verde:
     `StockCoreAdjustTests` 4/4; el cuerpo normalizado lleva el signo solo en bajadas (huellas previas
     intactas); el arnés usa `Inventory.Adjust` para `Adjust`. Suite 300/1 omitida.
-- [ ] T005 ⚑ 🔀 PR #10 [US3] [INT-HU04-03] Lector de congelación real (D-04):
+- [X] T005 ⚑ 🔀 PR #10 [US3] [INT-HU04-03] Lector de congelación real (D-04):
   `Features/Locations/ILocationUsage.cs` (HU-02) consulta `CountLocations` con `IsFrozen = 1`, y
   `Features/Locations/Commands/LocationCommands.cs` (HU-02) comprueba la congelación antes que
   `LocationNotEmpty` al desactivar o cambiar el tipo (H2 de analyze-1). Pruebas
@@ -106,6 +106,11 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   cambios; liberar una reserva sigue admitido (Q1); `inOpenCount = true` en `GET /locations` y su
   detalle. **Rojo esperado**: las cuatro operaciones responden 2xx porque el lector devuelve `false`.
   Depende de T003.
+  - **Hecho**: rojo observado: la confirmación de la salida responde 200 (lector constante `false`). Verde:
+    `CountScopeFrozenTests` 2/2 (salida, reserva, desactivar y cambiar tipo, vacía y ocupada → 409;
+    liberar admitido; un borrador no congela). La prueba ocupada fallaría con `LocationNotEmpty` sin el
+    reorden H2. `inOpenCount` se comprueba en `GET /locations/{id}` y `/locations/{id}/stock`: la lista
+    no lo expone («sin cambios de forma», contrato API). Suite 302/1 omitida.
 
 ## Phase 3: User Story 1 — Contar una parte del almacén y ver las diferencias (P1) 🎯 MVP
 
