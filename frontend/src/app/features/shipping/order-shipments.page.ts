@@ -18,6 +18,7 @@ import { SHIPMENT_STATE_LABELS, ShipmentPage, shipmentRoute } from './data/shipp
   imports: [DatePipe, RouterLink],
   styleUrl: '../stock/stock.css',
   template: `
+    @if (notice) { <p role="status">{{ notice }}</p> }
     @if (error()) { <p class="error-text" role="alert">{{ error() }}</p> }
     @if (detail(); as current) {
       <h1>Salidas del pedido {{ current.order.externalReference }}</h1>
@@ -72,6 +73,8 @@ export class OrderShipmentsPage implements OnInit {
   readonly detail = signal<OrderDetail | null>(null);
   readonly shipments = signal<ShipmentPage | null>(null);
   readonly error = signal<string | null>(null);
+  /** Aviso que trae la navegación (p. ej. tras eliminar un borrador, T015). */
+  readonly notice = (history.state as { notice?: unknown } | null)?.notice as string | undefined;
   readonly canRecord = computed(() => this.session.has('Shipping.Record'));
   /** FR-025: el total solo tiene unidad si todas las líneas del pedido comparten la misma. */
   readonly unit = computed(() => {

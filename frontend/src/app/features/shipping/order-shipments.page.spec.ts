@@ -84,6 +84,13 @@ describe('OrderShipmentsPage', () => {
     expect(root.querySelector('[data-testid="new-shipment"]')).toBeNull();
   });
 
+  it('al volver tras eliminar un borrador muestra el aviso que trae la navegación', async () => {
+    history.replaceState({ notice: 'Borrador eliminado. No se ha modificado ninguna existencia.' }, '');
+    const { root } = await render(['Inventory.Read', 'Shipping.Record']);
+    expect(text(root.querySelector('[role="status"]'))).toBe('Borrador eliminado. No se ha modificado ninguna existencia.');
+    history.replaceState(null, '');
+  });
+
   it('sin Shipping.Record se consulta todo pero no hay acciones', async () => {
     const { root } = await render(['Inventory.Read']);
     expect(root.querySelectorAll('[data-testid="shipment-row"]')).toHaveLength(2);

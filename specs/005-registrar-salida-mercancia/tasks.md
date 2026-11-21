@@ -546,7 +546,7 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
     - rutas, 2/2 contra el placeholder: solo existía `''`;
     - búsqueda y pedido, 6/6, con los esqueletos vacíos.
   - Verde: 8/8 en las specs nuevas; Vitest 162/162 (base 154); `tsc` de app y specs sin errores.
-- [ ] T015 [US1] Preparar y editar el borrador. Depende de T014.
+- [X] T015 [US1] Preparar y editar el borrador. Depende de T014.
   - `shipment-form.page.ts` (nueva y `:id` en borrador): fecha del hecho por defecto ahora;
     «Añadir» por línea con pendiente; **propuesta** desde las asignaciones activas del pedido, por
     Id, acotada al pendiente, con «Propuesto desde la reserva» (D-13); selector de buckets con
@@ -561,6 +561,21 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
     eliminar con confirmación.
 
   (US1.1, US1.8–US1.10; FR-004–FR-006a, FR-024.)
+
+  **Hecho (2026-11-21)**:
+  - `shipment-form.page.ts` para el alta y el borrador. Fecha del hecho por defecto ahora.
+  - Propuesta D-13 por Id de asignación, acotada al pendiente y marcada «Propuesto desde la reserva».
+  - Selector de orígenes con `StockApiService.allRows` (analyze-1 H3).
+  - Guardar con `POST`/`PUT` y `appRoute`; eliminar con confirmación en la página y vuelta al
+    pedido con el aviso, que `order-shipments.page` lee de `history.state`.
+  - Rechazos: 422 por línea con foco al primer `aria-invalid` (`focusFirstError`); 412 relee sin
+    perder lo escrito.
+  - Rojo previo: 6/6 contra el esqueleto vacío de T014, más 1 del aviso al volver.
+  - Verde: `shipment-form.page.spec.ts` 6/6 (propuesta con dos buckets; sin reserva no propone;
+    selector con 30 combinaciones; `POST` con clave, cuerpo y `appRoute`; 422 con foco; `PUT` con
+    `If-Match` y 412 sin perder lo escrito; `DELETE` con confirmación). Más 1 en
+    `order-shipments.page.spec.ts`.
+  - Vitest 169/169 (base 154); `tsc` correcto.
 - [ ] T016 [US1] [US2] Revisar, confirmar y recuperar. Depende de T015.
   - `shipment-review-dialog.ts` (`cdkTrapFocus`, Escape): cifras de `review`, aviso en texto si la
     cantidad supera la posible, «Inactivo» en texto junto al artículo inactivo sin deshabilitar la
