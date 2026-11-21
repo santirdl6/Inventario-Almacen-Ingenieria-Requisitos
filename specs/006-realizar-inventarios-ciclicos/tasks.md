@@ -416,9 +416,12 @@ queda como estaba (la skill solo añade).
     el pedido no se corrige y sigue contando 6.000 UD servidas, y la línea de la salida sigue en 6.000 UD.
     Archivos de B de HU-03 (`shipment-form.page.ts`, `shipping-testing.ts`, spec). Contratos API y UI
     actualizados. Suite 347/1/0, Vitest 226/226, `tsc` y build.
-- [ ] C4 En el 409 `ReservedStockConflict` de la confirmación, enlazar al pedido o pedidos que reservan
+- [X] C4 En el 409 `ReservedStockConflict` de la confirmación, enlazar al pedido o pedidos que reservan
   en el bucket, o corregir el contrato UI a `/existencias`, según contracts/cycle-counts-ui.md
   § Resultados (contradicts, G4).
+  - **Cerrada por documentación**: el contrato UI § Resultados dice ahora que el enlace de
+    `ReservedStockConflict` va a `/existencias`, porque ni el 409 ni el contexto del conteo traen el pedido.
+    El código (T016) no cambia.
 - [X] C5 Mostrar el número de líneas con diferencia en todos los estados posteriores al inicio, no solo
   en la revisión, según FR-005 (partial, G5).
   - **Hecho**: rojo Vitest en `count-detail.page.spec.ts` (entrada: líneas 10→8 y 5→5 en `Counting`, en

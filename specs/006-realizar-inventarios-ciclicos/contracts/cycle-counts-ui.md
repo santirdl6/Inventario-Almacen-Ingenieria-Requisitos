@@ -50,8 +50,9 @@ estados de operación e información que no debe ocultarse). Decisiones en [rese
 - 422: el error junto a cada campo, foco al primero, sin perder lo escrito.
 - 412: aviso «Otra persona ha cambiado el conteo», relectura y conservación de lo escrito.
 - 409 (`CountScopeFrozen`, `CountStateConflict`, `CountTheoreticalChanged`, `ReservedStockConflict`):
-  aviso con foco y relectura del conteo; en `ReservedStockConflict`, enlace al pedido para liberar la
-  reserva.
+  aviso con foco y relectura del conteo; en `ReservedStockConflict`, enlace a `/existencias` para liberar
+  la reserva desde el pedido del cliente. El enlace no va al pedido porque ni el 409 ni el contexto del
+  conteo lo traen, y un bucket puede tener reservas de varios pedidos (Convergence C4).
 
 ## Accesibilidad e idioma
 
