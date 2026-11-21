@@ -104,6 +104,49 @@ public sealed class CycleCountQueries(InventoryDbContext database)
         }, cancellation);
     }
 
+    /// <summary>
+    /// GET /cycle-counts/{id}/lines/{lineId}/shipment-candidates (T012, D-09): salidas confirmadas con alguna
+    /// línea en el bucket de la línea, de la más reciente a la más antigua, con su pedido, la cantidad en el
+    /// bucket y las líneas de conteo ya vinculadas. null si el conteo o la línea no existen.
+    /// </summary>
+    public Task<PageResult<ShipmentCandidate>?> ShipmentCandidatesAsync(Guid id, Guid lineId, int? page, int? pageSize,
+        CancellationToken cancellation)
+    {
+        var paging = Locations.Paging.From(page, pageSize);
+        return SnapshotAsync(async () =>
+        {
+            var line = await database.Set<CountLine>().AsNoTracking().SingleOrDefaultAsync(value => value.Id == lineId && value.CountId == id,
+                cancellation);
+            if (line is null) return (PageResult<ShipmentCandidate>?)null;
+            // Un hallazgo de lote nuevo no tiene lote: ninguna salida pudo tocar su bucket.
+            if (line.LotId is not { } lotId) return new PageResult<ShipmentCandidate>([], paging.Page, paging.PageSize, 0);
+            var query =
+                from shipment in database.Set<Shipment>().AsNoTracking()
+                join order in database.Set<CustomerOrder>().AsNoTracking() on shipment.CustomerOrderId equals order.Id
+                where shipment.State == ShipmentState.Confirmed && shipment.Lines.Any(value =>
+                    value.ArticleId == line.ArticleId && value.LocationId == line.LocationId && value.LotId == lotId)
+                select new { shipment, order.ExternalReference };
+            var total = await query.CountAsync(cancellation);
+            var rows = await query.OrderByDescending(row => row.shipment.RecordedAt).ThenBy(row => row.shipment.Id)
+                .Skip(paging.Skip).Take(paging.PageSize)
+                .Select(row => new
+                {
+                    row.shipment.Id, row.shipment.CustomerOrderId, row.ExternalReference, row.shipment.RecordedAt,
+                    Quantity = row.shipment.Lines.Where(value => value.ArticleId == line.ArticleId && value.LocationId == line.LocationId
+                        && value.LotId == lotId).Sum(value => value.Quantity)
+                })
+                .ToListAsync(cancellation);
+            var ids = rows.Select(row => row.Id).ToList();
+            var links = await database.Set<CountLine>().AsNoTracking()
+                .Where(value => value.CorrectsShipmentId != null && ids.Contains(value.CorrectsShipmentId.Value))
+                .Select(value => new { value.Id, Shipment = value.CorrectsShipmentId!.Value }).ToListAsync(cancellation);
+            return new PageResult<ShipmentCandidate>(rows.Select(row => new ShipmentCandidate(row.Id, row.CustomerOrderId, row.ExternalReference,
+                row.RecordedAt, CycleCountView.Quantity(row.Quantity),
+                links.Where(link => link.Shipment == row.Id).Select(link => link.Id).OrderBy(value => value).ToList())).ToList(),
+                paging.Page, paging.PageSize, total);
+        }, cancellation);
+    }
+
     private Task<CycleCount?> LoadAsync(Guid id, CancellationToken cancellation) =>
         database.Set<CycleCount>().AsNoTracking().Include(value => value.Locations).Include(value => value.Lines)
             .AsSplitQuery().SingleOrDefaultAsync(value => value.Id == id, cancellation);

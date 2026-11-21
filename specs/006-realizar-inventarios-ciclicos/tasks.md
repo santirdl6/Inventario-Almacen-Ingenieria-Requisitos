@@ -212,11 +212,17 @@ real en salidas, reservas y ubicaciones.
 **Objetivo**: vincular diferencias a una salida confirmada sin cambiar lo servido ni las reservas.
 **Prueba independiente**: spec US4 (salida de 6 cuando salieron 4: físico +2, pedido intacto).
 
-- [ ] T012 🔀 PR #10 [US4] Vínculo en la revisión (D-09): `correctsShipmentId` en `PUT …/review`
+- [X] T012 🔀 PR #10 [US4] Vínculo en la revisión (D-09): `correctsShipmentId` en `PUT …/review`
   (salida `Confirmed`, con una línea en el mismo artículo, ubicación y lote, y diferencia ≠ 0; 422 por
   línea) y `GET …/lines/{lineId}/shipment-candidates` en `CycleCountQueries.cs`. Pruebas en
   `ShipmentCorrectionTests.cs` (C-19 con la invariante 6 de data-model, C-20). **Rojo esperado**: 422
   por campo desconocido `correctsShipmentId` y 404 en `shipment-candidates`. Depende de T009.
+  - **Hecho**: rojo observado: 404 en `shipment-candidates` (C-19) y 422 por campo desconocido
+    `correctsShipmentId` en lugar de `lines[0].correctsShipmentId` (C-20). P-07 explícita en código
+    (`CountLine.SetCorrection`, `ShipmentCorrections.Notice`) y en la respuesta: `shipmentCorrectionNotice`
+    en cada línea vinculada del detalle y `shipmentCorrections` con `orderChanged: false` al confirmar
+    (contrato actualizado). C-19 compara salida (versión incluida), servido, estado del pedido, consumos y
+    asignaciones antes y después (invariante 6). Verde: `ShipmentCorrectionTests` 2/2; suite 347/1 omitida.
 
 ## Phase 7: Frontend y E2E (US1, US2, US4)
 

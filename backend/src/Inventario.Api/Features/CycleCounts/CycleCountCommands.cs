@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Inventario.Api.Domain.Locations;
+using Inventario.Api.Domain.Shipping;
 using Inventario.Api.Domain.Stock;
 using Inventario.Api.Features.Stock.Core;
 using Inventario.Api.Infrastructure.Http;
@@ -245,8 +246,10 @@ public sealed class CycleCountCommands(InventoryOperationExecutor executor)
     }
 
     /// <summary>
-    /// PUT /cycle-counts/{id}/review (T009; FR-008, D-07): Inventory.Adjust fija o retira el motivo de las
-    /// líneas con diferencia, sin cambiar el contado. Solo bloquea cycle-count:{id} (D-03).
+    /// PUT /cycle-counts/{id}/review (T009, T012; FR-008, FR-018–FR-020; D-07, D-09): Inventory.Adjust fija o
+    /// retira el motivo de las líneas con diferencia y, opcional, la salida confirmada que corrigen, sin
+    /// cambiar el contado. Solo bloquea cycle-count:{id} (D-03): la salida confirmada es inmutable (triggers
+    /// de HU-03) y se lee sin bloquearla. El vínculo no modifica la salida ni el pedido (P-07).
     /// </summary>
     public Task<OperationResponse> ReviewAsync(Guid operation, Guid id, CycleCountReviewWrite write, string? ifMatch,
         CancellationToken cancellation)
@@ -257,13 +260,17 @@ public sealed class CycleCountCommands(InventoryOperationExecutor executor)
             var errors = new Dictionary<string, string[]>();
             var requested = write.Lines ?? [];
             if (requested.Count == 0) errors["lines"] = ["Indica al menos una línea."];
-            var items = new List<(int Index, Guid LineId, string? Reason)>();
+            var items = new List<(int Index, Guid LineId, string? Reason, Guid? Shipment)>();
             for (var index = 0; index < requested.Count; index++)
             {
                 var line = Id(requested[index].LineId, $"lines[{index}].lineId", "La línea no es válida.", errors);
+                Guid? shipment = null;
+                if (requested[index].CorrectsShipmentId is { } text)
+                    shipment = Id(text, $"lines[{index}].correctsShipmentId", "La salida no es válida.", errors);
                 if (requested[index].Reason is { Length: > CountLine.ReasonMaxLength })
                     errors[$"lines[{index}].reason"] = [$"El motivo no puede superar {CountLine.ReasonMaxLength} caracteres."];
-                else if (line is not null) items.Add((index, line.Value, requested[index].Reason));
+                else if (line is not null && (requested[index].CorrectsShipmentId is null || shipment is not null))
+                    items.Add((index, line.Value, requested[index].Reason, shipment));
             }
             if (items.Select(item => item.LineId).Distinct().Count() != items.Count)
                 errors["lines"] = ["Cada línea solo puede aparecer una vez."];
@@ -273,17 +280,33 @@ public sealed class CycleCountCommands(InventoryOperationExecutor executor)
             var db = context.Database;
             await context.Locks.DocumentsAsync([new DocumentLock(CycleCountDocuments.CycleCount, id)], token);
             var count = await LoadAsync(db, id, ifMatch, token, CycleCountState.AwaitingApproval);
-            foreach (var (index, lineId, reason) in items)
+            // D-09: salida confirmada con alguna línea en el mismo artículo, ubicación y lote.
+            var shipmentIds = items.Where(item => item.Shipment is not null).Select(item => item.Shipment!.Value).Distinct().ToList();
+            var shipments = await db.Set<Shipment>().AsNoTracking().Include(value => value.Lines)
+                .Where(value => shipmentIds.Contains(value.Id)).ToDictionaryAsync(value => value.Id, token);
+            foreach (var (index, lineId, reason, shipmentId) in items)
             {
                 var line = count.Lines.SingleOrDefault(value => value.Id == lineId);
-                if (line is null) errors[$"lines[{index}].lineId"] = ["La línea no pertenece al conteo."];
-                else if (reason is not null && !line.HasDifference)
+                if (line is null)
+                {
+                    errors[$"lines[{index}].lineId"] = ["La línea no pertenece al conteo."];
+                    continue;
+                }
+                if (reason is not null && !line.HasDifference)
                     errors[$"lines[{index}].reason"] = ["Solo las líneas con diferencia llevan motivo."];
+                if (shipmentId is not { } target) continue;
+                if (!line.HasDifference)
+                    errors[$"lines[{index}].correctsShipmentId"] = ["Solo una línea con diferencia corrige una salida."];
+                else if (!shipments.TryGetValue(target, out var shipment) || shipment.State != ShipmentState.Confirmed)
+                    errors[$"lines[{index}].correctsShipmentId"] = ["Elige una salida confirmada."];
+                else if (!shipment.Lines.Any(value => value.ArticleId == line.ArticleId && value.LocationId == line.LocationId
+                             && value.LotId == line.LotId))
+                    errors[$"lines[{index}].correctsShipmentId"] = ["Esa salida no sacó este artículo de esta ubicación y lote."];
             }
             if (errors.Count > 0)
                 throw new InventoryProblemException(422, "ValidationFailed", "Revisa los motivos marcados.", errors);
-            foreach (var (_, lineId, reason) in items)
-                count.Review(lineId, reason, context.ActorId);
+            foreach (var (_, lineId, reason, shipmentId) in items)
+                count.Review(lineId, reason, context.ActorId, shipmentId);
             Touch(db, count);
             await db.SaveChangesAsync(token);
             return Mutation(200, context, count, withLocation: false);
@@ -362,8 +385,15 @@ public sealed class CycleCountCommands(InventoryOperationExecutor executor)
                 movementId = (await context.Services.GetRequiredService<StockCore>().ApplyAsync(context, command, token)).MovementId;
             }
             count.Confirm(context.OperationId, movementId, context.ActorId, DateTimeOffset.UtcNow);
+            // P-07: las salidas corregidas se informan, pero ni ellas ni su pedido se tocan (OrderChanged = false).
+            var linked = adjusted.Where(line => line.CorrectsShipmentId is not null).ToList();
+            var linkedIds = linked.Select(line => line.CorrectsShipmentId!.Value).Distinct().ToList();
+            var orders = await db.Set<Shipment>().AsNoTracking().Where(value => linkedIds.Contains(value.Id))
+                .ToDictionaryAsync(value => value.Id, value => value.CustomerOrderId, token);
             return OperationResponse.Json(200, new CycleCountConfirmation(context.OperationId, id, movementId,
-                adjusted.Select(line => new AdjustedLine(line.Id, CycleCountView.Quantity(line.Difference!.Value))).ToList()), id);
+                adjusted.Select(line => new AdjustedLine(line.Id, CycleCountView.Quantity(line.Difference!.Value))).ToList(),
+                linked.Select(line => new ShipmentCorrection(line.Id, line.CorrectsShipmentId!.Value, orders[line.CorrectsShipmentId!.Value],
+                    OrderChanged: false, ShipmentCorrections.Notice)).ToList()), id);
         }, cancellation);
     }
 

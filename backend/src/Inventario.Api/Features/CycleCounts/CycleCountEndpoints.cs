@@ -104,6 +104,16 @@ public static class CycleCountEndpoints
                 return Results.Ok(found.Value.View);
             })
             .RequireAuthorization(Read).Produces<CycleCountView>().ProducesProblem(404);
+        // T012 (US4, D-09): salidas confirmadas que tocaron el bucket de la línea.
+        counts.MapGet("/{id:guid}/lines/{lineId:guid}/shipment-candidates", async (Guid id, Guid lineId, int? page, int? pageSize,
+                CycleCountQueries queries, HttpContext context, CancellationToken token) =>
+            {
+                var found = await queries.ShipmentCandidatesAsync(id, lineId, page, pageSize, token);
+                if (found is null) return ApiProblems.Status(404);
+                context.Response.Headers.CacheControl = "no-store";
+                return Results.Ok(found);
+            })
+            .RequireAuthorization(Read).Produces<PageResult<ShipmentCandidate>>().ProducesProblem(404).ProducesProblem(422);
         counts.MapGet("/{id:guid}/context", async (Guid id, CycleCountQueries queries, HttpContext context, CancellationToken token) =>
             {
                 var found = await queries.ContextAsync(id, token);

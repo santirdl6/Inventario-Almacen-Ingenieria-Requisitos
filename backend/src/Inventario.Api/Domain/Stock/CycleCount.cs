@@ -149,13 +149,17 @@ public sealed class CycleCount
         SubmittedAt = now;
     }
 
-    /// <summary>Revisión: fija o borra el motivo de una línea sin cambiar el contado (D-07, H6).</summary>
-    public CountLine Review(Guid lineId, string? reason, Guid actorId)
+    /// <summary>
+    /// Revisión: fija o borra el motivo de una línea y su vínculo a la salida confirmada que corrige, sin
+    /// cambiar el contado (D-07, D-09, H6). La salida, su existencia y su bucket los valida el comando.
+    /// </summary>
+    public CountLine Review(Guid lineId, string? reason, Guid actorId, Guid? correctsShipmentId = null)
     {
         RequireActor(actorId);
         Require(CycleCountState.AwaitingApproval);
         var line = Line(lineId);
         line.SetReason(reason, actorId);
+        line.SetCorrection(correctsShipmentId);
         return line;
     }
 

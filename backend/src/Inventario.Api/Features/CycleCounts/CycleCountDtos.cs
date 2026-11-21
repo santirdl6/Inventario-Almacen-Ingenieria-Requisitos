@@ -98,8 +98,8 @@ public sealed record CountedWrite(string? LineId, string? CountedPhysical);
 public sealed record FoundWrite(string? ArticleId, string? LocationId, string? LotCode, string? CountedPhysical);
 
 /// <summary>
-/// Cuerpo de PUT /cycle-counts/{id}/review (T009): motivo por línea; vacío lo retira. El vínculo a una
-/// salida (correctsShipmentId) llega en T012 y hasta entonces es un campo desconocido.
+/// Cuerpo de PUT /cycle-counts/{id}/review (T009, T012): motivo por línea (vacío lo retira) y, opcional,
+/// la salida confirmada que la diferencia corrige (D-09); ausente o null retira el vínculo.
 /// </summary>
 public sealed record CycleCountReviewWrite(IReadOnlyList<ReviewLineWrite>? Lines)
 {
@@ -118,7 +118,7 @@ public sealed record CycleCountReviewWrite(IReadOnlyList<ReviewLineWrite>? Lines
 
     private static ReviewLineWrite ReadLine(JsonElement item)
     {
-        string? line = null, reason = null;
+        string? line = null, reason = null, shipment = null;
         foreach (var property in item.EnumerateObject())
             switch (property.Name)
             {
@@ -127,16 +127,20 @@ public sealed record CycleCountReviewWrite(IReadOnlyList<ReviewLineWrite>? Lines
                     var text = CycleCountJson.Text(property.Value);
                     reason = string.IsNullOrEmpty(text) ? null : text;
                     break;
+                case "correctsShipmentId":
+                    var id = CycleCountJson.Text(property.Value);
+                    shipment = string.IsNullOrEmpty(id) ? null : CycleCountJson.NormalizeId(id);
+                    break;
                 default: throw InventoryProblemException.Validation(property.Name, "Este campo no forma parte de la línea revisada.");
             }
-        return new(line, reason);
+        return new(line, reason, shipment);
     }
 
     public JsonElement Fingerprint() => JsonSerializer.SerializeToElement(
         new { lines = (Lines ?? []).OrderBy(line => line.LineId, StringComparer.Ordinal).ToList() }, OperationResponse.JsonOptions);
 }
 
-public sealed record ReviewLineWrite(string? LineId, string? Reason);
+public sealed record ReviewLineWrite(string? LineId, string? Reason, string? CorrectsShipmentId = null);
 
 /// <summary>Cuerpo de POST /cycle-counts/{id}/cancel: motivo de 1 a 500 caracteres.</summary>
 public sealed record CycleCountCancelWrite(string? Reason)
@@ -156,7 +160,8 @@ public sealed record CycleCountCancelWrite(string? Reason)
 }
 
 /// <summary>Respuesta de POST /cycle-counts/{id}/confirm (sin ETag): el movimiento solo si hubo diferencias.</summary>
-public sealed record CycleCountConfirmation(Guid OperationId, Guid CountId, Guid? MovementId, IReadOnlyList<AdjustedLine> AdjustedLines);
+public sealed record CycleCountConfirmation(Guid OperationId, Guid CountId, Guid? MovementId, IReadOnlyList<AdjustedLine> AdjustedLines,
+    IReadOnlyList<ShipmentCorrection> ShipmentCorrections);
 
 public sealed record AdjustedLine(Guid LineId, string Difference);
 
@@ -227,15 +232,35 @@ public sealed record CycleCountView(Guid Id, string CountCode, string State, Gui
 
 public sealed record CountLocationView(Guid LocationId, bool IsFrozen);
 
+/// <summary>
+/// Línea del detalle. Con <see cref="CorrectsShipmentId"/>, <see cref="ShipmentCorrectionNotice"/> deja explícita
+/// la limitación P-07 en la respuesta: el ajuste no modifica lo servido ni el estado del pedido.
+/// </summary>
 public sealed record CountLineView(Guid Id, Guid ArticleId, Guid LocationId, string LotCode, bool IsFound, string TheoreticalPhysical,
     string? CountedPhysical, string? Difference, Guid? CountedBy, DateTimeOffset? CountedAt, string? Reason, Guid? ReasonBy,
-    Guid? CorrectsShipmentId)
+    Guid? CorrectsShipmentId, string? ShipmentCorrectionNotice)
 {
     internal static CountLineView From(CountLine line) => new(line.Id, line.ArticleId, line.LocationId, line.LotCode, line.IsFound,
         CycleCountView.Quantity(line.TheoreticalPhysical), CycleCountView.Quantity(line.CountedPhysical),
         CycleCountView.Quantity(line.CountedPhysical is { } counted ? counted - line.TheoreticalPhysical : null),
-        line.CountedBy, line.CountedAt, line.Reason, line.ReasonBy, line.CorrectsShipmentId);
+        line.CountedBy, line.CountedAt, line.Reason, line.ReasonBy, line.CorrectsShipmentId,
+        line.CorrectsShipmentId is null ? null : ShipmentCorrections.Notice);
 }
+
+/// <summary>
+/// Corrección de una salida confirmada mediante el conteo (D-09). Limitación P-07, decisión de alcance
+/// aprobada por A el 2026-11-21: el ajuste devuelve la diferencia al saldo de la ubicación, pero la salida,
+/// lo servido del pedido, su estado y los consumos de reservas no cambian (FR-019). Corregir el pedido
+/// exigiría su acumulado servido y su estado en el mismo commit, según el contrato común de correcciones.
+/// </summary>
+public static class ShipmentCorrections
+{
+    public const string Notice =
+        "El ajuste corrige solo las existencias: no cambia lo servido del pedido, su estado ni las reservas consumidas (P-07).";
+}
+
+/// <summary>Corrección aplicada al confirmar: OrderChanged es siempre false por la limitación P-07.</summary>
+public sealed record ShipmentCorrection(Guid LineId, Guid ShipmentId, Guid CustomerOrderId, bool OrderChanged, string Notice);
 
 /// <summary>Respuesta de las escrituras que devuelven el conteo con su nuevo ETag.</summary>
 public sealed record CycleCountMutation(Guid OperationId, CycleCountView Count);
@@ -258,3 +283,7 @@ public sealed record CountBucketReserved(Guid ArticleId, Guid LocationId, string
 public sealed record CountShipmentContext(Guid ShipmentId, Guid CustomerOrderId, string ExternalReference);
 
 public sealed record CountUserContext(Guid Id, string Name);
+
+/// <summary>GET /cycle-counts/{id}/lines/{lineId}/shipment-candidates: salida confirmada que tocó el bucket.</summary>
+public sealed record ShipmentCandidate(Guid ShipmentId, Guid CustomerOrderId, string ExternalReference, DateTimeOffset ConfirmedAt,
+    string Quantity, IReadOnlyList<Guid> LinkedCountLineIds);

@@ -90,6 +90,19 @@ public sealed class CountLine
         ReasonBy = normalized is null ? null : actorId;
     }
 
+    /// <summary>
+    /// Vínculo a la salida confirmada que la diferencia corrige (D-09). Limitación P-07 (aprobada por A el
+    /// 2026-11-21): solo documenta la corrección del físico; la salida, lo servido y el estado del pedido no
+    /// cambian, porque corregirlos exigiría su acumulado y estado en el mismo commit (contrato común).
+    /// </summary>
+    internal void SetCorrection(Guid? shipmentId)
+    {
+        if (shipmentId == Guid.Empty) throw new ArgumentException("La salida no es válida.", nameof(shipmentId));
+        if (shipmentId is not null && !HasDifference)
+            throw new InvalidOperationException("Solo una línea con diferencia corrige una salida.");
+        CorrectsShipmentId = shipmentId;
+    }
+
     private static string RequireLotCode(string lotCode) =>
         Lot.NormalizeCode(lotCode) ?? throw new ArgumentException("La línea requiere el código de lote.", nameof(lotCode));
 

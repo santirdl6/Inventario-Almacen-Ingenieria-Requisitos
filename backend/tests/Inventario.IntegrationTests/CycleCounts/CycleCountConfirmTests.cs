@@ -56,7 +56,7 @@ public sealed class CycleCountConfirmTests(IdentityFixture fixture) : IClassFixt
             var fields = ErrorFields(await StockApiSupport.ProblemAsync(noReason, HttpStatusCode.UnprocessableEntity, "ValidationFailed"));
             Assert.Equal(new[] { $"lines[{order.IndexOf(lineA)}].reason", $"lines[{order.IndexOf(lineC)}].reason" }.Order(), fields.Order());
         }
-        // Motivo en una línea sin diferencia, demasiado largo o vínculo a salida (llega en T012) → 422.
+        // Motivo en una línea sin diferencia, demasiado largo o vínculo a una salida inexistente → 422.
         using (var noDifference = await ReviewAsync(responsable, id, etag, (lineB, "Sin diferencia")))
             Assert.Contains("lines[0].reason", ErrorFields(await StockApiSupport.ProblemAsync(noDifference,
                 HttpStatusCode.UnprocessableEntity, "ValidationFailed")));

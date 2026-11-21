@@ -12,7 +12,7 @@ comprobar resultados.
 | Ruta | Respuesta |
 |------|-----------|
 | `GET /cycle-counts?state=&page=&pageSize=` | `{ items, page, pageSize, totalCount }`; cada item: `id`, `countCode`, `state`, `locationIds`, `createdBy`, `createdAt`, `startedAt`, `closedAt`. Orden: `createdAt` descendente, luego `id`. |
-| `GET /cycle-counts/{id}` | `ETag` fuerte. Solo datos propios (D-12): cabecera, `locations: [{ locationId, isFrozen }]` por `locationId`, `lines` por `id` con `articleId`, `locationId`, `lotCode`, `isFound`, `theoreticalPhysical`, `countedPhysical`, `difference`, `countedBy`, `countedAt`, `reason`, `reasonBy`, `correctsShipmentId`. 404 si no existe. |
+| `GET /cycle-counts/{id}` | `ETag` fuerte. Solo datos propios (D-12): cabecera, `locations: [{ locationId, isFrozen }]` por `locationId`, `lines` por `id` con `articleId`, `locationId`, `lotCode`, `isFound`, `theoreticalPhysical`, `countedPhysical`, `difference`, `countedBy`, `countedAt`, `reason`, `reasonBy`, `correctsShipmentId` y, si está vinculada, `shipmentCorrectionNotice` (aviso P-07: no cambia lo servido ni el estado del pedido). 404 si no existe. |
 | `GET /cycle-counts/{id}/context` | Sin `ETag`. `countVersion`; `articles` (sku, nombre, unidad, `allowsFractions`, `tracksLot`, `isActive`); `locations` (código, activa); `reservedByBucket`; `shipments` vinculadas (`externalReference` del pedido); `users` (nombre visible). |
 | `GET /cycle-counts/{id}/lines/{lineId}/shipment-candidates?page=` | Salidas `Confirmed` con alguna línea en el bucket de la línea: `shipmentId`, `customerOrderId`, `externalReference`, `confirmedAt`, `quantity` en el bucket, `linkedCountLineIds`. Más reciente primero. |
 
@@ -27,7 +27,7 @@ comprobar resultados.
 | `DELETE /cycle-counts/{id}/lines/{lineId}` | Counts.Record | Counting | — (solo hallazgos) | 204, `ETag` |
 | `POST /cycle-counts/{id}/submit` | Counts.Record | Counting | — | 200, `ETag` |
 | `PUT /cycle-counts/{id}/review` | Inventory.Adjust | AwaitingApproval | `{ lines: [{ lineId, reason, correctsShipmentId? }] }` | 200, `ETag` |
-| `POST /cycle-counts/{id}/confirm` | Inventory.Adjust | AwaitingApproval | — | 200 `{ operationId, countId, movementId?, adjustedLines }`, sin `ETag` |
+| `POST /cycle-counts/{id}/confirm` | Inventory.Adjust | AwaitingApproval | — | 200 `{ operationId, countId, movementId?, adjustedLines: [{ lineId, difference }], shipmentCorrections: [{ lineId, shipmentId, customerOrderId, orderChanged: false, notice }] }`, sin `ETag` |
 | `POST /cycle-counts/{id}/cancel` | Inventory.Adjust | Draft, Counting, AwaitingApproval | `{ reason }` (1–500) | 200 `{ operationId, countId }`, sin `ETag` |
 
 El cuerpo se normaliza antes de la idempotencia (cantidades, lotes en mayúsculas y orden), como en
@@ -57,3 +57,6 @@ HU-05 D-05: la misma intención con otro cuerpo da `409 IdempotencyConflict`.
 - `POST /reservations/{id}/release` no cambia: sigue admitida sobre un alcance
   congelado (clarificación Q1).
 - El historial de artículo muestra el movimiento `Adjustment` con documento `cycle-count`.
+- Limitación P-07 (aprobada por A el 2026-11-21): vincular una línea a una salida corrige solo el
+  físico. `Shipments`, `CustomerOrderLines.ShippedQuantity`, el estado del pedido y los consumos de
+  reservas no cambian; la respuesta lo declara con `orderChanged: false` y `notice`.
