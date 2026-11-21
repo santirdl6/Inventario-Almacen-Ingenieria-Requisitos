@@ -127,7 +127,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     `DeriveFulfilment` y por CS0234, al no existir `Domain.Shipping`.
   - Verde: 18 pruebas (H-01); suite 225/1/0; sin cambios de modelo.
   - Dos commits: `e5d5d96` (⚑ HU-05) y el de `Shipment.cs`.
-- [ ] T004 [INT-HU03-01] 🔀 PR #9 Esquema completo **en un solo commit** (los triggers y el modelo no
+- [X] T004 [INT-HU03-01] 🔀 PR #9 Esquema completo **en un solo commit** (los triggers y el modelo no
   se separan sin romper `has-pending-model-changes`). Depende de T003.
   - **Rojo esperado**: crear `Shipping/Hu03SchemaTests.cs` (H-02) y ampliar el conjunto exacto de
     `Stock/Hu05SchemaTests.cs` con `ShipmentLine`. Fallan porque las tablas, los triggers y el
@@ -182,6 +182,26 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     `HU03_Shipments` sobre la última (plan global §5).
 
   (D-06 con su iteración, D-08–D-10; data-model, invariante 7; FR-004, FR-013, FR-017.)
+
+  **Hecho (2026-11-21)**, en un solo commit:
+  - Configuraciones EF con `HasTrigger` en las tres tablas.
+  - `ShippingDocuments`, `ShipmentArticleUsageContributor` registrado en `AddStockCore`, y
+    `AddShipping()` y `MapShippingEndpoints()` vacíos.
+  - Migración `20261121114907_HU03_Shipments`, sobre `HU05_CustomerOrdersReservations`, con los
+    tres triggers (solo `THROW`, decisión M3) y el `DENY`.
+  - `Hu05SchemaTests`: conjunto exacto con `ShipmentLine`, y HU-05 deja de ser la última migración.
+  - Rojo previo, en dos etapas:
+    - (1) las 10 pruebas de `Hu03SchemaTests` fallaban, porque las entidades no estaban en el
+      modelo ni existía la migración;
+    - (2) con la tabla de consumos y su `OperationId` pero sin el trigger nuevo ni el complemento,
+      el `INSERT` tardío con otra operación se admitía y confirmar sobre un consumo ajeno también
+      («No exception was thrown»).
+  - Verde: 14/14 en las pruebas de esquema de HU-03 y HU-05. Con `THROW`, el error es 51304 y no
+    3609, `RollbackAsync` termina sin excepción y la conexión sigue utilizable.
+  - Suite 235/1/0; `has-pending-model-changes` limpio; cadena desde cero (fixture); revertir a
+    HU-05 y reaplicar con `dotnet ef database update` sobre una base temporal, ya eliminada.
+  - Desviación: al borrar una salida confirmada con consumos, la FK (547) rechaza antes que el
+    trigger. Es igual de seguro y está anotado en D-06.
 - [ ] T005 ⚑ commit aparte (archivo común). En `backend/src/Inventario.Api/Program.cs`, añadir el
   `using Inventario.Api.Features.Shipping;`, `builder.Services.AddShipping();` y
   `api.MapShippingEndpoints();` junto a los de Stock, sin otro cambio. Depende de T004. Sin rojo

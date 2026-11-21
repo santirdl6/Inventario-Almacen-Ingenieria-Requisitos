@@ -200,6 +200,17 @@ Límites aceptados:
   aplicación solo inserta al confirmar, y esa fila impediría eliminar el borrador (FK `Restrict`
   desde la línea), así que el fallo sería visible.
 
+**Decisión M3 (B, 2026-11-21; analyze-1 M3), aplicada en T004**: los tres triggers solo hacen
+`THROW` (51301 salida confirmada, 51302 consumos de otra operación al confirmar, 51303 líneas de una
+confirmada y 51304 consumo tardío), **sin `ROLLBACK` explícito**. Un `ROLLBACK` dentro del trigger
+cierra la transacción del ejecutor y el cliente recibe el error 3609. Con solo `THROW`, el
+`XACT_ABORT` implícito del trigger aborta la transacción y el error que llega es el del trigger.
+`Hu03SchemaTests` comprueba, dentro de una transacción de EF, que llega 51304 y no 3609, que
+`RollbackAsync` termina sin otra excepción y que la conexión sigue utilizable.
+
+Al borrar una salida confirmada **con** consumos, la FK `Restrict` desde los consumos (547)
+rechaza antes que los triggers. Sin consumos, lo rechaza el trigger. En ambos casos no se borra.
+
 **Alternativas** a la iteración:
 
 - (a) Trigger de `INSERT` contra la cabecera `Confirmed`: rompe la confirmación según el orden de
