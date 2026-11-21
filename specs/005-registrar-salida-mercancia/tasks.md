@@ -202,10 +202,10 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     HU-05 y reaplicar con `dotnet ef database update` sobre una base temporal, ya eliminada.
   - Desviación: al borrar una salida confirmada con consumos, la FK (547) rechaza antes que el
     trigger. Es igual de seguro y está anotado en D-06.
-- [ ] T005 ⚑ commit aparte (archivo común). En `backend/src/Inventario.Api/Program.cs`, añadir el
+- [X] T005 ⚑ commit aparte (archivo común). En `backend/src/Inventario.Api/Program.cs`, añadir el
   `using Inventario.Api.Features.Shipping;`, `builder.Services.AddShipping();` y
   `api.MapShippingEndpoints();` junto a los de Stock, sin otro cambio. Depende de T004. Sin rojo
-  propio: la suite completa debe seguir en verde (guarda).
+  propio: la suite completa debe seguir en verde (guarda). **Hecho (2026-11-21)**: tres líneas en `Program.cs`; suite 235/1/0, igual que T004; `has-pending-model-changes` limpio.
 
 **Checkpoint**: migración aplicada, triggers probados, suite previa en verde y feature registrada
 sin rutas.
