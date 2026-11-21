@@ -217,7 +217,7 @@ sin rutas.
 **Objetivo**: localizar el pedido, preparar el borrador y confirmar la salida con consumo de
 reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
 
-- [ ] T006 [P] [US1] ⚑ commit aparte (archivos de B de HU-05) ⚠ PR #9. Búsqueda exacta del pedido
+- [X] T006 [P] [US1] ⚑ commit aparte (archivos de B de HU-05) ⚠ PR #9. Búsqueda exacta del pedido
   (D-11, FR-001a). Depende de T005. Riesgo: `CustomerOrderQueries.cs`, `CustomerOrderDtos.cs` y
   `StockEndpoints.cs`. La revisión del PR #9 ya cambió el contexto del pedido (C3,
   `creationOperationId`).
@@ -231,6 +231,15 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
     `Inventory.Read`, mapeada **antes** de `/{id:guid}`.
 
   (US1.11; FR-001a; [contrato](contracts/shipping-api.md#get-customer-orderslookup).)
+
+  **Hecho (2026-11-21)**:
+  - `LookupAsync`, `CustomerOrderLookup` y `GET /customer-orders/lookup` (con `no-store`).
+  - Rojo previo: las 3 pruebas de `CustomerOrderLookupTests` fallaban porque la ruta no existía.
+    Respondía el 404 genérico, sin id ni detalle propio.
+  - Verde: 3/3 (H-03). Cubre « referencia » en minúsculas y con espacios; inexistente y parcial →
+    404; vacía, en blanco, de 65 caracteres o ausente → 422; GestorMaestros y ResponsableAlmacen →
+    200; Administrador → 403; sin sesión → 401.
+  - Suite 238/1/0; sin cambios de modelo.
 - [ ] T007 [US1] Borrador: crear, editar, eliminar y detalle. Depende de T005.
   - En `Features/Shipping/`: `ShipmentCommands.cs` (crear, editar y eliminar; la confirmación es
     T009), `ShipmentQueries.cs` (`DetailAsync` en `SNAPSHOT`, solo datos propios, líneas **por Id**),

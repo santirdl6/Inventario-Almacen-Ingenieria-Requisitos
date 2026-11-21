@@ -54,6 +54,18 @@ public static class StockEndpoints
                 commands.CreateAsync(LocationEndpoints.Key(context), CustomerOrderWrite.Read(body), token))
             .RequireAuthorization(CustomerOrderCommands.Permission).Accepts<CustomerOrderWrite>("application/json")
             .Produces<CustomerOrderMutation>(201).ProducesProblem(400).ProducesProblem(403).ProducesProblem(409).ProducesProblem(422);
+        // HU-03 (T006, D-11, FR-001a): búsqueda exacta por referencia externa. Se mapea antes de
+        // /{id:guid} para que la ruta quede declarada junto a las demás lecturas del pedido.
+        orders.MapGet("/lookup", async (string? externalReference, CustomerOrderQueries queries, HttpContext context,
+                CancellationToken token) =>
+            {
+                var found = await queries.LookupAsync(externalReference, token);
+                context.Response.Headers.CacheControl = "no-store";
+                return found is null
+                    ? ApiProblems.Create(404, "NotFound", "No hay ningún pedido con esa referencia.")
+                    : Results.Ok(found);
+            })
+            .RequireAuthorization(Read).Produces<CustomerOrderLookup>().ProducesProblem(404).ProducesProblem(422);
         // Detalle versionado: solo datos propios y ETag de CustomerOrder.Version (D-07, D-11).
         orders.MapGet("/{id:guid}", async (Guid id, CustomerOrderQueries queries, HttpContext context, CancellationToken token) =>
             {
