@@ -193,7 +193,10 @@ real en salidas, reservas y ubicaciones.
   `LockBarrier` y conexiones independientes, **en ambos órdenes**: iniciar frente a confirmar una salida,
   reservar y desactivar la ubicación (C-13, 20 rondas); confirmar frente a liberar una reserva; añadir y
   retirar un hallazgo frente a la edición de definición y el borrado del artículo (C-15); tras la
-  retirada, el artículo sin otras referencias admite la edición y el borrado. **Rojo esperado**: sin rojo
+  retirada, el artículo sin otras referencias admite ~~la edición y~~ el borrado, pero su definición sigue
+  bloqueada (regla común de A en `ArticleCommands`, `ArticleDefinitionLocked`: la primera referencia bloquea
+  la definición aunque después se retire). **Desviación visible**: el enunciado original decía «admite la
+  edición y el borrado»; corregido el 2026-11-21 (converge-1, nota documental). **Rojo esperado**: sin rojo
   natural si T005–T009 ya serializan; comprobar con una mutación temporal (quitar `LocationsAsync` del
   inicio) que la carrera falla, y anotarla. Depende de T009.
   - **Hecho**: sin rojo natural. Mutación temporal sin commit (quitar `LocationsAsync` del inicio): fallan 4
