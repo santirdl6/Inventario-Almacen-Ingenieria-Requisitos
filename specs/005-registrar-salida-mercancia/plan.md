@@ -263,7 +263,10 @@ Ningún documento ni archivo común o de A se edita en esta rama sin aviso y rev
 | P-02 (consumos por asignación, ligados a la operación, con totales declarados de Convergence C1, `a6ec4b2`) | Confirmado expresamente por A, incluido el detalle por asignación. |
 | P-06 (`pending-operation.store.ts` y `operation-status.component.ts`) | Confirmado expresamente por A. |
 | Triggers de D-06 en lugar de `DENY DELETE` | Confirmados expresamente por A. |
-| P-03, P-04, P-05 y P-08 | Cubiertos por la luz verde general de A a T001/T002; confirmación ítem a ítem pendiente. |
+| P-03 (contrato de salidas, con `ETag` en el detalle y `orderVersion` en la confirmación) | Confirmado expresamente por A el 21/11/2026 (77e79a8). |
+| P-04 (búsqueda del pedido por referencia externa exacta con Inventory.Read) | Confirmado expresamente por A el 21/11/2026 (77e79a8). |
+| P-05 (orden de bloqueos, revalidación de `orderVersion` bajo bloqueo y trazabilidad de la salida) | Confirmado expresamente por A el 21/11/2026 (77e79a8). |
+| P-08 (evidencia de integración de HU-03 en el quickstart común, con los pendientes documentados) | Confirmado expresamente por A el 21/11/2026 (77e79a8). |
 | P-07 | Se aplica con la limitación que pidió A: la corrección por conteo no corrige el pedido (ver la fila P-07). |
 
 ### Archivos de B fuera de la feature que se tocan
