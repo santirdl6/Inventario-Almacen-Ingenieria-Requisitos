@@ -346,6 +346,13 @@ recargar; un usuario sin permiso de registro de conteos no puede crear ni inicia
   lo servido o el consumo exigiría un cambio compartido (AGENTS.md) fuera de esta feature.
 - **FR-020**: El vínculo DEBE rechazarse si la salida no está confirmada o si la línea no
   corresponde a un bucket de origen de esa salida; la confirmación sigue las reglas de FR-011.
+- **Limitación de la corrección por conteo (P-07)**: con una salida confirmada de 6 cuando salieron
+  4, el ajuste del conteo devuelve 2 al saldo de la ubicación, pero el pedido sigue mostrando 6
+  servidas y su estado no cambia: **no se corrige el pedido**. Corregirlo exigiría corregir su
+  acumulado servido y su estado en el mismo commit que el movimiento, como exige el
+  [contrato común § Correcciones](../../.specify/memory/project/contracts/stock-operations.md#correcciones-y-contingencia).
+  No corregirlo es una decisión de alcance, aprobada por A el 2026-11-21. La pantalla de detalle
+  del conteo DEBE avisarlo de forma visible ([contrato UI](contracts/cycle-counts-ui.md), T016).
 
 **Trazabilidad**
 

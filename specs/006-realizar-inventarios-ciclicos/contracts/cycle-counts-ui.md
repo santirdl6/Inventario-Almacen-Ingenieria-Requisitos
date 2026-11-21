@@ -29,6 +29,13 @@ estados de operación e información que no debe ocultarse). Decisiones en [rese
   «Confirmar ajuste» abre un diálogo de revisión final; «Cancelar conteo» pide motivo.
 - **Cerrado**: solo lectura, con aprobación o cancelación, motivo, operación y enlace al movimiento;
   en cada línea vinculada, la salida corregida con la referencia externa de su pedido (FR-022, US4.2).
+- **Aviso de corrección de salida (P-07)**: en el detalle del conteo, siempre que haya una línea
+  vinculada a una salida (al vincular, en la revisión final y en el estado cerrado), aviso visible
+  de que el pedido no se corrige. Ejemplo: salida de 6 cuando salieron 4 → el ajuste devuelve 2 al
+  saldo, pero el pedido sigue mostrando 6 servidas y su estado no cambia. Corregir el pedido
+  exigiría su acumulado y estado en el mismo commit, según el
+  [contrato común § Correcciones](../../../.specify/memory/project/contracts/stock-operations.md#correcciones-y-contingencia);
+  queda fuera de alcance (decisión aprobada por A el 2026-11-21).
 
 ## Resultados y errores
 

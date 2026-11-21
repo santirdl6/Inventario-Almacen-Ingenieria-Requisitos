@@ -189,14 +189,19 @@ real en salidas, reservas y ubicaciones.
 - [ ] T016 [US2] [US4] Revisión, confirmación y cancelación: `count-review-dialog.ts`,
   `shipment-link-dialog.ts` (candidatas con todas las páginas, aviso «No cambia lo servido del pedido ni
   las reservas consumidas») y estado cerrado en solo lectura con la operación visible al recuperar
-  (`OperationStatusComponent`) y, en cada línea vinculada, la salida corregida (FR-022, US4.2). Vitest,
-  con una prueba de un conteo cerrado con una línea vinculada. **Rojo esperado**: la spec no encuentra «Confirmar ajuste».
+  (`OperationStatusComponent`) y, en cada línea vinculada, la salida corregida (FR-022, US4.2). Aviso
+  visible de la limitación P-07 en el detalle del conteo (salida de 6, real 4 → el ajuste devuelve 2 al
+  saldo, pero el pedido sigue mostrando 6 servidas; el pedido no se corrige), según
+  [spec § FR-020](spec.md) y el [contrato UI](contracts/cycle-counts-ui.md). Vitest,
+  con una prueba de un conteo cerrado con una línea vinculada que muestra el aviso. **Rojo esperado**: la spec no encuentra «Confirmar ajuste».
   Depende de T015 y, para el vínculo, de T012.
 - [ ] T017 [US1] [US2] E2E-03 en `frontend/e2e/hu04-cycle-counts.spec.ts`: operario crea, inicia y cuenta
   con una diferencia; responsable revisa con motivo y confirma; existencias ajustadas y ubicación fuera de
   conteo. Reutiliza las cuentas `operario` y `responsable` y `POST /testing/stock-receipts`; sin cambios en
   fixtures de A (si hicieran falta, preguntar). **Rojo esperado**: falla en la primera navegación a
-  `/inventarios/nuevo`. Depende de T016.
+  `/inventarios/nuevo`. Depende de T016. **M1 de analyze-1**: si el E2E falla a mitad, debe limpiar
+  (cancelar) o reutilizar su conteo abierto para no dejar ubicaciones congeladas que rompan la
+  siguiente ejecución.
 
 ## Phase 8: Cierre
 
