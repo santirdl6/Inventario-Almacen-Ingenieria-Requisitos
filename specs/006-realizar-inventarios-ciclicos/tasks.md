@@ -373,3 +373,32 @@ en el PR sin editarse (T001).
 3. **Corrección de salidas** (T012).
 4. **Interfaz** (T013–T017). Sin ella, la funcionalidad existe por API pero no se valida con trabajadores.
 5. **Cierre** (T018).
+
+## Phase 10: Convergence
+
+Tareas `C1…` de [converge-1](validation/converge-1.md) (2026-11-21), fuera de la numeración
+T001–T018. **Sin implementar**: B las revisa con A antes de pasar `/speckit-implement`. La fase 9
+queda como estaba (la skill solo añade).
+
+- [ ] C1 ⚑ Nombrar la ubicación y el `countCode` que la ocupa en el 409 `CountScopeFrozen` de
+  `ShipmentCommands.cs` (HU-03), `ReservationCommands.cs` (HU-05) y `LocationCommands.cs` (HU-02), y
+  comprobar el `detail` en `CountScopeFrozenTests`, según US3.1 y FR-014 (partial, G1).
+- [ ] C2 Mostrar en `/inventarios` los responsables (creó; aprobó o canceló) y los códigos del alcance,
+  ampliando `CycleCountSummary` y el contrato de la lista, o reformular FR-023 con `/speckit-clarify`,
+  según FR-023 (partial, G2).
+- [ ] C3 Indicar en el detalle del pedido de cliente o de la salida corregida que un conteo vinculado
+  corrigió el físico sin cambiar lo servido, o acotar US4.3 al detalle del conteo con
+  `/speckit-clarify`, según US4.3 y FR-019 (partial, G3).
+- [ ] C4 En el 409 `ReservedStockConflict` de la confirmación, enlazar al pedido o pedidos que reservan
+  en el bucket, o corregir el contrato UI a `/existencias`, según contracts/cycle-counts-ui.md
+  § Resultados (contradicts, G4).
+- [ ] C5 Mostrar el número de líneas con diferencia en todos los estados posteriores al inicio, no solo
+  en la revisión, según FR-005 (partial, G5).
+- [ ] C6 Validar en local la fracción del hallazgo con el artículo elegido, según FR-004 y FR-029
+  (partial, G6).
+- [ ] C7 Decidir el recorrido historial → conteo de la prueba independiente de US2: documentarlo en
+  el quickstart o pedir a A un enlace del soporte `cycle-count` a `/inventarios/{id}` en
+  `article-history.component.ts`, según US2 y US4.2 (partial, G7).
+- [ ] C8 ⚑ Cerrar T034 de HU-02 (`specs/003-gestionar-ubicaciones/tasks.md`) con la evidencia de HU-04
+  (T005) y añadir un Vitest de `location-detail.page` con `inOpenCount: true`, según FR-016 (partial,
+  G8).
