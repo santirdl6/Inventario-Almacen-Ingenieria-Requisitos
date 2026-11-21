@@ -83,7 +83,11 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   [plan.md § Estado de la revisión de A](plan.md#estado-de-la-revisión-de-a):
   - confirmados expresamente: P-01, P-02 (totales declarados de C1, `a6ec4b2`, y detalle por
     asignación), P-06 y los triggers de D-06;
-  - P-03, P-04, P-05 y P-08: cubiertos por la luz verde general; confirmación ítem a ítem pendiente;
+  - A confirmó expresamente estos cuatro puntos tal como figuran en el PR #10 ([`77e79a8`](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/pull/10/commits/77e79a899c992dfa6de34a51de2e2ec818f19554)):
+    - P-03: contrato de salidas con `ETag` en el detalle y `orderVersion` en la confirmación.
+    - P-04: búsqueda del pedido por referencia externa exacta con `Inventory.Read`.
+    - P-05: orden de bloqueos, revalidación de `orderVersion` bajo bloqueo y trazabilidad de la salida.
+    - P-08: evidencia de integración de HU-03 en el quickstart común, con los pendientes documentados.
   - P-07: con la limitación pedida por A (`34af23d`).
   Ninguno rechazado: no cambia ninguna tarea.
 - [X] T002 Aplicar los diffs aprobados
@@ -109,8 +113,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - `integration-tasks.md`: P-07 como INT-HU04-04, con la limitación pedida por A; INT-HU03-01 e
     INT-HU03-02 marcadas con su evidencia.
   - `quickstart.md` común: P-08 en § 11, con la evidencia tras T018 y Convergence C4.
-  P-03, P-04, P-05 y P-08 quedan con confirmación ítem a ítem de A pendiente (plan, «Estado de la
-  revisión de A»).
+  La confirmación expresa de A para P-03, P-04, P-05 y P-08 consta en T001.
 
 ---
 
