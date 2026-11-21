@@ -378,28 +378,37 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
   - `shipment-form.page.ts` (nueva y `:id` en borrador): fecha del hecho por defecto ahora;
     «Añadir» por línea con pendiente; **propuesta** desde las asignaciones activas del pedido, por
     Id, acotada al pendiente, con «Propuesto desde la reserva» (D-13); selector de buckets con
-    `GET /stock?articleId=` sin filas a cero; «Guardar borrador» (`POST`/`PUT` con `appRoute`);
-    «Eliminar borrador» con diálogo de confirmación y aviso al volver al pedido.
+    **todas** las combinaciones con existencias del artículo, mediante `StockApiService.allRows(articleId,
+    false)` de HU-05 (C4, ya en la rama por `ca9f6db`; analyze-1 H3); «Guardar borrador»
+    (`POST`/`PUT` con `appRoute`); «Eliminar borrador» con diálogo de confirmación y aviso al volver
+    al pedido.
   - **Rojo esperado** en `shipment-form.page.spec.ts`: propuesta con dos buckets, sin reserva y
-    acotada; guardar envía clave, cuerpo e `If-Match`; 422 por línea conserva datos y enfoca el
+    acotada; el selector ofrece un bucket posterior al 25 de un artículo con 30 combinaciones;
+    guardar envía clave, cuerpo e `If-Match`; 422 por línea conserva datos y enfoca el
     primer `aria-invalid` (patrón `focus-first-error.ts` de HU-05); 412 recarga sin perder lo escrito;
     eliminar con confirmación.
 
   (US1.1, US1.8–US1.10; FR-004–FR-006a, FR-024.)
 - [ ] T016 [US1] [US2] Revisar, confirmar y recuperar. Depende de T015.
   - `shipment-review-dialog.ts` (`cdkTrapFocus`, Escape): cifras de `review`, aviso en texto si la
-    cantidad supera la posible, nota de revalidación, «Confirmar salida» con `orderVersion` del
-    contexto.
+    cantidad supera la posible, «Inactivo» en texto junto al artículo inactivo sin deshabilitar la
+    confirmación (US3.2, FR-006; analyze-1 H5), nota de revalidación, «Confirmar salida» con
+    `orderVersion` del contexto.
   - Resultados según [shipping-ui § Resultados y errores](contracts/shipping-ui.md#resultados-y-errores):
     200 → «Salida registrada. Operación …» y solo lectura; 409 `InsufficientStock` con el
     `detail`; 409 `ReservedStockConflict` con enlace a `/existencias/pedidos/:id`; 412 → recarga de la
     revisión; respuesta perdida → `OperationStatusComponent` con «Abrir salida».
-  - Salida confirmada en `:id`: solo lectura, sin «Guardar», «Eliminar» ni «Revisar».
+  - Salida confirmada en `:id`: solo lectura, sin «Guardar», «Eliminar» ni «Revisar», y con
+    «Salida confirmada con la operación {operationId}» tomado del detalle (`GET /shipments/{id}`).
+    Así se ve también al reabrirla en otra sesión, por «Abrir salida» o por URL (FR-023, US4.2;
+    analyze-1 H2, como C3 de HU-05).
   - Borrador en `:id` sin `Shipping.Record` (área con `Inventory.Read`, D-14): también en solo
     lectura, sin «Guardar», «Eliminar» ni «Revisar». Las acciones dependen de
     `SessionService.has('Shipping.Record')` y no solo del estado.
   - **Rojo esperado** en `shipment-review-dialog.spec.ts` y ampliación de `shipment-form.page.spec.ts`:
-    cada resultado; foco al aviso en 409 sin campo; `orderVersion` enviado; un borrador abierto con
+    cada resultado; foco al aviso en 409 sin campo; `orderVersion` enviado; «Inactivo» en la
+    revisión con `isActive = false` y «Confirmar salida» habilitado; una salida confirmada abierta
+    sin aviso previo muestra su `operationId`; un borrador abierto con
     solo `Inventory.Read` no muestra «Guardar», «Eliminar» ni «Revisar», y con `Shipping.Record` sí; tras recargar con una
     confirmación pendiente, el panel ofrece «Abrir salida» con `href` `/salidas/{id}` y «Comprobar»
     hace un único `GET /operations/{id}`.
@@ -418,8 +427,10 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
      sembradas y pedido de 6 (operario).
   2. El responsable reserva 4 por la interfaz de HU-05.
   3. El operario busca la referencia con espacios y minúsculas, prepara la salida con la propuesta
-     (4), añade 2 desde disponible, revisa (propio 4, posible 6) y confirma.
-  4. Ve «Salida registrada» y el pedido servido; en `/existencias`, físico 4 y reservado 0.
+     (4) y cambia su cantidad a 6. No añade otra fila del mismo bucket, porque repetiría línea,
+     ubicación y lote (FR-002; analyze-1 H1). Revisa (propio 4, posible 6) y confirma.
+  4. Ve «Salida registrada» y el pedido servido; en `/existencias`, físico 4 y reservado 0. Al
+     reabrir `/salidas/{id}` ve la operación de la confirmación (analyze-1 H2).
   - **Rojo esperado**: falla en el paso 3 si se ejecuta antes de T014–T016 (placeholder de
     `/salidas`); anotarlo.
   - **Si hiciera falta** otra cuenta o activación, se permite tocar `docker-compose.yml`,
@@ -455,9 +466,8 @@ numeración T001–T018.
   integración).
 - **X3** Paginación de la lista de salidas del pedido en la UI más allá de la primera página (la API
   la ofrece en T012).
-- **X4** Selector de buckets con todas las páginas de `GET /stock`. HU-05 ya cerró su G3 con
-  `StockApiService.allRows` (C4, `363de56`), así que basta con reutilizarlo cuando la rama incluya
-  ese commit.
+- ~~X4~~ **Integrada en T015** tras `/speckit-analyze` (analyze-1 H3): el selector de buckets usa
+  `StockApiService.allRows`, ya en la rama. El identificador X4 queda sin uso para no renumerar.
 
 ---
 

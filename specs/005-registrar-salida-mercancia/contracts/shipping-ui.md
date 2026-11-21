@@ -39,8 +39,9 @@ El área `salidas` de `operation-areas.ts` pasa a `Inventory.Read` (research D-1
 - Por cada línea de pedido con pendiente: «Añadir». Con reservas propias, se precargan sus orígenes
   con el remanente como cantidad (sin superar el pendiente) y la marca «Propuesto desde la reserva»;
   el operario cambia la cantidad, quita filas o añade otro origen con el selector de buckets del
-  artículo (`GET /stock?articleId=`, sin filas a cero por defecto). Sin reserva propia, la fila
-  queda vacía.
+  artículo. El selector ofrece todas las combinaciones con existencias, sin filas a cero, leídas con
+  `StockApiService.allRows` de HU-05 (todas las páginas de `GET /stock?articleId=`; analyze-1 H3).
+  Sin reserva propia, la fila queda vacía.
 - Cada fila muestra ubicación, lote o «sin lote», cantidad con unidad, y el pendiente de su línea.
 - «Guardar borrador» crea (`POST`) o sustituye (`PUT`) y navega o se queda en `/salidas/:id`.
 - «Eliminar borrador» pide confirmación en un diálogo y, tras el 204, vuelve al pedido con el aviso
@@ -50,7 +51,8 @@ El área `salidas` de `operation-areas.ts` pasa a `Inventory.Read` (research D-1
 
 Diálogo accesible (`cdkTrapFocus`, Escape cierra, foco vuelve al botón):
 
-- Pedido y cliente; por línea: artículo, unidad, ubicación, lote, cantidad, pendiente, físico,
+- Pedido y cliente; por línea: artículo (con «Inactivo» en texto si `isActive = false` en el
+  contexto, sin impedir confirmar; US3.2, analyze-1 H5), unidad, ubicación, lote, cantidad, pendiente, físico,
   reservado propio, reservado ajeno y cantidad posible (`review` de `/context`), con la nota «El
   sistema vuelve a comprobar las cantidades al confirmar».
 - Línea con cantidad mayor que la posible: aviso en texto en esa fila (no solo color); el botón
@@ -62,6 +64,7 @@ Diálogo accesible (`cdkTrapFocus`, Escape cierra, foco vuelve al botón):
 | Caso | Comportamiento |
 |------|----------------|
 | Confirmada (200) | «Salida registrada. Operación {operationId}»; se recargan salida y pedido; la vista pasa a solo lectura. |
+| Salida confirmada abierta después | En solo lectura, «Salida confirmada con la operación {operationId}», con el `operationId` de `GET /shipments/{id}`. Se ve igual en otra sesión, por «Abrir salida» o por URL (FR-023, US4.2; analyze-1 H2). |
 | 422 | Errores por campo y por línea; foco al primer `aria-invalid`; datos conservados. |
 | 409 `InsufficientStock` | Aviso con el `detail` (físico, disponible, cantidad posible) junto a la línea; foco al aviso. |
 | 409 `ReservedStockConflict` | Aviso «Antes de servir desde otro origen hay que liberar {cantidad} reservadas de la línea {SKU}. Pídelo a un responsable del almacén» con enlace al pedido en `/existencias/pedidos/:id`. |

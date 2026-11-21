@@ -52,16 +52,18 @@ concurrencia se repiten tres veces.
 ## Pruebas frontend (Vitest)
 
 Búsqueda (encontrado, inexistente, foco); pedido con salidas y estado servido; propuesta desde
-reservas (dos buckets, sin reserva, acotada al pendiente); borrador (guardar, editar, 412, eliminar
-con confirmación); revisión (cifras de `review`, aviso de cantidad posible); errores con foco al
+reservas (dos buckets, sin reserva, acotada al pendiente); selector con un bucket posterior al 25;
+borrador (guardar, editar, 412, eliminar con confirmación); revisión (cifras de `review`, aviso de
+cantidad posible, «Inactivo» sin bloquear); salida confirmada reabierta con su operación; errores con foco al
 primer error; `ReservedStockConflict` con enlace al pedido; cambios de archivos de A en specs nuevas
 de B (`mutationPermission`, `APP_ROUTE` y enlace «Abrir salida»).
 
 ## E2E-02 (Playwright)
 
 Responsable reserva 4 de 10 para PED-E2E (HU-05); operario busca « ped-e2e », prepara la salida con
-la propuesta, añade 2 desde disponible, revisa (propio 4, posible 6) y confirma; ve «Salida
-registrada», el pedido servido y en `/existencias` físico 4, reservado 0.
+la propuesta (4, del único bucket sembrado) y cambia su cantidad a 6, porque otra fila del mismo
+bucket repetiría línea, ubicación y lote (FR-002). Revisa (propio 4, posible 6) y confirma; ve
+«Salida registrada», el pedido servido y en `/existencias` físico 4, reservado 0.
 
 ## Fuera de alcance de esta entrega
 
