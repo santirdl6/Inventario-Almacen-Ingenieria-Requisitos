@@ -214,6 +214,35 @@ Después de servir, el remanente de reservas de la línea no puede superar su nu
 si el origen elegido deja reservas sobrantes en otra ubicación, se requiere liberarlas
 o cambiar la asignación antes de confirmar, sin liberación silenciosa.
 
+Concreción de HU-03 (P-01, aprobada por A el 2026-11-21;
+[modelo de HU-03](../../../specs/005-registrar-salida-mercancia/data-model.md)):
+
+- Un borrador puede eliminarse completo: no deja movimientos, porque nunca los tuvo, y retira sus
+  referencias al artículo. Una salida confirmada es inmutable (triggers `TR_Shipments_ConfirmedImmutable`
+  y `TR_ShipmentLines_ConfirmedImmutable`, solo `THROW`, en lugar de `DENY DELETE`) y no se revierte:
+  las diferencias se corrigen con el ajuste de HU-04, que corrige el físico pero no lo servido ni el
+  estado del pedido.
+- `OperationId` es obligatorio solo en `Confirmed` (único filtrado).
+- Único `(ShipmentId, CustomerOrderLineId, LocationId, LotId)`: un bucket por línea de pedido en cada
+  salida.
+- `OwnReservationConsumed` no se almacena: es Σ de `ShipmentReservationConsumption` de la línea.
+
+### ShipmentReservationConsumption
+
+P-02 de HU-03, aprobada por A el 2026-11-21 con el detalle por asignación.
+Id, ShipmentLineId, ReservationAllocationId, Quantity > 0, OperationId. Único
+`(ShipmentLineId, ReservationAllocationId)`. Append-only (`DENY UPDATE, DELETE`); solo se inserta al
+confirmar, con el `OperationId` de la operación que confirma la salida.
+
+La cabecera declara al confirmar, en la misma sentencia que la pasa a `Confirmed`,
+`DeclaredConsumptionCount` y `DeclaredConsumedQuantity` (inmutables). Los triggers rechazan un
+consumo de otra operación y cualquier consumo que supere lo declarado, también con el mismo
+`OperationId`, en cualquier orden de sentencias dentro de la confirmación.
+
+**Límite (HU-03 D-06)**: sin restricciones diferidas, SQL impone solo el **máximo**: ningún consumo
+supera lo declarado. Que la confirmación por API inserte **exactamente** lo declarado lo comprueba la
+prueba H-14 de HU-03 (invariante 8) en cada confirmación, no la base de datos.
+
 ## Conteos — Persona B / HU-04
 
 ### CycleCount, CountLocation y CountLine

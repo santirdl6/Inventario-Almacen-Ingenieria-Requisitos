@@ -82,7 +82,7 @@ definición sigue bloqueada (`ArticleCommands.cs:68`, `ArticleDefinitionLocked`)
 
 | Pendiente | Justificación | Responsable |
 |-----------|---------------|-------------|
-| Recepción sobre alcance congelado: FR-014, SC-002 («recibir») y la parte de recepción de V-09 | HU-01 (A) no tiene escritor. A confirmó que comprobará `IsInOpenCountAsync` bajo los bloqueos de todas las ubicaciones de destino antes de `Receive` (P-05). La prueba de recepción está identificada en el [quickstart común § 11](../../../.specify/memory/project/quickstart.md#11-hu-04--evidencia-de-integración-del-2026-11-21). | A, HU-01; S5 |
+| Recepción sobre alcance congelado: FR-014, SC-002 («recibir») y la parte de recepción de V-09 | HU-01 (A) no tiene escritor. A confirmó que comprobará `IsInOpenCountAsync` bajo los bloqueos de todas las ubicaciones de destino antes de `Receive` (P-05). La prueba de recepción está identificada en el [quickstart común § 12](../../../.specify/memory/project/quickstart.md#12-hu-04--evidencia-de-integración-del-2026-11-21). | A, HU-01; S5 |
 | SC-006 (25 sesiones, 50 líneas, p95 ≤ 3 s) | Necesita carga y datos sintéticos (plan, Complexity Tracking). | B, antes de la aceptación; S2 |
 | SC-007 (validación con trabajadores, principio III) | Necesita sesiones con trabajadores; el guion está en el quickstart. | B, antes de la aceptación; S3 |
 | «Si hay tiempo» S1–S6 | S1: versión por línea (D-11, límite aceptado del 412 a un segundo contador). S2/S3: arriba. S4: enlace «En conteo» → conteo. S5: arriba. S6: filtro por ubicación. Fuera de la numeración y accesorias. | B (S5, A) |

@@ -249,8 +249,25 @@ Ningún documento ni archivo común o de A se edita en esta rama sin aviso y rev
 | P-04 | `contracts/api.md`, nueva fila (común) | `GET /customer-orders/lookup?externalReference=` (Inventory.Read), exacta y sin lista. | FR-001a; D-11. Sustituye para HU-03 a P-04 de HU-05 (búsqueda por prefijo), que sigue sin implementar. |
 | P-05 | `contracts/stock-operations.md` § Alcance y disciplina de escritura (común) | Tipo `shipment` y orden `customer-order-reference < customer-order < reservation-release < reservation < shipment`; reservas a bloquear leídas antes y `orderVersion` revalidado bajo bloqueo; motivo, soporte y contraparte de la salida. | D-03, D-05, D-07. Amplía P-06 de HU-05. |
 | P-06 | `frontend/src/app/core/operations/pending-operation.store.ts` y `operation-status.component.ts` (A) | `mutationPermission()`: `/api/v1/shipments`, `/api/v1/shipments/{id}` y `/api/v1/shipments/{id}/confirm` → `Shipping.Record`. `APP_ROUTE`: añadir `^/salidas/(pedidos/{uuid}|{uuid})$`. Enlace «Abrir salida» o «Abrir pedido» según la ruta. | Lección 6; D-14. Mismo patrón que `e491a28`, `f867b61` y `013d429` de HU-05, cada cambio en su commit. |
-| P-07 | `specs/001-reparto-specs-inventario/integration-tasks.md` (coordinación A+B) | Nueva tarea receptora de HU-04: corregir una salida errónea mediante ajuste trazable (Q3). Marcar INT-HU03-01/02 solo con implementación y evidencia. | Spec «Alcance y dependencias»; AGENTS.md. |
+| P-07 | `specs/001-reparto-specs-inventario/integration-tasks.md` (coordinación A+B) | Nueva tarea receptora de HU-04: corregir una salida errónea mediante ajuste trazable (Q3). Marcar INT-HU03-01/02 solo con implementación y evidencia. **Limitación explícita** (pedida por A): la corrección por conteo vinculado de HU-04 corrige solo el físico. Ejemplo: salida confirmada de 6 cuando salieron 4 → el ajuste devuelve 2 al saldo, pero el pedido sigue mostrando 6 servidas y las reservas consumidas no cambian; **no se corrige el pedido**. Corregirlo exigiría, según el [contrato común § Correcciones](../../.specify/memory/project/contracts/stock-operations.md#correcciones-y-contingencia), corregir su acumulado servido y su estado en el mismo commit que el movimiento compensatorio: sería un cambio compartido fuera de HU-03 y HU-04. | Spec «Alcance y dependencias»; AGENTS.md. |
 | P-08 | `quickstart.md` común | Evidencia de HU-03 (V-04, V-05 extendido, V-07, V-08) al ejecutar la matriz H. | Como P-08 de HU-05. |
+
+### Estado de la revisión de A
+
+**Revisor**: Persona A. **Fecha**: 2026-11-21. **Decisión**: luz verde para cerrar T001 y aplicar T002
+(«puedes cerrar T001 y aplicar T002»).
+
+| Ítem | Estado |
+|------|--------|
+| P-01 (borrador eliminable, salida confirmada inmutable, `OwnReservationConsumed` derivado) | Confirmado expresamente por A. |
+| P-02 (consumos por asignación, ligados a la operación, con totales declarados de Convergence C1, `a6ec4b2`) | Confirmado expresamente por A, incluido el detalle por asignación. |
+| P-06 (`pending-operation.store.ts` y `operation-status.component.ts`) | Confirmado expresamente por A. |
+| Triggers de D-06 en lugar de `DENY DELETE` | Confirmados expresamente por A. |
+| P-03 (contrato de salidas, con `ETag` en el detalle y `orderVersion` en la confirmación) | Confirmado expresamente por A el 21/11/2026 (77e79a8). |
+| P-04 (búsqueda del pedido por referencia externa exacta con Inventory.Read) | Confirmado expresamente por A el 21/11/2026 (77e79a8). |
+| P-05 (orden de bloqueos, revalidación de `orderVersion` bajo bloqueo y trazabilidad de la salida) | Confirmado expresamente por A el 21/11/2026 (77e79a8). |
+| P-08 (evidencia de integración de HU-03 en el quickstart común, con los pendientes documentados) | Confirmado expresamente por A el 21/11/2026 (77e79a8). |
+| P-07 | Se aplica con la limitación que pidió A: la corrección por conteo no corrige el pedido (ver la fila P-07). |
 
 ### Archivos de B fuera de la feature que se tocan
 

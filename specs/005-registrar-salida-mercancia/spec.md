@@ -383,6 +383,12 @@ el mismo disponible.
   relación con la salida original. Esto no corrige lo servido del pedido ni el consumo de
   reservas, que la salida confirmada conserva; si HU-04 necesitara cambiarlos, deberá acordarse
   como cambio compartido (AGENTS.md).
+- **Limitación de la corrección por conteo (P-07)**: con una salida confirmada de 6 cuando salieron
+  4, el ajuste del conteo devuelve 2 al saldo de la ubicación, pero el pedido sigue mostrando 6
+  servidas y su estado no cambia: **no se corrige el pedido**. Corregirlo exigiría corregir su
+  acumulado servido y su estado en el mismo commit que el movimiento, como exige el
+  [contrato común § Correcciones](../../.specify/memory/project/contracts/stock-operations.md#correcciones-y-contingencia).
+  La pantalla de detalle del conteo de HU-04 debe avisarlo de forma visible.
 - Cobertura de los criterios originales de HU-03: vinculación a pedido de cliente (US1, FR-001);
   artículos, cantidades y ubicaciones de origen (US1, FR-002/003); bloqueo de salidas superiores a lo
   disponible considerando reservas ajenas (US2, FR-007/010); descuento al confirmar (US1.1, US1.3,
@@ -480,7 +486,8 @@ requisitos no cambian.
     no se da por aceptada (plan, Complexity Tracking).
   - El rechazo por conteo abierto de FR-010: `IsInOpenCountAsync` devuelve `false` hasta
     INT-HU04-03.
-  - La corrección de salidas confirmadas erróneas pasa a HU-04 (clarificación Q3; P-07).
+  - La corrección de salidas confirmadas erróneas pasa a HU-04 (clarificación Q3; P-07). Corrige
+    solo el físico, no lo servido ni el estado del pedido (ver «Alcance y dependencias»).
 - **Incumplimientos de la convergencia** (informe G1–G4):
   - G1, resuelto en C2: el rechazo por existencias explica la cantidad posible (US2.2, FR-010,
     FR-024).

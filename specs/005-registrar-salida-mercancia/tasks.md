@@ -64,7 +64,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
 ## Phase 1: Coordinación con A (pendiente explícita, no bloquea el código)
 
-- [ ] T001 ⏸ **PENDIENTE: solicitar la revisión de A en el PR de HU-03** (COORD-01), sin bloquear la
+- [X] T001 **Solicitar la revisión de A en el PR de HU-03** (COORD-01), sin bloquear la
   implementación, de:
   - (a) los diffs de [plan.md § Cambios al modelo común](plan.md#cambios-al-modelo-común-pendientes-de-a):
     P-01 (borrador eliminable, salida confirmada inmutable, `OwnReservationConsumed` derivado),
@@ -78,7 +78,19 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   Registrar decisión, fecha y revisor en `plan.md` (nuevo apartado «Estado de la revisión de A»).
   Si A rechaza algo, ajustar solo las tareas afectadas: si rechaza P-02, T004 y T009 pasan a la
   invariante agregada de D-08 (alternativa).
-- [ ] T002 ⏸ **PENDIENTE, bloqueada por T001 y por la fusión del PR #9**: aplicar los diffs aprobados
+
+  **Hecho (2026-11-21)**: A dio luz verde para cerrar T001 y aplicar T002. Registro en
+  [plan.md § Estado de la revisión de A](plan.md#estado-de-la-revisión-de-a):
+  - confirmados expresamente: P-01, P-02 (totales declarados de C1, `a6ec4b2`, y detalle por
+    asignación), P-06 y los triggers de D-06;
+  - A confirmó expresamente estos cuatro puntos tal como figuran en el PR #10 ([`77e79a8`](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/pull/10/commits/77e79a899c992dfa6de34a51de2e2ec818f19554)):
+    - P-03: contrato de salidas con `ETag` en el detalle y `orderVersion` en la confirmación.
+    - P-04: búsqueda del pedido por referencia externa exacta con `Inventory.Read`.
+    - P-05: orden de bloqueos, revalidación de `orderVersion` bajo bloqueo y trazabilidad de la salida.
+    - P-08: evidencia de integración de HU-03 en el quickstart común, con los pendientes documentados.
+  - P-07: con la limitación pedida por A (`34af23d`).
+  Ninguno rechazado: no cambia ninguna tarea.
+- [X] T002 Aplicar los diffs aprobados
   P-01…P-05, P-07 y P-08 en `.specify/memory/project/data-model.md`,
   `.specify/memory/project/contracts/api.md`, `.specify/memory/project/contracts/stock-operations.md`,
   `.specify/memory/project/quickstart.md` (evidencia, tras T018) y
@@ -88,6 +100,20 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   La fusión del PR #9 sigue siendo necesaria para que la base de HU-03 sea la definitiva. **No se aplican
   hasta la aprobación de A** (AGENTS.md, «Cambios compartidos»). Al tener evidencia (T018), marcar
   INT-HU03-01 e INT-HU03-02 en el backlog. ⚑ commit aparte.
+
+  **Hecho (2026-11-21)**, con la luz verde de A (T001) y el PR #9 ya fusionado:
+  - `data-model.md` común: P-01 (concreción de `Shipment`/`ShipmentLine`) y P-02
+    (`ShipmentReservationConsumption` con totales declarados y el límite de D-06: SQL impone el
+    máximo; H-14 comprueba que la confirmación por API inserta exactamente lo declarado).
+  - `contracts/api.md`: P-03 (`DELETE`, detalle con `ETag`, contexto sin él, lista y cuerpo
+    `orderVersion` en `/confirm`) y P-04 (`GET /customer-orders/lookup`).
+  - `contracts/stock-operations.md`: P-05 (tipo `shipment`, orden de bloqueos, `orderVersion` bajo
+    bloqueo, motivo, soporte y contraparte), el límite de D-06 y la limitación de la corrección por
+    conteo.
+  - `integration-tasks.md`: P-07 como INT-HU04-04, con la limitación pedida por A; INT-HU03-01 e
+    INT-HU03-02 marcadas con su evidencia.
+  - `quickstart.md` común: P-08 en § 11, con la evidencia tras T018 y Convergence C4.
+  La confirmación expresa de A para P-03, P-04, P-05 y P-08 consta en T001.
 
 ---
 

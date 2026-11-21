@@ -39,8 +39,19 @@ Un escritor no se habilita sin esa cobertura; HU-08 no necesita reabrirse para a
 
 ## HU-03 — Salidas — Persona B
 
-- [ ] INT-HU03-01 Integrar Shipment/Line con el contrato de aceptación de escritores, incluidos borradores retirados, lectores, marca y carreras reales con definición/borrado. Consumir el CustomerOrder/Line y las reservas entregadas por HU-05, sin duplicar sus altas; confirmar salida/servido/consumo de reserva con el protocolo común. Origen HU-08 T035/T064/T066/T075/T100/T101; FR-009/010/019.
-- [ ] INT-HU03-02 Permitir servir compromisos anteriores de artículos inactivos con sus límites, reservas propias/ajenas y permisos originales; comprobar conservación de historial/saldos y coordinación con la desactivación. El rechazo de pedidos nuevos pertenece al escritor HU-05. Origen HU-08 T078/T103; FR-013/019, Q-09/V-12.
+- [x] INT-HU03-01 Integrar Shipment/Line con el contrato de aceptación de escritores, incluidos borradores retirados, lectores, marca y carreras reales con definición/borrado. Consumir el CustomerOrder/Line y las reservas entregadas por HU-05, sin duplicar sus altas; confirmar salida/servido/consumo de reserva con el protocolo común. Origen HU-08 T035/T064/T066/T075/T100/T101; FR-009/010/019.
+- [x] INT-HU03-02 Permitir servir compromisos anteriores de artículos inactivos con sus límites, reservas propias/ajenas y permisos originales; comprobar conservación de historial/saldos y coordinación con la desactivación. El rechazo de pedidos nuevos pertenece al escritor HU-05. Origen HU-08 T078/T103; FR-013/019, Q-09/V-12. **Hechas (2026-11-21, PR #10, T002 de HU-03 con la luz verde de A)**:
+  - INT-HU03-01: contrato de escritores en `ShipmentDraftTests` (crear, editar, retirar y borrar
+    borradores; carreras con definición y borrado en ambos órdenes); confirmación frente a `PUT` de
+    definición y `DELETE` en `ShipmentConcurrencyTests`; contributor en `AddStockCore`
+    (`Hu03SchemaTests`); consumo del pedido y las reservas de HU-05 (reglas 1–5 del
+    [contrato HU-05 → HU-03](../004-consultar-existencias/contracts/hu03-integration.md)).
+  - INT-HU03-02: `ShipmentConfirmTests.H15_…` y la carrera con la desactivación en
+    `ShipmentConcurrencyTests`.
+  - Evidencia: suite 291 aprobadas, 1 omitida (V-14), 0 fallidas tras Convergence C4 (`f65fefe`);
+    registro en el [quickstart común § 11](../../.specify/memory/project/quickstart.md#11-hu-03--evidencia-de-integración-del-2026-11-21)
+    y el [quickstart de HU-03](../005-registrar-salida-mercancia/quickstart.md#evidencia).
+  - Sigue pendiente, fuera de estas tareas: `CountScopeFrozen` al confirmar (INT-HU04-03).
 
 ## HU-05 — Consultas, pedido mínimo y reservas — Persona B
 
@@ -70,7 +81,8 @@ Un escritor no se habilita sin esa cobertura; HU-08 no necesita reabrirse para a
   - **Hecho (HU-04 T004, T009; 2026-11-21)**: operación `Adjust` en `StockCore` con `ReservedStockConflict` bajo el reservado y artículo inactivo admitido (`StockCoreAdjustTests`, C-02, `db830b6`); confirmación con motivo y `Inventory.Adjust` persistidos, un movimiento `Adjustment` con `CounterpartyNotApplicableReason`, sin reescribir el diario e invariantes 1–5 y 7 (`CycleCountConfirmTests`, C-08…C-11 y C-16 = V-12, `4790aa8`). Suite 347/1/0 sobre `2215155`.
 - [X] INT-HU04-03 Al integrar CountLocation, conectar ILocationUsage.IsInOpenCountAsync de HU-02 y los controles de congelación de los escritores de stock/reservas; probar 409 CountScopeFrozen al desactivar/cambiar tipo de una ubicación en conteo y mostrar inOpenCount real en sus consultas. No habilitar conteos dejando el lector constante false. Origen HU-02 T034 y revisión PR #6; FR-008/012 y US3.3/US4.3 de HU-02.
   - **Hecho (HU-04 T005, T009, T010; 2026-11-21)**: `ILocationUsage.IsInOpenCountAsync` lee `CountLocations` con `IsFrozen = 1`; desactivar y cambiar el tipo (vacía y ocupada), confirmar salidas y reservar → 409 `CountScopeFrozen`, liberar admitido, `inOpenCount` real en el detalle y el contenido de la ubicación, y todo admitido otra vez tras confirmar o cancelar (`CountScopeFrozenTests`, C-12, `19f1dab`, `4790aa8`); carreras con `LockBarrier` en ambos órdenes y 20 rondas (`CycleCountConcurrencyTests.C13_…`, `2d41a8f`). La recepción de HU-01 queda pendiente de su escritor (P-05). Suite 347/1/0 sobre `2215155`.
-- Tarea receptora de la corrección de salidas confirmadas (P-07 de HU-03): asignada a HU-04 US4 (FR-018–FR-020) e implementada en su T012. Confirmado expresamente por A el 2026-11-21: el conteo vinculado a una salida es un ajuste del físico y la limitación P-07 queda visible (no corrige lo servido ni el estado del pedido); los ajustes de conteo usan solo `CounterpartyNotApplicableReason`. INT-HU04-01/02/03 se marcan en T018 de HU-04 con su evidencia.
+- [X] INT-HU04-04 Corregir una salida confirmada errónea (cantidad u origen) mediante un ajuste trazable vinculado a la salida, sin revertirla. Corrige **solo el físico**: con una salida de 6 cuando salieron 4, el ajuste devuelve 2 al saldo, pero el pedido sigue mostrando 6 servidas, su estado no cambia y el consumo de reservas se conserva; no se corrige el pedido. Corregirlo exigiría su acumulado servido y su estado en el mismo commit ([contrato de stock § Correcciones](../../.specify/memory/project/contracts/stock-operations.md#correcciones-y-contingencia)) y sería un cambio compartido. La pantalla del conteo debe avisarlo de forma visible. Origen HU-03 clarificación Q3 y P-07 (limitación pedida por A).
+  - **Hecho (HU-04 T012 y Convergence C1–C8; 2026-11-21)**: asignada a HU-04 US4 (FR-018–FR-020). Confirmado expresamente por A el 2026-11-21: el conteo vinculado a una salida es un ajuste del físico y la limitación P-07 queda visible (no corrige lo servido ni el estado del pedido); los ajustes de conteo usan solo `CounterpartyNotApplicableReason`. `GET /cycle-counts?correctsShipmentId=` alimenta el aviso en `/salidas/{id}` ([converge-2](../006-realizar-inventarios-ciclicos/validation/converge-2.md)). INT-HU04-01/02/03/04 se marcan en T018 de HU-04 y tras la Convergence C1–C8. Suite 347/1/0 (`32d51d5`), Vitest 230/230 (`7608a84`).
 
 ## HU-06 — Mínimos y alertas — Persona A
 

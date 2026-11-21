@@ -104,7 +104,7 @@ T001 y T002 son de coordinación y C9 es de evidencia.
 |------------|---------------------------|
 | S1–S6 («Si hay tiempo») | tasks.md § Si hay tiempo, fuera de la numeración. S1 también en plan, Dependencias y riesgos (D-11). converge-1 y converge-2 § Pendientes. |
 | SC-006 y SC-007 | plan § Complexity Tracking (B, antes de la aceptación); spec § Estado; quickstart § Fuera de alcance, con el guion de SC-007. |
-| Recepción sobre alcance congelado (V-09, HU-01) | plan § Complexity Tracking y P-05, confirmada expresamente por A; spec § Edge Cases («Recepciones durante el conteo»); quickstart común § 11 con la prueba identificada; S5. |
+| Recepción sobre alcance congelado (V-09, HU-01) | plan § Complexity Tracking y P-05, confirmada expresamente por A; spec § Edge Cases («Recepciones durante el conteo»); quickstart común § 12 con la prueba identificada; S5. |
 | Reevaluar el mínimo tras el ajuste (HU-06) | plan § Dependencias y riesgos; spec § Alcance y dependencias. |
 
 Todas están justificadas por escrito. Ninguna afecta a un principio MUST.

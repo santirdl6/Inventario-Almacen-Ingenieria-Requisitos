@@ -36,7 +36,7 @@ original se conserva tachado, como desviación visible.
 
 | ID | Tipo | Severidad | Fuente | Evidencia | Qué falta | Tarea |
 |----|------|-----------|--------|-----------|-----------|-------|
-| G9 | partial | BAJA | Plan § Evidencia (T018); P-08 | El [quickstart de HU-04](../quickstart.md#evidencia) y el [quickstart común § 11](../../../.specify/memory/project/quickstart.md#11-hu-04--evidencia-de-integración-del-2026-11-21) aún citan Vitest 223/223 y `GET /cycle-counts` sin filtros. Son anteriores a C1–C8, que añadieron 7 pruebas Vitest y el filtro `correctsShipmentId`. | Publicar los resultados de esta iteración en ambos quickstarts (Vitest 230/230; backend 347/1/0, mismo número porque C1–C3 ampliaron pruebas existentes; Playwright 18/18) y, en el común, el aviso de la salida corregida. | C9 |
+| G9 | partial | BAJA | Plan § Evidencia (T018); P-08 | El [quickstart de HU-04](../quickstart.md#evidencia) y el [quickstart común § 12](../../../.specify/memory/project/quickstart.md#12-hu-04--evidencia-de-integración-del-2026-11-21) aún citan Vitest 223/223 y `GET /cycle-counts` sin filtros. Son anteriores a C1–C8, que añadieron 7 pruebas Vitest y el filtro `correctsShipmentId`. | Publicar los resultados de esta iteración en ambos quickstarts (Vitest 230/230; backend 347/1/0, mismo número porque C1–C3 ampliaron pruebas existentes; Playwright 18/18) y, en el común, el aviso de la salida corregida. | C9 |
 
 Nota sin tarea: los datos simulados de `location-form.edit.spec.ts:76` (HU-02) y de
 `shipment-confirm.page.spec.ts:118` (HU-03) usan los textos antiguos de `CountScopeFrozen`. Las

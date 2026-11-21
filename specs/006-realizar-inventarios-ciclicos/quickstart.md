@@ -92,7 +92,7 @@ Windows 11 + Docker Desktop.
 | Vitest de `/inventarios` | 7 specs: lista 3, nuevo 5, detalle 10, revisión 9, rutas 1, y 8 de los archivos de A (T013) | T013–T016 |
 | E2E-03 | `frontend/e2e/hu04-cycle-counts.spec.ts` | T017 |
 
-**V común** (publicada en el [quickstart común § 11](../../.specify/memory/project/quickstart.md#11-hu-04--evidencia-de-integración-del-2026-11-21)):
+**V común** (publicada en el [quickstart común § 12](../../.specify/memory/project/quickstart.md#12-hu-04--evidencia-de-integración-del-2026-11-21)):
 V-07 = C-17; V-08 = C-18; V-09 = C-04, C-06, C-08, C-12 (salida y reserva); V-10 = C-07, C-09, C-11;
 V-12 = C-16. La recepción de V-09 queda pendiente de HU-01: confirmar una recepción con una ubicación
 de destino congelada → 409 `CountScopeFrozen` (P-05; S5 de tasks.md).

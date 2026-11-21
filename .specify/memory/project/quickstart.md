@@ -347,7 +347,32 @@ por A el 2026-11-21 con la Convergence C1–C4). Ejecutado sobre `363de56`:
 
 Detalle por caso en el [quickstart de HU-05](../../../specs/004-consultar-existencias/quickstart.md#evidencia).
 
-## 11. HU-04 — Evidencia de integración del 2026-11-21
+## 11. HU-03 — Evidencia de integración del 2026-11-21
+
+Registro y confirmación de salidas contra pedidos de cliente (HU-03, PR #10), con la luz verde de A
+del 2026-11-21 a T001/T002. Ejecutado sobre el árbol de Convergence C4 (`f65fefe`):
+
+- **Backend**: 291 pruebas SQL aprobadas, 1 omitida (V-14) y 0 fallidas, con la misma receta que
+  § 10. EF sin cambios de modelo.
+- **Escenarios comunes cubiertos**:
+  - V-04 completo: reserva propia consumida y ajena intacta al servir (H-10);
+  - V-05 extendido: salidas simultáneas, reserva y salida solapadas y salidas del mismo pedido (H-16,
+    H-17, 20 rondas);
+  - V-07 (replay, `IdempotencyConflict`, 412) y V-08 (`FailAfterSaveInterceptor`, H-19);
+  - el contrato de escritores de INT-HU03-01/02, con carreras con `LockBarrier` en ambos órdenes.
+- **Frontend**: Vitest 187/187; `tsc` de app, specs y E2E sin errores; build correcto; Playwright
+  17/17 con `--grep-invert SC-005`, con E2E-02.
+- **Límite registrado**: SQL impone el máximo de consumos declarados; que la confirmación inserte
+  exactamente lo declarado lo comprueba H-14 (HU-03 D-06).
+- **Pendiente**:
+  - `CountScopeFrozen` al confirmar salidas (INT-HU04-03);
+  - la corrección de salidas erróneas (INT-HU04-04), que solo corregirá el físico, no el pedido;
+  - SC-006 y SC-007, que impiden dar HU-03 por aceptada.
+
+Detalle por caso en el [quickstart de HU-03](../../../specs/005-registrar-salida-mercancia/quickstart.md#evidencia)
+y en su [convergencia](../../../specs/005-registrar-salida-mercancia/validation/converge-1.md).
+
+## 12. HU-04 — Evidencia de integración del 2026-11-21
 
 Conteos cíclicos, congelación del alcance y ajustes (HU-04, rama `b/hu-04-realizar-inventarios-ciclicos`;
 visto bueno de A a P-01…P-08 sobre `3e2ad7e`). Matriz C del

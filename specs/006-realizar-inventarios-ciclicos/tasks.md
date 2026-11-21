@@ -322,7 +322,7 @@ real en salidas, reservas y ubicaciones.
     plan, y dejar identificada la prueba de recepción de V-09 que queda pendiente de HU-01 (P-08, P-05).
   - **Hecho**: sin ejecutar de nuevo (sin cambios de código desde `ef9b596`); se citan backend 347/1/0
     (`2215155`), Vitest 223/223 y build (`a084bfa`) y Playwright 18/18 (`ef9b596`). `055a8bb` (⚑ común):
-    INT-HU04-01/02/03 marcadas con su evidencia y quickstart común § 11 con la matriz C, V-07, V-08, V-09
+    INT-HU04-01/02/03 marcadas con su evidencia y quickstart común § 12 con la matriz C, V-07, V-08, V-09
     (conteo, salida y ajuste), V-10 y V-12, y la prueba de recepción de V-09 identificada y pendiente de
     HU-01. Quickstart de HU-04 § Evidencia con la matriz C y las desviaciones de T010 y T013–T017; C-15
     corregido (tras retirar el hallazgo se admite el borrado, la definición sigue bloqueada). Estado de
@@ -462,11 +462,11 @@ queda como estaba (la skill solo añade).
 
 Tareas de [converge-2](validation/converge-2.md) (2026-11-21). **Sin implementar**: se revisan con B.
 
-- [X] C9 ⚑ Publicar en el quickstart de HU-04 § Evidencia y en el quickstart común § 11 los resultados
+- [X] C9 ⚑ Publicar en el quickstart de HU-04 § Evidencia y en el quickstart común § 12 los resultados
   de Phase 10 (backend 347/1/0, Vitest 230/230, `tsc` y build, Playwright 18/18). En el común, añadir
   también el filtro `correctsShipmentId` y el aviso de `/salidas/{id}` (C3). Según plan § Evidencia y
   P-08 (partial, G9).
   - **Hecho**: sin volver a ejecutar pruebas. Quickstart de HU-04 § Evidencia con la verificación tras la
     Convergence C1–C8 (backend 347/1/0 en `32d51d5`; Vitest 230/230, `tsc` y build en `7608a84`; Playwright
     18/18 sobre `9c8974a`) y las novedades verificadas, entre ellas el filtro `correctsShipmentId` (C3).
-    Quickstart común § 11 con los mismos resultados, el filtro y el aviso de `/salidas/{id}`.
+    Quickstart común § 12 con los mismos resultados, el filtro y el aviso de `/salidas/{id}`.
