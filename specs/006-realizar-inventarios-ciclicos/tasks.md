@@ -419,8 +419,13 @@ queda como estaba (la skill solo añade).
 - [ ] C4 En el 409 `ReservedStockConflict` de la confirmación, enlazar al pedido o pedidos que reservan
   en el bucket, o corregir el contrato UI a `/existencias`, según contracts/cycle-counts-ui.md
   § Resultados (contradicts, G4).
-- [ ] C5 Mostrar el número de líneas con diferencia en todos los estados posteriores al inicio, no solo
+- [X] C5 Mostrar el número de líneas con diferencia en todos los estados posteriores al inicio, no solo
   en la revisión, según FR-005 (partial, G5).
+  - **Hecho**: rojo Vitest en `count-detail.page.spec.ts` (entrada: líneas 10→8 y 5→5 en `Counting`, en
+    `AwaitingApproval` sin `Inventory.Adjust` y en `Confirmed` con solo `Inventory.Read`). Esperado:
+    «1 línea con diferencia de 2 líneas». Observado: `''` (el total solo estaba en la revisión). El detalle lo
+    muestra en todos los estados desde el inicio; la revisión conserva su frase; el borrador no lo muestra.
+    Verde: Vitest 228/228, `tsc` y build. Sin cambios de backend.
 - [ ] C6 Validar en local la fracción del hallazgo con el artículo elegido, según FR-004 y FR-029
   (partial, G6).
 - [ ] C7 Decidir el recorrido historial → conteo de la prueba independiente de US2: documentarlo en

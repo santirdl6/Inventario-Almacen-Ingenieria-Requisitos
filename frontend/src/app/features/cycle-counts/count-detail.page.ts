@@ -56,6 +56,10 @@ const UNTRACKED_LOT = 'SIN-LOTE';
         · Creado {{ current.count.createdAt | date: 'dd/MM/yyyy HH:mm' }} por {{ user(current.count.createdBy) }}
         @if (current.count.startedAt) { · Iniciado {{ current.count.startedAt | date: 'dd/MM/yyyy HH:mm' }} }</p>
       <p data-testid="scope">Ubicaciones: {{ scopeCodes() }}</p>
+      @if (current.count.state !== 'Draft' && !reviewMode()) {
+        <p data-testid="difference-count">{{ differenceCount() }} {{ differenceCount() === 1 ? 'línea con diferencia' : 'líneas con diferencia' }}
+          de {{ sortedLines().length }} {{ sortedLines().length === 1 ? 'línea' : 'líneas' }}</p>
+      }
       @if (current.count.state === 'Confirmed') {
         <p data-testid="closure">Ajuste aprobado el {{ current.count.approvedAt | date: 'dd/MM/yyyy HH:mm' }} por {{ user(current.count.approvedBy) }}
           · Operación {{ current.count.operationId }}

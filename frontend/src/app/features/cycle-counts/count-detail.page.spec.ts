@@ -40,6 +40,24 @@ describe('CountDetailPage en borrador y en conteo', () => {
     return Array.from(root.querySelectorAll('button')).find(item => text(item) === label)!;
   }
 
+  it('muestra el total de líneas con diferencia en conteo, pendiente sin Inventory.Adjust y cerrado (FR-005, C5)', async () => {
+    const lines = [
+      line({ id: L1, articleId: ART_A, locationId: U1, theoreticalPhysical: '10.000', countedPhysical: '8.000', difference: '-2.000' }),
+      line({ id: L2, articleId: ART_A, locationId: U2, theoreticalPhysical: '5.000', countedPhysical: '5.000', difference: '0.000' })
+    ];
+    for (const [state, permissions] of [['Counting', RECORD], ['AwaitingApproval', RECORD], ['Confirmed', ['Inventory.Read']]] as const) {
+      TestBed.resetTestingModule();
+      const { root } = await render(count(state, lines), [...permissions]);
+      expect(text(root.querySelector('[data-testid="difference-count"]'))).toBe('1 línea con diferencia de 2 líneas');
+      httpMock().verify();
+    }
+  });
+
+  it('en borrador no muestra el total de diferencias', async () => {
+    const { root } = await render(count('Draft'));
+    expect(root.querySelector('[data-testid="difference-count"]')).toBeNull();
+  });
+
   it('en borrador muestra el alcance y avisa de la congelación antes de iniciar con If-Match', async () => {
     const { fixture, root } = await render(count('Draft'));
     expect(text(root.querySelector('h1'))).toContain('CC-400000000000');
