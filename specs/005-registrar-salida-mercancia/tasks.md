@@ -624,7 +624,7 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
 
 ## Phase 6: E2E-02 y cierre
 
-- [ ] T017 [US1] [US2] `frontend/e2e/shipping.spec.ts` con **E2E-02** sobre el fixture de A, sin
+- [X] T017 [US1] [US2] `frontend/e2e/shipping.spec.ts` con **E2E-02** sobre el fixture de A, sin
   modificarlo: la cuenta `responsable` (`ResponsableAlmacen`) y la siembra D-17 ya existen
   (`ef296cc`, `110df1a`, `4659302`). Depende de T005 y T016.
   1. Preparación por API con datos únicos por ejecución: artículo con lote, ubicación, 10 unidades
@@ -643,6 +643,20 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
     en su commit mínimo ⚑, con la prueba que lo cubre, y se incluye en la revisión de A (T001 b).
     **Cualquier otro archivo de A: preguntar antes de tocarlo.**
   - Playwright completo sin SC-005, sin intermitencias.
+
+  **Hecho (2026-11-21)**:
+  - `frontend/e2e/shipping.spec.ts` con E2E-02. Datos únicos por ejecución: SKU `E2E03-…`,
+    ubicación `S01-…` y referencia `PED-S…`.
+  - Recorrido: la siembra D-17 y el pedido se preparan por API; el responsable reserva 4 por la
+    interfaz de HU-05; el operario busca « ped-s… » en `/salidas`, prepara con la propuesta (4) y
+    cambia su cantidad a 6 (analyze-1 H1), guarda, revisa (propio 4, posible 6) y confirma.
+  - Comprueba: «Salida registrada», «Salida confirmada con la operación», el pedido servido y, en
+    `/existencias`, físico 4 y reservado 0. Al reabrir la salida se sigue viendo la operación (H2).
+  - Sin cambios en el fixture ni en el compose de A: ya existen las cuentas `lector` y `responsable`.
+  - **Rojo**: no se anotó. Playwright se ejecuta una sola vez, al final, y para entonces T014–T016 ya
+    estaban construidas.
+  - Verde: Playwright 17/17 con `--grep-invert SC-005` (base 16/16, más E2E-02), sin
+    intermitencias; `tsc` E2E sin errores.
 - [ ] T018 ⚠ PR #9 Evidencia y verificación de la rama. Depende de T004–T017. Riesgo:
   `specs/004-consultar-existencias/contracts/hu03-integration.md`.
   - Suite backend completa **tres veces**, `has-pending-model-changes`, cadena desde cero, Vitest,
