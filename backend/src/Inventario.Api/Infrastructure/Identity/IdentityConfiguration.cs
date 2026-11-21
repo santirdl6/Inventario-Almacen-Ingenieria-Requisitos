@@ -46,6 +46,9 @@ internal static class IdentityConfiguration
             foreach (var permission in PermissionCatalog.All)
                 options.AddPolicy(permission, policy => policy.RequireAuthenticatedUser()
                     .RequireClaim("permission", permission));
+            options.AddPolicy(PermissionCatalog.ReceivingReconcilePolicy, policy => policy.RequireAuthenticatedUser()
+                .RequireClaim("permission", PermissionCatalog.ReceivingRecord)
+                .RequireClaim("permission", PermissionCatalog.InventoryAdjust));
         });
         services.AddTransient<IClaimsTransformation, PermissionClaimsTransformation>();
         services.AddHttpContextAccessor();

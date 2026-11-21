@@ -1,3 +1,5 @@
+using System.Data;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Inventario.Api.Infrastructure.Http;
 using Microsoft.Data.SqlClient;
@@ -49,23 +51,34 @@ public sealed partial class InventoryLocks(InventoryDbContext database)
             ?? throw new InvalidOperationException("Los bloqueos requieren una transacción activa del comando.");
         if (requestedPhase != phase) last = null;
         phase = requestedPhase;
-        foreach (var resource in pending)
-        {
-            await using var command = database.Database.GetDbConnection().CreateCommand();
-            command.Transaction = transaction.GetDbTransaction();
-            command.CommandText = """
-                DECLARE @result int;
+        await using var command = database.Database.GetDbConnection().CreateCommand();
+        command.Transaction = transaction.GetDbTransaction();
+        // One round trip per phase, retaining the exact C# ordinal order through JSON array positions.
+        // The timeout remains 5 s PER RESOURCE; a negative result stops the batch and the executor rolls back.
+        command.CommandTimeout = checked(30 + pending.Length * 5);
+        command.CommandText = """
+            DECLARE @result int = 0, @resource nvarchar(255);
+            DECLARE resource_cursor CURSOR LOCAL FAST_FORWARD FOR
+                SELECT [value] FROM OPENJSON(@resources) ORDER BY CONVERT(int, [key]);
+            OPEN resource_cursor;
+            FETCH NEXT FROM resource_cursor INTO @resource;
+            WHILE @@FETCH_STATUS = 0
+            BEGIN
                 EXEC @result = sys.sp_getapplock @Resource = @resource, @LockMode = N'Exclusive',
                     @LockOwner = N'Transaction', @LockTimeout = 5000, @DbPrincipal = N'public';
-                SELECT @result;
-                """;
-            command.Parameters.Add(new SqlParameter("@resource", resource));
-            var result = Convert.ToInt32(await command.ExecuteScalarAsync(cancellation));
-            if (result < 0)
-                throw new InventoryProblemException(503, "LockTimeout", "No se pudo completar el bloqueo. Comprueba el resultado antes de repetir.");
-            held.Add(resource);
-            last = resource;
-        }
+                IF @result < 0 BREAK;
+                FETCH NEXT FROM resource_cursor INTO @resource;
+            END;
+            CLOSE resource_cursor;
+            DEALLOCATE resource_cursor;
+            SELECT @result;
+            """;
+        command.Parameters.Add(new SqlParameter("@resources", SqlDbType.NVarChar, -1) { Value = JsonSerializer.Serialize(pending) });
+        var result = Convert.ToInt32(await command.ExecuteScalarAsync(cancellation));
+        if (result < 0)
+            throw new InventoryProblemException(503, "LockTimeout", "No se pudo completar el bloqueo. Comprueba el resultado antes de repetir.");
+        foreach (var resource in pending) held.Add(resource);
+        last = pending[^1];
     }
 
     private static string Id(Guid id) => id != Guid.Empty ? id.ToString("D")

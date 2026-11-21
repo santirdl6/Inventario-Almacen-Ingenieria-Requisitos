@@ -17,8 +17,8 @@ internal static class ArticleEndpoints
                 throw new InventoryProblemException(503, "DependencyUnavailable", "Completa la transición de familia antes de usar artículos.");
             return await next(context);
         });
-        articles.MapGet("", (string? q, string? state, Guid? familyId, int? page, int? pageSize, ArticleQueries queries, CancellationToken token) =>
-            queries.ListAsync(MasterDataQueryOptions.Parse(q, state, page, pageSize), familyId, token)).RequireAuthorization("Inventory.Read");
+        articles.MapGet("", (string? q, string? state, Guid? familyId, string? skuPrefix, int? page, int? pageSize, ArticleQueries queries, CancellationToken token) =>
+            queries.ListAsync(MasterDataQueryOptions.Parse(q, state, page, pageSize), familyId, token, skuPrefix)).RequireAuthorization("Inventory.Read");
         articles.MapGet("/{id}", async (Guid id, ArticleQueries queries, HttpContext context, CancellationToken token) =>
         {
             var article = await queries.DetailAsync(id, token);

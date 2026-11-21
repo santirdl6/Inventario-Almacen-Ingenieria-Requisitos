@@ -312,3 +312,32 @@ en memoria, recurso vivo obligatorio para recuperar resultado y protocolos priva
 StockPolicy y participa en cambios de estado cuando esté integrada. La incorporación exige
 revisión cruzada de entidades, contratos y migraciones. El diseño particular, fuentes y
 validación están en el [plan HU-08](../../../specs/002-gestionar-datos-maestros/plan.md).
+
+## R-12. Concreciones de diseño HU-07
+
+**Fecha**: 2026-11-20. **Estado**: aplicado localmente en HU-07 US1–US5;
+cierre transversal en curso y revisión A+B pendiente antes de integrar.
+
+**Decisión**: correo con MailKit 5.0.0 y BackgroundService en la API; separar compromiso
+inmutable (documento/MIME/destinatario/MessageId) de coordinación mutable (outbox/lease).
+La entrada HTTP del ejecutor mantiene ICurrentActor/policy; su núcleo transaccional se
+factoriza para comandos internos de entrega limitados a autoridad persistida comprobada.
+No cambiar el contrato de ICurrentActor para admitir un actor predeterminado sin HTTP.
+Claim/SMTP/finalización son pasos separados; finalización exige lease/generación vigentes.
+Un retry humano de Failed es una nueva operación idempotente sobre la misma entrega;
+recuperar respuesta HTTP perdida conserva la operación original. SMTP admite copias ante
+aceptación incierta, nunca otra compra. El 202 original no es un progreso mutable.
+
+**Motivo/alternativas**: evita transacciones SMTP largas, sesión ficticia, finalizaciones
+obsoletas y replay que impida reactivar Failed. No requiere broker ni ejecutor paralelo.
+Fechas previstas son fechas civiles date, a diferencia de instantes UTC; moneda única
+capturada en alta. Detalle del pedido con ETag propio y versión tocada por líneas/estados;
+datos actuales de maestros separados y token de revisión para proteger destinatario.
+
+**Fuente e impacto**: [investigación HU-07](../../../specs/007-gestionar-pedidos-proveedores/research.md)
+contiene versiones/fuentes oficiales, defaults, alternativas y concreciones locales;
+[integración](../../../specs/007-gestionar-pedidos-proveedores/contracts/integration.md)
+define autoridad y protocolo. Consumidores afectados: HU-08 (referencias), H0/HU-02/
+StockCore (regresión común), HU-01 (acumulados/versión), UI de compras y recuperación H5.
+No se modifican cálculo de stock ni estados compartidos. Evidencia local por historia en
+el [plan HU-07](../../../specs/007-gestionar-pedidos-proveedores/plan.md); no acredita integración ni H5.

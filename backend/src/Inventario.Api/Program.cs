@@ -1,6 +1,10 @@
 using Inventario.Api.Infrastructure.Http;
 using Inventario.Api.Features.MasterData;
 using Inventario.Api.Features.Locations;
+using Inventario.Api.Features.Purchasing;
+using Inventario.Api.Features.Receiving;
+using Inventario.Api.Features.Replenishment;
+using Inventario.Api.Features.MasterData.Commands;
 using Inventario.Api.Features.MasterData.Maintenance;
 using Inventario.Api.Features.Shipping;
 using Inventario.Api.Features.CycleCounts;
@@ -9,6 +13,7 @@ using Inventario.Api.Features.Stock.Core;
 using Inventario.Api.Infrastructure.Identity;
 using Inventario.Api.Infrastructure.Persistence;
 using Inventario.Api.Infrastructure.Persistence.Operations;
+using Inventario.Api.Infrastructure.Messaging;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,6 +34,12 @@ builder.Services.AddLocations();
 builder.Services.AddStock();
 builder.Services.AddShipping();
 builder.Services.AddCycleCounts();
+builder.Services.AddPurchasing();
+builder.Services.AddReceiving();
+builder.Services.AddScoped<StockAlertEvaluator>();
+builder.Services.AddScoped<IArticleStateEffects, ArticleAlertStateEffects>();
+if (!initialize && !builder.Configuration.GetValue<bool>("Maintenance:Hu08FamilyPreparation"))
+    builder.Services.AddHostedService(provider => provider.GetRequiredService<PurchaseDeliveryWorker>());
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
 {
     context.ProblemDetails.Extensions.TryAdd("traceId", context.HttpContext.TraceIdentifier);
@@ -109,6 +120,10 @@ else
     api.MapStockEndpoints();
     api.MapShippingEndpoints();
     api.MapCycleCountEndpoints();
+    api.MapPurchasingEndpoints();
+    api.MapReceivingEndpoints();
+    api.MapStockPolicyEndpoints();
+    api.MapStockAlertEndpoints();
 }
 
 if (app.Environment.IsDevelopment())

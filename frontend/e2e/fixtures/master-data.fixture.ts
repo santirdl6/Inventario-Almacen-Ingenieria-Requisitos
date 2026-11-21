@@ -3,20 +3,23 @@ import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 
-type AccountKey = 'gestor' | 'lector' | 'administrador' | 'responsable';
+type AccountKey = 'gestor' | 'lector' | 'administrador' | 'comprador' | 'responsable';
 type Account = { email: string; password: string; role: string };
 type Me = { id: string; email: string; roles: string[]; permissions: string[] };
 export type Session = { request: APIRequestContext; csrfToken: string; me: Me };
-type Environment = { baseURL: string; accounts: Record<AccountKey, Account> };
+type Environment = { baseURL: string; accounts: Record<Exclude<AccountKey, 'comprador' | 'responsable'>, Account> & { comprador?: Account; responsable?: Account } };
 type WorkerFixtures = { environment: Environment };
 type HistorySnapshot = { actorId: string; actorName: string; balances: unknown[]; entries: unknown[] };
 type TestFixtures = { gestor: Session; lector: Session; administrador: Session;
+  comprador: Session; responsable: Session;
   historyData: (mode: 'prepare' | 'snapshot', articleId: string) => HistorySnapshot };
 type RequestFactory = PlaywrightWorkerArgs['playwright']['request'];
 
 const repositoryRoot = resolve(__dirname, '../../..');
 const project = process.env['HU08_E2E_PROJECT'] ?? 'inventario-hu08-e2e';
-if (!/^inventario-(?:hu08|hu02|pr6)-e2e(?:-[a-z0-9-]+)?$/.test(project))
+export const purchasingProfile = process.env['INVENTORY_E2E_PROFILE'] === 'hu07';
+if (!/^inventario-(?:hu08|hu07|hu02|pr6)-e2e(?:-[a-z0-9-]+)?$/.test(project)
+  || purchasingProfile !== /^inventario-hu07-e2e(?:-|$)/.test(project))
   throw new Error('El proyecto Compose E2E debe tener un nombre dedicado de pruebas.');
 
 function configuration(): { baseURL: string; env: NodeJS.ProcessEnv } {
@@ -30,12 +33,15 @@ function configuration(): { baseURL: string; env: NodeJS.ProcessEnv } {
     baseURL: url.origin,
     env: {
       ...process.env,
-      DB_NAME: 'InventoryHu08E2E',
+      DB_NAME: purchasingProfile ? 'InventoryHu07E2E' : 'InventoryHu08E2E',
       APP_BIND_ADDRESS: '127.0.0.1',
       APP_PORT: url.port,
-      MAILPIT_PORT: '8026',
+      MAILPIT_PORT: purchasingProfile ? '8027' : '8026',
       // HU-05 (D-17): la siembra de existencias solo se activa en este proyecto E2E.
-      TESTING_ENABLE_STOCK_SEEDING: 'true'
+      TESTING_ENABLE_STOCK_SEEDING: 'true',
+      ...(purchasingProfile ? { SMTP_HOST: 'smtp', SMTP_PORT: '1025', SMTP_USERNAME: '', SMTP_PASSWORD: '', SMTP_SECURITY: 'None', SMTP_FROM: 'inventario@hu07.e2e.test',
+        PURCHASING_CURRENCY: 'EUR', PURCHASE_DELIVERY_ENABLED: 'true', PURCHASE_DELIVERY_MAX_ATTEMPTS: '1',
+        PURCHASE_DELIVERY_POLL_SECONDS: '1', PURCHASE_DELIVERY_TIMEOUT_SECONDS: '5', PURCHASE_DELIVERY_LEASE_SECONDS: '40' } : {})
     }
   };
 }
@@ -47,15 +53,17 @@ function compose(env: NodeJS.ProcessEnv, args: string[], timeout = 720_000): voi
   });
 }
 
-function provision(env: NodeJS.ProcessEnv, accounts: Record<AccountKey, Account>, mode: 'provision' | 'retire'): void {
+function provision(env: NodeJS.ProcessEnv, accounts: Environment['accounts'], mode: 'provision' | 'retire'): void {
   compose({
     ...env,
     HU08_E2E_PROVISION: '1',
-    HU08_E2E_DATABASE: 'InventoryHu08E2E',
+    HU08_E2E_DATABASE: env['DB_NAME'],
+    INVENTORY_E2E_PROFILE: purchasingProfile ? 'hu07' : 'hu08',
     HU08_E2E_USERS_JSON: JSON.stringify(Object.values(accounts))
   }, ['--profile', 'test', 'run', '--no-deps', '--rm',
     '--volume', `${repositoryRoot}:/workspace`, '--workdir', '/workspace',
     '--env', 'HU08_E2E_PROVISION', '--env', 'HU08_E2E_DATABASE', '--env', 'HU08_E2E_USERS_JSON',
+    '--env', 'INVENTORY_E2E_PROFILE',
     '--entrypoint', 'sh', 'tests', '-c',
     `dotnet restore backend/Inventario.slnx --force && dotnet run --file scripts/provision-e2e-users.cs -- ${mode}`]);
 }
@@ -67,6 +75,7 @@ async function authenticate(factory: RequestFactory, environment: Environment, k
     expect(csrf.status(), 'El emisor CSRF debe estar disponible').toBe(200);
     const anonymous = await csrf.json() as { requestToken: string };
     const account = environment.accounts[key];
+    if (!account) throw new Error('La cuenta requiere el perfil explícito HU-07.');
     const login = await request.post('/api/v1/auth/login', {
       headers: { 'X-XSRF-TOKEN': anonymous.requestToken },
       data: { email: account.email, password: account.password }
@@ -103,6 +112,7 @@ async function useSession(factory: RequestFactory, environment: Environment, key
 export const test = base.extend<TestFixtures, WorkerFixtures>({
   historyData: async ({ environment }, use) => {
     await use((mode, articleId) => {
+      if (purchasingProfile) throw new Error('El auxiliar de historial HU-08 no usa la base HU-07.');
       if (!/^[0-9a-f-]{36}$/i.test(articleId)) throw new Error('Artículo E2E inválido.');
       const { env } = configuration();
       const output = execFileSync('docker', ['compose', '--project-name', project, '--file',
@@ -124,14 +134,18 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     const { baseURL, env } = configuration();
     const run = randomUUID().replaceAll('-', '');
     const account = (role: string): Account => ({
-      email: `${run}.${role.toLowerCase()}@hu08.e2e.test`,
+      email: `${run}.${role.toLowerCase()}@${purchasingProfile ? 'hu07' : 'hu08'}.e2e.test`,
       password: `Test_${randomUUID()}!aA9`, role
     });
-    const accounts = {
+    const accounts: Environment['accounts'] = {
       gestor: account('GestorMaestros'), lector: account('Operario'), administrador: account('Administrador'),
       // HU-05 (E2E-01): reservar y liberar exigen Reservations.Manage.
       responsable: account('ResponsableAlmacen')
     };
+    if (purchasingProfile) {
+      accounts.comprador = account('Comprador');
+      accounts.responsable = account('ResponsableAlmacen');
+    }
     let provisioningAttempted = false;
     try {
       compose(env, ['up', process.env['HU08_E2E_SKIP_BUILD'] === '1' ? '--no-build' : '--build',
@@ -164,7 +178,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   }, { scope: 'worker', timeout: 900_000 }],
   gestor: async ({ playwright, environment }, use) => useSession(playwright.request, environment, 'gestor', use),
   lector: async ({ playwright, environment }, use) => useSession(playwright.request, environment, 'lector', use),
-  administrador: async ({ playwright, environment }, use) => useSession(playwright.request, environment, 'administrador', use)
+  administrador: async ({ playwright, environment }, use) => useSession(playwright.request, environment, 'administrador', use),
+  comprador: async ({ playwright, environment }, use) => useSession(playwright.request, environment, 'comprador', use),
+  responsable: async ({ playwright, environment }, use) => useSession(playwright.request, environment, 'responsable', use)
 });
 
 export { expect };

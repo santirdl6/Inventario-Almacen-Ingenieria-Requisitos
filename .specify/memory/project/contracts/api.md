@@ -123,6 +123,12 @@ Todas las rutas siguientes son relativas a /api/v1 y requieren sesión.
 | DELETE /articles/{id} | Solo sin referencias ni historial; con movimientos devuelve HistoryPreventsDeletion. Desactivar mediante PUT conserva datos. |
 | GET /articles/{id}/movements | Historial paginado, filtros from/to/actorId/locationId/lotId. Incluye artículo inactivo. |
 
+El listado de artículos admite además `skuPrefix` opcional: prefijo SKU literal, Trim +
+ToUpperInvariant, máximo 64 caracteres (422 si excede). Se combina con los filtros
+existentes; `q` conserva su búsqueda por contenido de código/nombre. Añadido por la
+optimización HU-07 de 2026-11-21 para selección explícita por código indexado, sin otro
+catálogo ni cambio de permisos/estado. Detalle en el contrato HU-08; revisión A+B pendiente.
+
 Familias y proveedores usan la misma política de lectura/escritura. No se ofrecen borrados
 de esos recursos en la base inicial. La unidad base, el seguimiento por lote y la admisión
 de fracciones solo pueden cambiarse mientras el artículo no tenga documentos, reservas ni
@@ -177,8 +183,20 @@ paginadas; filtrar isActive no oculta la historia del artículo.
 | GET /purchase-orders/{id}/delivery | sendStatus, attempts, lastError resumido, acceptedAt y posibilidad de reintento. |
 
 Purchasing.Manage para alta/edición; Purchasing.Send para enviar o reintentar un fallo.
-Un reintento de envío utiliza la misma intención y MessageId, sin duplicar pedido.
+Un reintento de un error conocido utiliza la misma **entrega** y MessageId, sin duplicar
+pedido, pero es una nueva acción HTTP con otra Idempotency-Key y resultado propio.
+Recuperar una respuesta HTTP incierta conserva su clave/cuerpo/ETag originales.
 Worker cambia a Sent tras aceptación SMTP; las recepciones cambian los estados posteriores.
+
+Concreción de diseño HU-07, 2026-11-20 (revisión A+B pendiente): GET de detalle propio con
+ETag de cabecera que avanza por líneas/estados/acumulados; GET /{id}/context separa datos
+actuales de maestros sin ETag. GET /{id}/send-preview presenta documento/destinatario y
+token de revisión; POST /{id}/send distingue kind initial/retry y revalida esa revisión
+inicial bajo locks. GET /{id}/delivery/document sirve el adjunto conservado con Inventory.Read.
+DTO, códigos, permisos y reglas particulares en el
+[contrato HU-07](../../../../specs/007-gestionar-pedidos-proveedores/contracts/api.md).
+Implementados localmente en HU-07 con evidencia por historia; revisión A+B pendiente antes
+de integrar. No modifican el protocolo idempotente común.
 
 ### HU-01 — A: recepciones
 
@@ -269,6 +287,10 @@ La alerta no crea ni envía una compra; el comprador abre el flujo HU-07.
 - POST /contingencies/reconcile: Inventory.Adjust más permiso de la operación afectada;
   identificador único de comprobante y datos del comando Receive/Ship/Adjustment existente.
   Usa el mismo núcleo, devuelve operación y referencia conciliada. No admite sobrescribir saldos.
+  Para Receive, HU-01 registra la política compuesta `Receiving.Reconcile`, que exige
+  `Inventory.Adjust` y `Receiving.Record` tanto al ejecutar/repetir como al consultar el
+  resultado. Es un identificador de política, no un permiso concedible; los roles no cambian.
+  Evidencia y revisión A+B del conjunto de cambios HU-01: [integración](../../../../specs/008-registrar-recepcion-mercancia/contracts/integration.md) y [US4](../../../../specs/008-registrar-recepcion-mercancia/validation/us4.md).
 - GET /health: comprobación técnica sin detalles sensibles; 200 listo o 503 no disponible.
 
 La base contenedorizada H0 implementa GET /api/v1/health sin sesión: 200 con

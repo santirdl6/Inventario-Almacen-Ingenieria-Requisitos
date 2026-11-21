@@ -207,6 +207,52 @@ public sealed class OperationProtocolTests(IdentityFixture fixture) : IClassFixt
     }
 
     [Fact]
+    public async Task A_timeout_in_the_middle_of_a_phase_rolls_back_and_does_not_acquire_later_resources()
+    {
+        using var factory = fixture.Factory();
+        var principal = await PrincipalAsync(); var probe = await ProbeAsync();
+        var resources = Enumerable.Range(0, 3).Select(_ => Guid.NewGuid()).OrderBy(id => id.ToString("D"), StringComparer.Ordinal).ToArray();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var blocker = ExecuteAsync(factory.Services, principal, Request(Guid.NewGuid(), probe, "blocker"), async (context, token) =>
+        {
+            await context.Locks.ArticlesAsync([resources[1]], token);
+            entered.TrySetResult(); await release.Task.WaitAsync(TimeSpan.FromSeconds(15), token);
+            return OperationResponse.Json(200, new { ok = true });
+        });
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            var request = Request(Guid.NewGuid(), probe, "timeout");
+            var waiting = ExecuteAsync(factory.Services, principal, request, async (context, token) =>
+            {
+                await IncrementAsync(context, probe, token);
+                await context.Locks.ArticlesAsync(resources.Reverse().Concat(resources), token);
+                throw new InvalidOperationException("No debe atravesar el recurso bloqueado.");
+            });
+            await MasterDataConcurrencyTests.WaitForApplicationLockAsync(fixture);
+            // A later resource remains available while the middle one is blocked.
+            await ExecuteAsync(factory.Services, principal, Request(Guid.NewGuid(), probe, "later"), async (context, token) =>
+            {
+                await context.Locks.ArticlesAsync([resources[2]], token);
+                return OperationResponse.Json(200, new { ok = true });
+            });
+            var error = await Assert.ThrowsAsync<InventoryProblemException>(() => waiting);
+            Assert.Equal("LockTimeout", error.Code); Assert.Equal(503, error.Status);
+            Assert.Equal(0, await ValueAsync(probe));
+            await using var db = fixture.ApplicationDatabase();
+            Assert.False(await db.OperationResults.AnyAsync(value => value.OperationId == request.OperationId));
+            // Rollback releases the first resource even though the independent blocker is still alive.
+            await ExecuteAsync(factory.Services, principal, Request(Guid.NewGuid(), probe, "released"), async (context, token) =>
+            {
+                await context.Locks.ArticlesAsync([resources[0]], token);
+                return OperationResponse.Json(200, new { ok = true });
+            });
+        }
+        finally { release.TrySetResult(); await blocker; }
+    }
+
+    [Fact]
     public async Task A_real_sql_deadlock_retries_the_whole_transaction_in_a_fresh_context()
     {
         using var factory = fixture.Factory();

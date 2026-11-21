@@ -74,7 +74,16 @@ de desarrollo. Se pueden sobrescribir desde el shell o mediante un archivo `.env
 | `SQL_APP_PASSWORD` | `LocalSqlApp_2026!` | Contraseña del usuario de ejecución. |
 | `INITIAL_ADMIN_EMAIL` | `admin@localhost.test` | Cuenta local creada por el inicializador; solo para desarrollo. |
 | `INITIAL_ADMIN_PASSWORD` | `LocalAdmin_2026!ChangeMe` | Contraseña local inicial; cambiar antes de compartir el entorno. |
-| `SMTP_FROM` | `inventario@localhost.test` | Remitente previsto para el futuro worker de compras. |
+| `SMTP_FROM` | `inventario@localhost.test` | Remitente congelado al solicitar el envío de compras. |
+| `SMTP_HOST` / `SMTP_PORT` | `smtp` / `1025` | Servidor de correo; defaults del Mailpit local. |
+| `SMTP_SECURITY` | `None` en Compose local | `StartTls` obligatorio o `SslOnConnect` fuera de desarrollo/pruebas. Sin downgrade automático. |
+| `SMTP_USERNAME` / `SMTP_PASSWORD` | Vacíos | Credenciales opcionales, ambas presentes o ambas ausentes; no se guardan en documentos. |
+| `PURCHASING_CURRENCY` | `EUR` | Moneda ISO 4217 de nuevas compras; los documentos anteriores conservan la suya. |
+| `PURCHASE_DELIVERY_ENABLED` | `true` | Pausar/reanudar worker sin perder la cola persistida. |
+| `PURCHASE_DELIVERY_MAX_ATTEMPTS` | `5` | Claims por ciclo autorizado; rango 1–5. |
+| `PURCHASE_DELIVERY_POLL_SECONDS` | `5` | Intervalo de búsqueda de entregas elegibles. |
+| `PURCHASE_DELIVERY_TIMEOUT_SECONDS` | `30` | Plazo total de conexión/autenticación/transmisión SMTP. |
+| `PURCHASE_DELIVERY_LEASE_SECONDS` | `120` | Concesión SQL, estrictamente mayor que timeout + 30 s. |
 
 Ejemplo para publicar en otro puerto, sin reconstruir Angular:
 
@@ -271,6 +280,35 @@ Para desarrollo fuera de Docker, consultar los comandos del
 [quickstart](.specify/memory/project/quickstart.md); requiere los SDKs correspondientes.
 
 ## Documentación del proyecto
+
+### HU-07 — Compras, correo y recuperación
+
+Compras permite preparar/corregir borradores, revisar destinatario/documento, solicitar
+correo y consultar cantidades/estados. Purchasing.Manage gestiona borradores,
+Purchasing.Send solicita/reintenta e Inventory.Read consulta. El rol Comprador existente
+combina estos permisos; Administrador no los recibe implícitamente.
+
+Un 202 significa solicitud persistida, no correo entregado. La aceptación SMTP pasa el
+pedido a Enviado y no acredita lectura/entrega final. Desde la solicitud el documento
+queda congelado incluso en error. Reintentar un fallo conocido crea otra acción autorizada
+sobre la misma entrega/MessageId/MIME/contacto; recuperar una respuesta incierta conserva
+su clave/cuerpo/ETag originales. Las posibles copias por acuse externo perdido siguen
+identificando el mismo pedido. Las compras no crean existencias ni reservas.
+
+Pausa de desarrollo conservando SQL/Mailpit y sin borrar volúmenes:
+
+```bash
+PURCHASE_DELIVERY_ENABLED=false docker compose up -d app
+PURCHASE_DELIVERY_ENABLED=true docker compose up -d app
+```
+
+Pausar no cancela trabajo ni desbloquea edición. Tras restaurar una copia, mantener envíos
+pausados hasta conciliar posibles correos posteriores al punto recuperado conforme a H5-02;
+un reinicio normal sí recupera la cola persistente y leases vencidos. El worker no trabaja
+durante inicialización/mantenimiento. Guion y pruebas en el
+[quickstart HU-07](specs/007-gestionar-pedidos-proveedores/quickstart.md).
+
+### Acuerdos comunes
 
 - [Constitución](.specify/memory/constitution.md).
 - [Plan global](.specify/memory/project-plan.md).

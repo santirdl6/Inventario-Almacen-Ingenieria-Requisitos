@@ -9,15 +9,23 @@ public interface IArticleUsageContributor
     Task<ArticleUsage> ReadAsync(InventoryDbContext database, Guid articleId, CancellationToken cancellationToken);
 }
 
+// Una referencia derivada impide el borrado, pero no constituye primer uso de la definición.
+public interface IDerivedArticleUsageContributor : IArticleUsageContributor;
+
 public sealed class ArticleUsageReader(InventoryDbContext database, ArticleUsageCoverageValidator coverage,
     IEnumerable<IArticleUsageContributor> contributors) : IArticleUsageReader
 {
-    public async Task<ArticleUsage> ReadAsync(Guid articleId, CancellationToken cancellationToken = default)
+    public Task<ArticleUsage> ReadAsync(Guid articleId, CancellationToken cancellationToken = default) => ReadCoreAsync(articleId, false, cancellationToken);
+
+    public Task<ArticleUsage> ReadDefinitionAsync(Guid articleId, CancellationToken cancellationToken = default) => ReadCoreAsync(articleId, true, cancellationToken);
+
+    private async Task<ArticleUsage> ReadCoreAsync(Guid articleId, bool definitionOnly, CancellationToken cancellationToken)
     {
         coverage.EnsureCovered();
         var result = new ArticleUsage();
         foreach (var contributor in contributors)
         {
+            if (definitionOnly && contributor is IDerivedArticleUsageContributor) continue;
             var part = await contributor.ReadAsync(database, articleId, cancellationToken);
             result = new(result.HasReferences || part.HasReferences || part.HasHistory, result.HasHistory || part.HasHistory);
         }

@@ -72,12 +72,21 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORTS: "8080"
       DataProtection__KeyDirectory: /app/keys
-      Smtp__Host: smtp
-      Smtp__Port: "1025"
+      Smtp__Host: ${SMTP_HOST:-smtp}
+      Smtp__Port: ${SMTP_PORT:-1025}
       Smtp__From: ${SMTP_FROM:-inventario@localhost.test}
       # HU-05 (research D-17): siembra de existencias para E2E; desactivada salvo que el
       # proyecto E2E pase TESTING_ENABLE_STOCK_SEEDING=true.
       Testing__EnableStockSeeding: ${TESTING_ENABLE_STOCK_SEEDING:-false}
+      Smtp__Security: ${SMTP_SECURITY:-None}
+      Smtp__Username: ${SMTP_USERNAME:-}
+      Smtp__Password: ${SMTP_PASSWORD:-}
+      Purchasing__Currency: ${PURCHASING_CURRENCY:-EUR}
+      PurchaseDelivery__Enabled: ${PURCHASE_DELIVERY_ENABLED:-true}
+      PurchaseDelivery__MaxAttempts: ${PURCHASE_DELIVERY_MAX_ATTEMPTS:-5}
+      PurchaseDelivery__PollSeconds: ${PURCHASE_DELIVERY_POLL_SECONDS:-5}
+      PurchaseDelivery__TimeoutSeconds: ${PURCHASE_DELIVERY_TIMEOUT_SECONDS:-30}
+      PurchaseDelivery__LeaseSeconds: ${PURCHASE_DELIVERY_LEASE_SECONDS:-120}
     ports:
       - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8081}:8080"
     volumes:

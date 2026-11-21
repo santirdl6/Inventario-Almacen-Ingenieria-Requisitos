@@ -18,8 +18,11 @@ Fuentes: [catálogo de historias](../specs/001-reparto-specs-inventario/spec.md)
 | 008 | HU-01 | Registrar la recepción de mercancía | `specs/008-registrar-recepcion-mercancia/` |
 | 009 | HU-06 | Configurar alertas de stock mínimo | `specs/009-configurar-alertas-stock-minimo/` |
 
-002 está implementada y cerrada técnicamente. 007–009 son reservas de numeración y
-nombres para crear las futuras specs, no directorios creados ni funcionalidades implementadas.
+002 está implementada y cerrada técnicamente. 007 tiene su
+[entrega funcional local](../specs/007-gestionar-pedidos-proveedores/spec.md) con el objetivo
+de rendimiento de guardados pendiente. 008 tiene su [especificación HU-01 en borrador](../specs/008-registrar-recepcion-mercancia/spec.md),
+creada el 2026-11-21. 009 está [completada en su alcance funcional](../specs/009-configurar-alertas-stock-minimo/spec.md),
+con el ensayo completo de rendimiento diferido.
 
 ## Persona B — Operación y disponibilidad
 

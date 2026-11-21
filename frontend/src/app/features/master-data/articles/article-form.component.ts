@@ -17,9 +17,10 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MasterDataMutationsService } from '../../../core/http/master-data-mutations.service';
 import { OperationStatusComponent } from '../../../core/operations/operation-status.component';
 import { VersionConflictComponent, VersionReview } from '../../../shared/version-conflict.component';
+import { StockPolicyComponent } from '../../replenishment/stock-policy.component';
 
 @Component({
-  standalone: true, imports: [ReactiveFormsModule, RouterLink, ButtonModule, InputTextModule, ConfirmDialogModule, FieldErrorsComponent, ArticleLifecycleComponent, OperationStatusComponent, VersionConflictComponent],
+  standalone: true, imports: [ReactiveFormsModule, RouterLink, ButtonModule, InputTextModule, ConfirmDialogModule, FieldErrorsComponent, ArticleLifecycleComponent, OperationStatusComponent, VersionConflictComponent, StockPolicyComponent],
   providers: [ConfirmationService],
   template: `
     <h1>{{ id ? 'Detalle de artículo' : 'Nuevo artículo' }}</h1><a routerLink="/maestros/articulos">Volver a artículos</a>
@@ -46,10 +47,9 @@ import { VersionConflictComponent, VersionReview } from '../../../shared/version
       @if (context() && !context()!.capabilities.canEditDefinition) { <p>La primera referencia bloquea unidad, lotes y fracciones, aunque después se retire.</p> }
       @if (id) { <p><label><input type="checkbox" formControlName="isActive"> Artículo activo</label></p> }
       @else { <p>Estado inicial: Activo. La política de reposición se inicia a cero.</p> }
-      @if (context()) { <p>Mínimo disponible configurado (consulta): {{ context()!.minimumAvailable }} {{ form.controls.baseUnit.value }}</p> }
       @if (canManage()) { <p-button type="submit" label="Guardar artículo" [disabled]="form.invalid || form.disabled || busy() || loading() || !!pending() || problem()?.status === 412" /> }
     </fieldset></form><p-confirmdialog />
-    @if (id) { <p><a [routerLink]="['/maestros/articulos', id, 'movimientos']">Consultar historial de movimientos</a></p> }
+    @if (id) { <app-stock-policy [articleId]="id" [unit]="original?.baseUnit ?? ''" [allowsFractional]="original?.allowsFractional ?? true" /><p><a [routerLink]="['/maestros/articulos', id, 'movimientos']">Consultar historial de movimientos</a></p> }
     @if (original && context() && etag) { <app-article-lifecycle [article]="original" [context]="context()!" [etag]="etag" [disabled]="busy() || loading() || !!pending() || problem()?.status === 412" (working)="busy.set($event)" (deleted)="afterDelete()" (deactivate)="deactivate()" /> }
   `
 })

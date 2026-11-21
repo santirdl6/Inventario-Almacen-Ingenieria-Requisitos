@@ -74,6 +74,7 @@ public sealed class StockMovement
         || (reference is null && !string.IsNullOrWhiteSpace(reason));
 
     internal void AddEntry(StockEntry entry) => entries.Add(entry);
+    internal void LinkOriginal(Guid originalMovementId) => OriginalMovementId = originalMovementId;
 }
 
 public sealed class StockEntry

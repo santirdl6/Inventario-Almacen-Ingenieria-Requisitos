@@ -34,17 +34,18 @@ describe('Áreas de B sobre la base de A', () => {
       expect(route.data).toEqual({ permission: area.permission });
     }
     expect(OPERATION_AREAS.map(area => [area.path, area.permission])).toEqual([
+      ['alertas', 'Alerts.Read'],
       ['ubicaciones', 'Inventory.Read'], ['existencias', 'Inventory.Read'],
-      ['salidas', 'Inventory.Read'], ['inventarios', 'Counts.Record']
+      ['salidas', 'Inventory.Read'], ['inventarios', 'Counts.Record'], ['compras', 'Inventory.Read'], ['recepciones', 'Inventory.Read']
     ]);
     expect(routes.at(-1)!.path).toBe('**');
   });
 
   it('con permiso carga la página de cada área (provisional salvo las ya desarrolladas)', async () => {
-    signIn(operario);
+    signIn({ ...operario, permissions: [...operario.permissions, 'Alerts.Read'] });
     const harness = await RouterTestingHarness.create();
-    const titles: Record<string, string> = { ubicaciones: 'Ubicaciones', existencias: 'Existencias', salidas: 'Salidas', inventarios: 'Inventarios cíclicos' };
-    const developed = ['ubicaciones', 'existencias', 'salidas', 'inventarios']; // HU-02, HU-05, HU-03, HU-04
+    const titles: Record<string, string> = { alertas: 'Alertas de stock mínimo', ubicaciones: 'Ubicaciones', existencias: 'Existencias', salidas: 'Salidas', inventarios: 'Inventarios cíclicos', compras: 'Compras', recepciones: 'Recepciones' };
+    const developed = ['alertas', 'ubicaciones', 'existencias', 'salidas', 'inventarios', 'compras', 'recepciones']; // HU-06, HU-02, HU-05, HU-03, HU-04, HU-07, HU-01
     for (const area of OPERATION_AREAS) {
       await harness.navigateByUrl(`/${area.path}`);
       expect(TestBed.inject(Router).url).toBe(`/${area.path}`);
@@ -85,9 +86,11 @@ describe('Áreas de B sobre la base de A', () => {
       return anchors.map(anchor => anchor.getAttribute('href'));
     };
     const operarioLinks = await links(operario);
-    expect(operarioLinks).toEqual(expect.arrayContaining(['/ubicaciones', '/existencias', '/salidas', '/inventarios']));
+    expect(operarioLinks).toEqual(expect.arrayContaining(['/ubicaciones', '/existencias', '/salidas', '/inventarios', '/compras']));
     const gestorLinks = await links(gestor);
-    expect(gestorLinks).toEqual(expect.arrayContaining(['/ubicaciones', '/existencias', '/salidas']));
+    expect(gestorLinks).toEqual(expect.arrayContaining(['/ubicaciones', '/existencias', '/salidas', '/compras']));
+    // HU-03 (D-14): /salidas solo exige Inventory.Read para consultar; el gestor la ve, pero sin Shipping.Record no registra salidas.
+    expect(gestor.permissions).not.toContain('Shipping.Record');
     expect(gestorLinks).not.toContain('/inventarios');
     const adminLinks = await links(administrador);
     for (const area of OPERATION_AREAS) expect(adminLinks).not.toContain(`/${area.path}`);

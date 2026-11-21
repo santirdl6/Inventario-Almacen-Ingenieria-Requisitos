@@ -30,6 +30,7 @@ describe('Catálogo de artículos', () => {
     route.snapshot.paramMap = convertToParamMap({ id: article.id });
     if (readonly) TestBed.inject(SessionService).user.set({ id: 'reader', email: 'reader@example.test', roles: ['Operario'], permissions: ['Inventory.Read'] });
     const fixture = TestBed.createComponent(ArticleFormComponent); fixture.detectChanges();
+    http.expectOne(`/api/v1/articles/${article.id}/stock-policy`).flush({ minimumAvailable: '0.000' }, { headers: { ETag: etag } });
     http.expectOne(`/api/v1/articles/${article.id}`).flush(article, { headers: { ETag: etag } });
     await vi.waitFor(() => http.expectOne(`/api/v1/articles/${article.id}/context`).flush({ articleVersion: etag,
       family: { ...family, isActive: false }, minimumAvailable: '0.000', capabilities: {

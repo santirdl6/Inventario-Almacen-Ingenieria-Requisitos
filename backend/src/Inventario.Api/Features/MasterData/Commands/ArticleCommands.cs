@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Inventario.Api.Domain.MasterData;
+using Inventario.Api.Domain.Stock;
 using Inventario.Api.Infrastructure.Http;
 using Inventario.Api.Infrastructure.Persistence;
 using Inventario.Api.Infrastructure.Persistence.Operations;
@@ -63,9 +64,15 @@ public sealed class ArticleCommands(InventoryOperationExecutor executor)
             if (definitionChanged)
             {
                 context.Services.GetRequiredService<ArticleDefinitionReadiness>().EnsureReady();
-                var usage = await context.Services.GetRequiredService<IArticleUsageReader>().ReadAsync(articleId, token);
+                var usage = await context.Services.GetRequiredService<IArticleUsageReader>().ReadDefinitionAsync(articleId, token);
                 if (!create && (article!.IsDefinitionLocked || usage.HasReferences || usage.HasHistory))
                     throw new InventoryProblemException(409, "ArticleDefinitionLocked", "La primera referencia bloquea unidad, lotes y fracciones, aunque después se retire.");
+                if (!create && write.AllowsFractional == false)
+                {
+                    var policy = await db.Set<StockPolicy>().SingleAsync(value => value.ArticleId == articleId, token);
+                    if (decimal.Truncate(policy.MinimumAvailable) != policy.MinimumAvailable)
+                        throw InventoryProblemException.Validation("allowsFractional", "El mínimo vigente contiene fracciones; ajústalo antes de exigir unidades enteras.");
+                }
             }
             var before = article is null ? null : ArticleDto.From(article);
             var action = create ? MasterDataAction.Create : article!.IsActive != write.IsActive

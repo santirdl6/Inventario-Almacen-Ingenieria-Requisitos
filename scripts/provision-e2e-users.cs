@@ -18,8 +18,8 @@ try
         Environment.GetEnvironmentVariable("HU08_E2E_DATABASE") ?? "",
         Environment.GetEnvironmentVariable("Testing__SqlHost") ?? "",
         Environment.GetEnvironmentVariable("Testing__SqlAdminPassword") ?? "",
-        accounts, retire: args[0] == "retire");
-    Console.WriteLine(args[0] == "retire" ? "Cuentas E2E retiradas sin borrar actores." : "Tres cuentas E2E preparadas.");
+        accounts, retire: args[0] == "retire", profile: Environment.GetEnvironmentVariable("INVENTORY_E2E_PROFILE") ?? "hu08");
+    Console.WriteLine(args[0] == "retire" ? "Cuentas E2E retiradas sin borrar actores." : "Cuentas E2E preparadas.");
     return 0;
 }
 catch (Exception error)

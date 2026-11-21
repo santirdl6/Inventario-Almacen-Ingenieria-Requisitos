@@ -66,6 +66,7 @@ public static class StockCoreRegistration
         services.AddScoped<CycleCounts.CycleCountArticleUsageContributor>();
         services.AddScoped<IArticleUsageContributor>(provider => provider.GetRequiredService<CycleCounts.CycleCountArticleUsageContributor>());
         services.AddScoped<IArticleFirstReferenceContributor>(provider => provider.GetRequiredService<CycleCounts.CycleCountArticleUsageContributor>());
+        services.AddScoped<IArticleUsageContributor, StockAlertArticleUsage>();
         services.AddScoped<IArticleMovementReader, StockArticleMovementReader>();
         return services;
     }

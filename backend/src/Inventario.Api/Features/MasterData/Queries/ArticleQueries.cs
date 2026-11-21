@@ -16,22 +16,28 @@ public sealed record ArticleContextDto(string ArticleVersion, FamilyDto Family, 
 
 public sealed class ArticleQueries(InventoryDbContext db, IArticleUsageReader usage, ArticleDefinitionReadiness readiness)
 {
-    public Task<PageResult<ArticleSummary>> ListAsync(MasterDataQueryOptions options, Guid? familyId, CancellationToken cancellation) =>
+    public Task<PageResult<ArticleSummary>> ListAsync(MasterDataQueryOptions options, Guid? familyId, CancellationToken cancellation, string? skuPrefix = null) =>
         db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
+            var prefix = MasterDataText.Optional(skuPrefix, 64, "skuPrefix")?.ToUpperInvariant();
             await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Snapshot, cancellation);
-            var query = from article in db.Articles.AsNoTracking() join family in db.Set<Family>() on article.FamilyId equals family.Id
-                select new { Article = article, Family = family };
-            if (options.IsActive is { } active) query = query.Where(value => value.Article.IsActive == active);
-            if (familyId is { } selected) query = query.Where(value => value.Article.FamilyId == selected);
-            if (options.Query is { } q) query = query.Where(value => value.Article.Sku.Contains(q)
-                || EF.Functions.Collate(value.Article.Name, "Latin1_General_100_CI_AS").Contains(q));
+            var query = db.Articles.AsNoTracking();
+            if (prefix is not null) query = query.Where(value => value.Sku.StartsWith(prefix));
+            if (options.IsActive is { } active) query = query.Where(value => value.IsActive == active);
+            if (familyId is { } selected) query = query.Where(value => value.FamilyId == selected);
+            if (options.Query is { } q) query = query.Where(value => value.Sku.Contains(q)
+                || EF.Functions.Collate(value.Name, "Latin1_General_100_CI_AS").Contains(q));
+            // FamilyId is a required restrictive FK: count needs no join, and only page rows need family data.
             var count = await query.CountAsync(cancellation);
-            var items = await query.OrderBy(value => value.Article.Sku).ThenBy(value => value.Article.Id)
+            var pageIds = query.OrderBy(value => value.Sku).ThenBy(value => value.Id)
                 .Skip((options.Page - 1) * options.PageSize).Take(options.PageSize)
-                .Select(value => new ArticleSummary(value.Article.Id, value.Article.Sku, value.Article.Name,
-                    new FamilyDto(value.Family.Id, value.Family.Code, value.Family.Name, value.Family.IsActive),
-                    value.Article.BaseUnit, value.Article.AllowsFractional, value.Article.TracksLot, value.Article.IsActive)).ToListAsync(cancellation);
+                .Select(value => value.Id);
+            var items = await (from article in db.Articles.AsNoTracking().Where(value => pageIds.Contains(value.Id))
+                join family in db.Set<Family>() on article.FamilyId equals family.Id
+                orderby article.Sku, article.Id
+                select new ArticleSummary(article.Id, article.Sku, article.Name,
+                    new FamilyDto(family.Id, family.Code, family.Name, family.IsActive),
+                    article.BaseUnit, article.AllowsFractional, article.TracksLot, article.IsActive)).ToListAsync(cancellation);
             await tx.CommitAsync(cancellation);
             return new PageResult<ArticleSummary>(items, options.Page, options.PageSize, count);
         });
@@ -45,10 +51,11 @@ public sealed class ArticleQueries(InventoryDbContext db, IArticleUsageReader us
         var article = await DetailAsync(id, cancellation) ?? throw new InventoryProblemException(404, "NotFound", "El artículo no existe.");
         readiness.EnsureReady();
         var references = await usage.ReadAsync(id, cancellation);
+        var definitionReferences = await usage.ReadDefinitionAsync(id, cancellation);
         var family = await db.Set<Family>().AsNoTracking().SingleAsync(value => value.Id == article.FamilyId, cancellation);
         var policy = await db.Set<StockPolicy>().AsNoTracking().SingleOrDefaultAsync(value => value.ArticleId == id, cancellation)
             ?? throw new InventoryProblemException(503, "DependencyUnavailable", "Falta completar la política inicial del artículo.");
-        var locked = article.IsDefinitionLocked || references.HasReferences || references.HasHistory;
+        var locked = article.IsDefinitionLocked || definitionReferences.HasReferences || definitionReferences.HasHistory;
         var result = new ArticleContextDto(EntityTags.Format(article.Version), FamilyDto.From(family),
             policy.MinimumAvailable.ToString("F3", CultureInfo.InvariantCulture),
             new ArticleCapabilities(!locked, locked ? "FirstReference" : null, !references.HasReferences && !references.HasHistory,

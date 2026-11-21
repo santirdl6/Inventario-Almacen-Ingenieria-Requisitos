@@ -41,7 +41,8 @@ public sealed class Hu04SchemaTests(IdentityFixture fixture) : IClassFixture<Ide
         scope.ServiceProvider.GetRequiredService<ArticleUsageCoverageValidator>().EnsureCovered();
         scope.ServiceProvider.GetRequiredService<ArticleDefinitionReadiness>().EnsureReady();
         Assert.False(database.Database.HasPendingModelChanges());
-        Assert.EndsWith(MigrationSuffix, database.Database.GetMigrations().Last());
+        // Tras integrar main, las migraciones de A pueden ir después; basta con que HU-04 esté en la cadena.
+        Assert.Contains(database.Database.GetMigrations(), migration => migration.EndsWith(MigrationSuffix, StringComparison.Ordinal));
     }
 
     [Fact]

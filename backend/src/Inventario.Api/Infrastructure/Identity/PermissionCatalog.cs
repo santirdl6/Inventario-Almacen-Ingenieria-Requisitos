@@ -16,6 +16,10 @@ public static class PermissionCatalog
     public const string AlertsRead = "Alerts.Read";
     public const string UsersManage = "Users.Manage";
 
+    // Policy identifier, not a grantable permission: both constituent permissions are required.
+    public const string ReceivingReconcilePolicy = "Receiving.Reconcile";
+    public static bool IsOperationPolicy(string value) => All.Contains(value) || value == ReceivingReconcilePolicy;
+
     public static readonly IReadOnlyList<string> Roles =
     ["Operario", "ResponsableAlmacen", "Comprador", "GestorMaestros", "Administrador"];
 

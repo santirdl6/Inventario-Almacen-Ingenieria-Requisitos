@@ -1,7 +1,7 @@
 import { Component, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MasterDataMutationsService } from '../http/master-data-mutations.service';
-import { PendingOperation, PendingOperationStore, mutationPermission } from './pending-operation.store';
+import { PendingOperation, PendingOperationStore, mutationPermission, operationGroup, hasMutationPermission } from './pending-operation.store';
 import { SessionService } from '../session/session.service';
 import { apiProblem } from '../http/api-problem';
 
@@ -10,7 +10,7 @@ import { apiProblem } from '../http/api-problem';
   template: `
     @if (message()) { <p role="status">{{ message() }}</p> }
     @for (operation of pending.operations(); track operation.operationId) {
-      @if (operation.actorId === session.user()?.id && (!resource() || resource() === operation.resource)) {
+      @if (operation.actorId === session.user()?.id && (!resource() || sameGroup(resource(), operation.resource))) {
         <section aria-label="Operación pendiente">
           <p role="status">Resultado pendiente de comprobar: {{ operation.operationId }}</p>
           @if (summaryOnly()) { <a [routerLink]="route(operation)">Revisar esta operación pendiente</a> } @else {
@@ -37,10 +37,17 @@ export class OperationStatusComponent {
     if (appRoute.startsWith('/inventarios/')) return 'Abrir conteo';
     return appRoute.startsWith('/salidas/') && !appRoute.startsWith('/salidas/pedidos/') ? 'Abrir salida' : 'Abrir pedido';
   }
-  canRetry(operation: PendingOperation): boolean { const permission = mutationPermission(operation.resource); return this.hasOriginal(operation) && !!permission && this.session.has(permission) && this.checked().includes(operation.operationId); }
+  readonly sameGroup = (one: string, two: string) => operationGroup(one) === operationGroup(two);
+  canRetry(operation: PendingOperation): boolean { const permission = mutationPermission(operation.resource, operation.method); return this.hasOriginal(operation) && !!permission && hasMutationPermission(this.session, permission) && this.checked().includes(operation.operationId); }
   route(operation: PendingOperation): string {
     if (operation.appRoute) return operation.appRoute; // HU-05: pedido de la reserva o liberación.
     const parts = operation.resource.split('/');
+    if (parts[3] === 'receipts') return parts[4] ? `/recepciones/${parts[4]}` : '/recepciones/nueva';
+    if (parts[3] === 'movements') return '/recepciones';
+    if (parts[3] === 'contingencies') return parts[4] === 'receiving-scopes' && parts[5]
+      ? `/recepciones/contingencia/${parts[5]}` : '/recepciones/contingencia';
+    if (parts[3] === 'purchase-orders') return parts[4]
+      ? `/compras/${parts[4]}/${parts[5] === 'send' ? 'enviar' : 'editar'}` : '/compras/nuevo';
     if (parts[3] === 'locations') return parts[4] ? `/ubicaciones/${parts[4]}/editar` : '/ubicaciones/nueva';
     const catalogue = ({ families: 'familias', articles: 'articulos', suppliers: 'proveedores' } as Record<string, string>)[parts[3]];
     return `/maestros/${catalogue}/${parts[4] ?? 'nuevo'}`;

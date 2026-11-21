@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Inventario.Api.Domain.MasterData;
 using Inventario.Api.Domain.Stock;
+using Inventario.Api.Domain.Purchasing;
 using Inventario.Api.Features.MasterData.Queries;
 using Inventario.Api.Features.Stock.Core;
 using Inventario.Api.Infrastructure.Http;
@@ -44,18 +45,79 @@ public sealed class StockArticleIntegrationTests(IdentityFixture fixture) : ICla
         StockCore.Prepare(StockOperation.Receive, StockTestHarness.Context("receipt"), [new(article, location, null, quantity)]);
 
     [Fact]
-    public void Stock_is_the_only_article_consumer_and_its_contributor_covers_every_foreign_key()
+    public void Stock_and_purchasing_contributors_cover_every_article_foreign_key()
     {
         using var factory = fixture.Factory();
         using var scope = factory.Services.CreateScope();
         var database = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-        // Los tipos de stock con FK a Article deben estar siempre cubiertos. Otros consumidores
-        // (HU-05: CustomerOrderLine, ReservationAllocation) fijan su conjunto en sus propias pruebas.
+        // Los tipos de stock y los de HU-07/HU-06 con FK a Article deben estar siempre cubiertos. Otros
+        // consumidores (HU-05/03/04) fijan su conjunto en sus propias pruebas.
         Assert.Subset(ArticleUsageCoverageValidator.RequiredTypes(database.Model),
-            new HashSet<Type> { typeof(Lot), typeof(StockBalance), typeof(StockEntry) });
+            new HashSet<Type> { typeof(Lot), typeof(StockBalance), typeof(StockEntry), typeof(StockAlert), typeof(PurchaseOrderLine) });
+        Assert.Equal(new HashSet<Type> { typeof(Lot), typeof(StockBalance), typeof(StockEntry) },
+            scope.ServiceProvider.GetServices<IArticleUsageContributor>().OfType<StockArticleUsageContributor>()
+                .Single().ReferencingEntityTypes.ToHashSet());
         // Ni la cobertura de uso ni la de primera referencia quedan como 503 DependencyUnavailable.
         scope.ServiceProvider.GetRequiredService<ArticleUsageCoverageValidator>().EnsureCovered();
         scope.ServiceProvider.GetRequiredService<ArticleDefinitionReadiness>().EnsureReady();
+    }
+
+    [Fact]
+    public async Task Alert_tracks_pending_balances_and_resolves_on_receipt()
+    {
+        using var factory = fixture.Factory();
+        using var api = await MasterDataApi.LoginAsync(fixture, factory);
+        var stock = new StockTestHarness(fixture, factory.Services);
+        var (_, principal) = await stock.ActorAsync();
+        var (id, _) = await CreateArticleAsync(api, "LOWSTOCK");
+        var location = await LocationAsync();
+        await using (var db = fixture.ApplicationDatabase())
+        {
+            var policy = await db.Set<StockPolicy>().SingleAsync(x => x.ArticleId == id);
+            db.Entry(policy).Property(x => x.MinimumAvailable).CurrentValue = 5m;
+            await db.SaveChangesAsync();
+        }
+        await stock.RunAsync(principal, Receive(id, location, 12m));
+        await stock.RunAsync(principal, StockCore.Prepare(StockOperation.Reserve, StockTestHarness.Context("reservation"), [new(id, location, null, 8m)]));
+        await using (var db = fixture.ApplicationDatabase())
+        {
+            var alert = await db.Set<StockAlert>().SingleAsync(x => x.ArticleId == id);
+            Assert.Equal("Active", alert.State);
+            Assert.Equal(12m, alert.PhysicalSnapshot);
+            Assert.Equal(8m, alert.ReservedSnapshot);
+            Assert.Equal(4m, alert.AvailableSnapshot);
+            Assert.Equal(1m, alert.SuggestedQuantity);
+        }
+        await stock.RunAsync(principal, Receive(id, location, 3m));
+        await using var check = fixture.ApplicationDatabase();
+        var resolved = await check.Set<StockAlert>().SingleAsync(x => x.ArticleId == id);
+        Assert.Equal("Resolved", resolved.State);
+        Assert.NotNull(resolved.ResolvedAt);
+    }
+
+    [Fact]
+    public async Task Alert_history_prevents_deletion_without_locking_an_unused_definition()
+    {
+        using var factory = fixture.Factory();
+        using var api = await MasterDataApi.LoginAsync(fixture, factory);
+        var (id, etag) = await CreateArticleAsync(api, "ALERTONLY");
+        await using (var db = fixture.ApplicationDatabase())
+        {
+            var alert = new StockAlert(id, 0m, 0m, 5m, DateTimeOffset.UtcNow);
+            alert.Resolve(DateTimeOffset.UtcNow);
+            db.Add(alert);
+            await db.SaveChangesAsync();
+        }
+        var path = $"/api/v1/articles/{id:D}";
+        var current = await api.Client.GetFromJsonAsync<JsonElement>(path);
+        var context = (await api.Client.GetFromJsonAsync<JsonElement>(path + "/context")).GetProperty("capabilities");
+        Assert.True(context.GetProperty("canEditDefinition").GetBoolean());
+        Assert.False(context.GetProperty("canDelete").GetBoolean());
+        var body = MasterDataArticleTests.Body(current.GetProperty("familyId").GetGuid(), current.GetProperty("sku").GetString()!, unit: "KG", lot: false);
+        var updated = await api.WriteAsync(HttpMethod.Put, path, body, version: etag);
+        Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
+        var deleted = await api.WriteAsync(HttpMethod.Delete, path, new { }, version: updated.Headers.ETag!.ToString());
+        Assert.Equal(HttpStatusCode.Conflict, deleted.StatusCode);
     }
 
     [Fact]
