@@ -16,6 +16,8 @@ export function mutationPermission(resource: string): string | null {
   // HU-05: alta de pedido, reservar y liberar.
   if (/^\/api\/v1\/customer-orders$/i.test(resource)) return 'Shipping.Record';
   if (/^\/api\/v1\/reservations(\/[0-9a-f-]{36}\/release)?$/i.test(resource)) return 'Reservations.Manage';
+  // HU-03: crear, editar, eliminar y confirmar una salida.
+  if (/^\/api\/v1\/shipments(\/[0-9a-f-]{36}(\/confirm)?)?$/i.test(resource)) return 'Shipping.Record';
   return null;
 }
 
