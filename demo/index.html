@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demo Persona B</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2433; --muted: #5b6475; --line: #dde2ea;
+    --accent: #1f5fbf; --accent-soft: #e7effb; --ok: #1d7a46; --warn: #9a5b00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161d; --panel: #1b212b; --text: #e6e9ef; --muted: #9aa3b2; --line: #2c3442;
+      --accent: #7fb0ff; --accent-soft: #1f2a3d; --ok: #6fd39b; --warn: #f0b45a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  header { padding: 16px 24px; border-bottom: 1px solid var(--line); background: var(--panel); display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 20px; margin: 0; }
+  header p { margin: 0; color: var(--muted); }
+  .modes { display: flex; gap: 4px; border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+  .modes button { border: 0; background: transparent; color: var(--text); padding: 6px 14px; border-radius: 6px; cursor: pointer; font: inherit; }
+  .modes button[aria-pressed="true"] { background: var(--accent); color: var(--panel); }
+  main { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 20px; padding: 20px 24px; max-width: 1500px; margin: 0 auto; }
+  nav, section.info { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  nav h2, section.info h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 8px; }
+  nav ol { list-style: none; margin: 0; padding: 0; }
+  nav li > button { width: 100%; text-align: left; border: 1px solid transparent; background: transparent; color: var(--text); padding: 8px; border-radius: 8px; cursor: pointer; font: inherit; }
+  nav li > button:hover, nav li > button:focus-visible { border-color: var(--line); }
+  nav li > button[aria-current="true"] { background: var(--accent-soft); border-color: var(--accent); }
+  nav .id { font-weight: 600; display: block; }
+  nav .meta { color: var(--muted); font-size: 13px; }
+  .player { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  video { width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 10px; }
+  .scenes { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .scenes button { width: 100%; display: flex; gap: 12px; align-items: baseline; text-align: left; border: 1px solid var(--line); background: var(--panel); color: var(--text); padding: 8px 10px; border-radius: 8px; cursor: pointer; font: inherit; }
+  .scenes button[aria-current="true"] { border-color: var(--accent); background: var(--accent-soft); }
+  .scenes time { font-variant-numeric: tabular-nums; color: var(--accent); min-width: 52px; font-weight: 600; }
+  .scenes .story { color: var(--muted); font-size: 13px; margin-left: auto; white-space: nowrap; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .info p { margin: 4px 0 10px; }
+  .info ul { margin: 0; padding-left: 18px; }
+  .skipped { color: var(--warn); }
+  footer { color: var(--muted); font-size: 13px; padding: 0 24px 24px; text-align: center; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; padding: 16px; } header { padding: 12px 16px; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Inventario de almacén · Demo de Persona B</h1>
+    <p id="summary">HU-02, HU-05, HU-03 y HU-04 grabadas desde los E2E de Playwright.</p>
+  </div>
+  <div class="modes" role="group" aria-label="Modo de reproducción">
+    <button type="button" id="mode-full" aria-pressed="true">Demo completa</button>
+    <button type="button" id="mode-story" aria-pressed="false">Por historia</button>
+  </div>
+</header>
+<main>
+  <nav aria-label="Historias">
+    <h2>Historias</h2>
+    <ol id="stories"></ol>
+  </nav>
+  <div class="player">
+    <video id="video" controls preload="metadata" playsinline></video>
+    <section class="info" aria-labelledby="scenes-title">
+      <h2 id="scenes-title">Escenarios</h2>
+      <ol class="scenes" id="scenes"></ol>
+    </section>
+    <section class="info" aria-labelledby="story-title">
+      <h2 id="story-title">Historia</h2>
+      <div id="story"></div>
+    </section>
+  </div>
+</main>
+<footer>Abre este archivo con doble clic: no necesita servidor ni conexión. Vídeos en <code>video/</code>.</footer>
+<noscript><p style="padding:24px">Activa JavaScript o abre directamente <a href="video/demo-completa.mp4">video/demo-completa.mp4</a>.</p></noscript>
+<script src="datos.js"></script>
+<script>
+(function () {
+  const demo = window.DEMO;
+  const video = document.getElementById('video');
+  const storiesEl = document.getElementById('stories');
+  const scenesEl = document.getElementById('scenes');
+  const storyEl = document.getElementById('story');
+  const fullBtn = document.getElementById('mode-full');
+  const storyBtn = document.getElementById('mode-story');
+  if (!demo) { storyEl.textContent = 'Falta datos.js: ejecuta demo/montar.sh.'; return; }
+
+  let mode = 'full';
+  let current = 0;
+  const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const el = (tag, props = {}, ...children) => {
+    const node = Object.assign(document.createElement(tag), props);
+    for (const child of children) node.append(child);
+    return node;
+  };
+  document.getElementById('summary').textContent =
+    `${demo.historias.map(h => h.id).join(', ')} · ${fmt(demo.duracion)} en total · grabadas desde los E2E de Playwright.`;
+
+  function load(src, poster, at) {
+    if (!video.src.endsWith(src)) { video.src = src; video.poster = poster || ''; }
+    const seek = () => { video.currentTime = at || 0; };
+    if (video.readyState >= 1) seek(); else video.addEventListener('loadedmetadata', seek, { once: true });
+  }
+
+  function offset(h) { return mode === 'full' ? 0 : h.inicio; }
+
+  function renderStories() {
+    storiesEl.replaceChildren(...demo.historias.map((h, i) => el('li', {},
+      el('button', { type: 'button', onclick: () => select(i, true) },
+        el('span', { className: 'id', textContent: `${h.id} · ${h.titulo}` }),
+        el('span', { className: 'meta', textContent: `${h.escenarios.length} escenario(s) · ${fmt(h.duracion)}` })))));
+  }
+
+  function renderScenes() {
+    const list = mode === 'full'
+      ? demo.historias.flatMap((h, i) => h.escenarios.map(e => ({ ...e, h, i })))
+      : demo.historias[current].escenarios.map(e => ({ ...e, h: demo.historias[current], i: current }));
+    scenesEl.replaceChildren(...list.map(e => el('li', {},
+      el('button', { type: 'button', onclick: () => jump(e) },
+        el('time', { textContent: fmt(e.t - offset(e.h)) }),
+        el('span', { textContent: e.titulo }),
+        mode === 'full' ? el('span', { className: 'story', textContent: e.h.id }) : ''))));
+  }
+
+  function renderStory() {
+    const h = demo.historias[current];
+    const skipped = (h.saltados || []).map(s => el('li', { className: 'skipped', textContent: `${s.titulo} (no grabado: ${s.estado})` }));
+    storyEl.replaceChildren(el('div', { className: 'grid2' },
+      el('div', {},
+        el('p', {}, el('strong', { textContent: `${h.id} · ${h.titulo}` })),
+        el('p', { textContent: h.historia }),
+        el('p', {}, el('strong', { textContent: 'Rol: ' }), h.rol),
+        el('p', {}, el('strong', { textContent: 'Spec: ' }), el('code', { textContent: h.spec }))),
+      el('div', {},
+        el('p', {}, el('strong', { textContent: 'Escenarios previstos' })),
+        el('ul', {}, ...h.previstos.map(p => el('li', { textContent: p })), ...skipped))));
+    storiesEl.querySelectorAll('li > button').forEach((b, i) => b.setAttribute('aria-current', String(i === current)));
+  }
+
+  function select(i, play) {
+    current = i;
+    const h = demo.historias[i];
+    if (mode === 'full') load(demo.completa, demo.historias[0].poster, h.inicio);
+    else load(h.video, h.poster, 0);
+    renderScenes(); renderStory();
+    if (play) video.play().catch(() => {});
+  }
+
+  function jump(e) {
+    current = e.i;
+    if (mode === 'full') load(demo.completa, '', e.t);
+    else load(e.h.video, e.h.poster, e.t - e.h.inicio);
+    renderStory();
+    video.play().catch(() => {});
+  }
+
+  function setMode(next) {
+    mode = next;
+    fullBtn.setAttribute('aria-pressed', String(mode === 'full'));
+    storyBtn.setAttribute('aria-pressed', String(mode === 'story'));
+    select(current, false);
+  }
+
+  // Resalta la historia y el escenario en curso mientras se reproduce.
+  video.addEventListener('timeupdate', () => {
+    const t = video.currentTime + (mode === 'full' ? 0 : demo.historias[current].inicio);
+    if (mode === 'full') {
+      const i = demo.historias.findLastIndex(h => h.inicio <= t + 0.05);
+      if (i >= 0 && i !== current) { current = i; renderStory(); }
+    }
+    const buttons = scenesEl.querySelectorAll('button');
+    const list = mode === 'full' ? demo.historias.flatMap(h => h.escenarios) : demo.historias[current].escenarios;
+    const active = list.findLastIndex(e => e.t <= t + 0.05);
+    buttons.forEach((b, i) => b.setAttribute('aria-current', String(i === active)));
+  });
+
+  fullBtn.addEventListener('click', () => setMode('full'));
+  storyBtn.addEventListener('click', () => setMode('story'));
+  renderStories();
+  select(0, false);
+})();
+</script>
+</body>
+</html>
