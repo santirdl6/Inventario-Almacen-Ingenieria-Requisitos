@@ -4,9 +4,11 @@
 
 - **Asignatura** Ingeniería de Requisitos
 - **Práctica** Desarrollo de un sistema de información mediante Spec-Driven Development
-- **Estado** Borrador de entrega · 21 de noviembre de 2026
+- **Equipo** Persona A (`santirdl6`) y Persona B (`nayara-cortes`)
+- **Documento** Memoria final de entrega
+- **Fecha** 21 de noviembre de 2026
 
-Aplicación web para el personal de almacén y compras. Registra dónde se guarda cada artículo, distingue el físico de lo reservado y permite reconstruir los cambios de inventario. El corte de integración documentado incorpora maestros, ubicaciones, consultas, pedidos de cliente y reservas. Las salidas tienen un PR con evidencia propia. El estado de las demás historias figura en el análisis.
+Aplicación web para el personal de almacén y compras. Registra dónde se guarda cada artículo, distingue el físico de lo reservado y permite reconstruir los cambios de inventario. El equipo implementó ocho historias y reunió sus recorridos en una demo conjunta. Las verificaciones se atribuyen al corte que las produjo. Quedan abiertos el ensayo de rendimiento de algunas historias, la revisión compartida de recepciones y alertas y la regresión de un corte común que reúna todas las funcionalidades.
 
 ## URL del repositorio GitHub
 
@@ -22,14 +24,14 @@ La [constitución](../.specify/memory/constitution.md) fija las obligaciones de 
 
 ### Historias de usuario y estado
 
-| Historia | Responsable | Resultado funcional | Estado de este borrador |
+| Historia | Responsable | Resultado funcional | Estado y evidencia |
 | --- | --- | --- | --- |
-| HU-01 · Recepciones | A | Registrar entregas parciales, diferencias y destinos reales contra compras. | [Spec local en borrador](../specs/008-registrar-recepcion-mercancia/spec.md). |
+| HU-01 · Recepciones | A | Registrar entregas parciales, diferencias y destinos reales contra compras. | [Implementada y validada en el corte A](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/blob/d9684f9ba3afda96eab4c12eba91213000488357/specs/008-registrar-recepcion-mercancia/validation/acceptance.md), `018cff8`. T041 y T043 abiertas. |
 | HU-02 · Ubicaciones | B | Identificar ubicaciones y consultar cantidades de un artículo en cada una. | Integrada. [Revisión del PR #6](revisiones/pr-006-hu02.md). |
-| HU-03 · Salidas | B | Confirmar una salida contra un pedido, consumir su reserva propia y actualizar lo servido. | [PR #10 abierto](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/pull/10) con evidencia de su rama. |
-| HU-04 · Inventarios cíclicos | B | Congelar un ámbito, comparar el conteo físico con el teórico y registrar un ajuste autorizado. | [Spec y aclaraciones publicadas](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/blob/b/hu-04-realizar-inventarios-ciclicos/specs/006-realizar-inventarios-ciclicos/spec.md). |
+| HU-03 · Salidas | B | Confirmar una salida contra un pedido, consumir su reserva propia y actualizar lo servido. | [PR #10 fusionado en la rama de integración de A](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/pull/10) (`dad1a9a`). |
+| HU-04 · Inventarios cíclicos | B | Congelar un ámbito, comparar el conteo físico con el teórico y registrar un ajuste autorizado. | [Implementada en el corte B](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/tree/fae4f7c7d942ef97a3ad3827339a634333ddbd25/specs/006-realizar-inventarios-ciclicos), con [PR #12 abierto](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/pull/12). |
 | HU-05 · Existencias y reservas | B | Consultar físico, reservado y disponible, y mantener el pedido de cliente mínimo y sus reservas. | [PR #9 integrado](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/pull/9). |
-| HU-06 · Alertas de mínimo | A | Configurar el mínimo por artículo y avisar cuando el disponible cae por debajo. | Historia asignada en [agrupamiento](agrupamiento.md). Falta acreditar su implementación. |
+| HU-06 · Alertas de mínimo | A | Configurar el mínimo por artículo y avisar cuando el disponible cae por debajo. | [Implementada y validada en el corte A](../specs/009-configurar-alertas-stock-minimo/validation/acceptance.md), `5718ce8`. 14/16 tareas completadas. |
 | HU-07 · Pedidos a proveedores | A | Preparar y enviar pedidos a proveedores y consultar pendientes y estado. | [Corte funcional local](../specs/007-gestionar-pedidos-proveedores/spec.md). Rendimiento de guardados pendiente. |
 | HU-08 · Datos maestros | A | Mantener artículos, familias y proveedores, y conservar sus referencias e historial. | Integrada con [cierre técnico](../specs/002-gestionar-datos-maestros/validation/acceptance.md). |
 
@@ -66,6 +68,8 @@ En los pedidos de cliente, las asignaciones permiten atribuir el reservado a su 
 
 ## Implementación
 
+La pila usa Angular 22, PrimeNG 22 y TypeScript 6 en el navegador, ASP.NET Core 10 y EF Core 10 en el servidor, SQL Server 2025 para persistencia y Mailpit para capturar los correos en desarrollo. Las versiones y decisiones de entorno están en el [plan global](../.specify/memory/project-plan.md).
+
 | Ruta | Contenido |
 | --- | --- |
 | `backend/src/Inventario.Api` | API, dominio, persistencia, identidad e integración con correo. |
@@ -82,15 +86,24 @@ xUnit ejecuta integración con SQL Server. Vitest comprueba componentes y servic
 | Corte | Backend | Vitest | Playwright | Evidencia |
 | --- | --- | --- | --- | --- |
 | HU-08 · cierre técnico | 101 aprobadas, 1 omitida | 41 aprobadas | 12/12 | [Aceptación técnica](../specs/002-gestionar-datos-maestros/validation/acceptance.md). |
+| HU-02 · revisión de PR #6 | 121 aprobadas, 1 omitida, 0 fallos | 107/107 | 14/14 | [Informe de revisión](../specs/003-gestionar-ubicaciones/validation/pr-review-2026-11-19.md). |
 | HU-05 · `363de56` | 207 aprobadas, 1 omitida | 147/147 | 16/16 con el filtro documentado | [Informe de HU-05](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/blob/2894dad4cbc5d4be5c37454777064984bf5a135e/specs/004-consultar-existencias/quickstart.md#evidencia). |
 | HU-03 · `f65fefe` | 291 aprobadas, 1 omitida | 187/187 | 17/17 | [Evidencia del PR #10](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/pull/10). |
+| HU-04 · evidencia de B | 347 aprobadas, 1 omitida, 0 fallos | 230/230 | 18/18 | [PR #12](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/pull/12). |
+| HU-07 · integración de compras | 199 aprobadas, 1 omitida, 0 fallos; 200/200 con restauración aislada | 139/139 tras T061 | 6/6 de compras | [Registro de integración](../specs/007-gestionar-pedidos-proveedores/validation/integration.md). |
+| HU-01 · `018cff8` | 11/11 en la selección inicial de recepción; ampliaciones y regresiones en el acta | Evidencias por historia y componente | Parcial y discrepancia grabadas | [US1](../specs/008-registrar-recepcion-mercancia/validation/us1.md), [acta de aceptación](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/blob/d9684f9ba3afda96eab4c12eba91213000488357/specs/008-registrar-recepcion-mercancia/validation/acceptance.md). |
+| HU-06 · `5718ce8` | 233 aprobadas, 2 omitidas, 0 fallos; EF sin cambios pendientes | 145/145 y build correcto | 1/1 del flujo de alertas | [Acta de aceptación](../specs/009-configurar-alertas-stock-minimo/validation/acceptance.md). |
+| Demo · `d9684f9` | — | — | A: 13/15 grabaciones válidas. B: 21 escenas aportadas. Reproductor: nueve vídeos y 68 saltos verificados | [Escenarios y fallos](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/blob/d9684f9ba3afda96eab4c12eba91213000488357/docs/demo.md). |
 
-La [restauración técnica V-14](../specs/002-gestionar-datos-maestros/validation/recovery.md) ensayó la recuperación de maestros, diario y resultados de operación en un entorno aislado. La [aceptación H5](../specs/001-reparto-specs-inventario/integration-tasks.md) mantiene sus propias condiciones de validación con operarios, restauración operativa y conciliación. Quedan por registrar aquí la regresión sobre el corte final y el resultado observado de los recorridos cruzados.
+La [restauración técnica V-14](../specs/002-gestionar-datos-maestros/validation/recovery.md) ensayó la recuperación de maestros, diario y resultados de operación en un entorno aislado. La [aceptación H5](../specs/001-reparto-specs-inventario/integration-tasks.md) mantiene sus propias condiciones de validación con operarios, restauración operativa y conciliación. La demo reúne ambos cortes. Sigue pendiente la regresión funcional sobre una revisión de código común que incorpore el PR #12 junto con HU-01 y HU-06.
 
-| Recorrido integrado previsto | Precondición y datos | Pasos | Resultado esperado | Resultado y versión |
+### Recorridos entre A y B
+
+| Recorrido | Precondiciones y datos | Pasos | Esperado | Observado y versión |
 | --- | --- | --- | --- | --- |
-| Compra, recepción y consulta | Compra enviada de 10 unidades, artículo activo y destino habilitado. | Recibir 6 y consultar la compra y las existencias por ubicación. | 6 unidades añadidas al físico y 4 pendientes en la compra. | Pendiente de ejecutar en integración. |
-| Recepción rechazada durante un conteo | Una ubicación de destino está en conteo abierto. La recepción incluye ese destino. | Confirmar la recepción y consultar compra, stock y diario. | `409 CountScopeFrozen`, con compra, stock y diario sin efectos de la recepción. | Pendiente de ejecutar en integración. |
+| Recepción en ubicaciones gestionadas por B (HU-07 y HU-01 de A, HU-02 de B) | Compra enviada de 10 UD, un destino de almacenamiento y otro de recepción habilitados mediante la API de ubicaciones. | Confirmar 6 UD, repartidas 2 + 4 entre ambos destinos. Confirmar las 4 UD restantes en una segunda recepción. | Avanzar de 6 recibidas y 4 pendientes a 10 recibidas y 0 pendientes, con nueva versión del pedido. | Confirmado en Chromium sobre el código de `5718ce8` y grabado en [la demo](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/blob/d9684f9ba3afda96eab4c12eba91213000488357/docs/demo.md). La [prueba SQL](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/blob/d9684f9ba3afda96eab4c12eba91213000488357/specs/008-registrar-recepcion-mercancia/validation/acceptance.md) comprobó también el saldo. |
+| Consultar un artículo inactivo (HU-08 de A, HU-05 de B) | Artículo desactivado mediante maestros, con combinaciones de stock y filtros por ubicación y lote. | Buscar el artículo y consultar existencias con y sin el filtro de ubicaciones sin stock. | Identificar el artículo inactivo y ocultar las combinaciones con físico cero salvo petición explícita. | Comportamiento observado en el vídeo de B y documentado en [su escenario E2E](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/blob/fae4f7c7d942ef97a3ad3827339a634333ddbd25/frontend/e2e/demo/demo-hu05.spec.ts). |
+| Rechazo de recepción por destino congelado (HU-01 de A, HU-04 de B) | Conteo abierto y una recepción con ese destino. | Confirmar y releer compra, diario y saldo. | `409 CountScopeFrozen` y cero efectos de la recepción. | Pendiente con el escritor real en el corte conjunto. B observó un 200 en la siembra de pruebas D-17, que no acredita el contrato de recepción. |
 
 ## Despliegue y uso
 
@@ -108,17 +121,38 @@ Los [hitos H0–H5](../specs/001-reparto-specs-inventario/plan.md#hitos-y-coordi
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | HU-05 · FR-026 | El identificador del alta desaparecía al navegar al detalle. | converge → implement | Contrato de contexto y detalle de pedido. | C3 · [`8009807`](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/commit/800980779c54624e2fd38aa23d301ae401e7d341). | SQL muestra el ID correcto tras el replay. Vitest comprueba que el detalle lo muestra. | B | A | Cerrado. |
 | HU-05 · FR-004/015 | La primera página limitaba las combinaciones para filtrar o reservar. | converge → implement | Servicio de stock, filtros y diálogo de reserva. | C4 · [`363de56`](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/commit/363de56ec5aad5aaa105dbea41ab4e1d1b417a89). | Vitest verifica filtros con 30 combinaciones y reserva en la combinación 126 de 130. | B | A | Cerrado. |
-| HU-03 · P-02/H-02 | El primer trigger admitía consumos posteriores con el mismo ID de operación. | converge → implement | Cabecera de salida, migración, triggers y pruebas de esquema. | C1 · [`a6ec4b2`](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/commit/a6ec4b2e0fc62de3ac4655fceee143e791345df7). | H-02 comprueba la inserción tardía y los dos órdenes de escritura. H-14 comprueba la conciliación. | B | A | Diseño aceptado. PR abierto en este corte. |
+| HU-03 · P-02/H-02 | El primer trigger admitía consumos posteriores con el mismo ID de operación. | converge → implement | Cabecera de salida, migración, triggers y pruebas de esquema. | C1 · [`a6ec4b2`](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/commit/a6ec4b2e0fc62de3ac4655fceee143e791345df7). | H-02 comprueba la inserción tardía y los dos órdenes de escritura. H-14 comprueba la conciliación. | B | A | Corregido y fusionado en PR #10. |
 
-El registro comienza con casos verificables. El cierre debe incorporar la matriz de trazabilidad de las ocho historias, sus revisiones, los informes iniciales y finales, y el balance de criterios verificados con sus denominadores.
+### Matriz de trazabilidad
+
+Cada fila relaciona un criterio representativo con su plan, la tarea y la prueba. Las tablas de aceptación de cada historia conservan la cobertura detallada. Una revisión de diseño registrada y la revisión cruzada de una fila son evidencias distintas.
+
+| Historia y criterio | Decisión de plan | Tarea | Prueba y resultado | Responsable y revisión |
+| --- | --- | --- | --- | --- |
+| HU-01 · FR-001–004 / V-02 | Confirmar contra el pendiente de compra bajo bloqueo y en la misma transacción que el saldo. [Plan](../specs/008-registrar-recepcion-mercancia/plan.md) | T011, T015, T019 | SQL y Chromium ejercitaron 6 + 4 y comprobaron estados y versiones. [Evidencia](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/blob/d9684f9ba3afda96eab4c12eba91213000488357/specs/008-registrar-recepcion-mercancia/validation/acceptance.md) | A · registro A+B pendiente en T043. |
+| HU-02 · US4, concurrencia de edición | Validar la versión de la representación al actualizar. [Plan](../specs/003-gestionar-ubicaciones/plan.md) | T032, revisión `dfc1fd1` | La revisión reproduce el ETag que cambia con el contenido y comprueba replay y edición obsoleta. [Informe](../specs/003-gestionar-ubicaciones/validation/pr-review-2026-11-19.md) | B · A, PR #6. |
+| HU-03 · FR-013 | Sellar la salida y su evidencia de consumo por asignación al confirmar. [Plan](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/tree/fae4f7c7d942ef97a3ad3827339a634333ddbd25/specs/005-registrar-salida-mercancia/plan.md) | C1 `a6ec4b2` | H-02 rechaza consumos tardíos. H-14 concilia el total declarado. [Convergencia](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/tree/fae4f7c7d942ef97a3ad3827339a634333ddbd25/specs/005-registrar-salida-mercancia/validation/converge-1.md) | B · A, PR #10. |
+| HU-04 · FR-014 y D-04 | Congelar las ubicaciones del ámbito y consultar la congelación en los escritores. [Plan](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/tree/fae4f7c7d942ef97a3ad3827339a634333ddbd25/specs/006-realizar-inventarios-ciclicos/plan.md) | T005 y C1 | `CountScopeFrozenTests` y Chromium comprueban los bloqueos sobre reserva y ubicación. La recepción conjunta sigue pendiente. [PR #12](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/pull/12) | B · A, diseño P-01–P-08 registrado en T001. |
+| HU-05 · FR-026 | Cargar el resultado persistido del alta con su identificador de operación. [Plan](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/tree/fae4f7c7d942ef97a3ad3827339a634333ddbd25/specs/004-consultar-existencias/plan.md) | C3 `8009807` | Replay SQL y detalle en Vitest muestran el identificador esperado. [Convergencia](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/tree/fae4f7c7d942ef97a3ad3827339a634333ddbd25/specs/004-consultar-existencias/validation/converge-1.md) | B · A, PR #9. |
+| HU-06 · Q06-05 | Consultar con permiso de alertas y construir la propuesta editable sin guardar. [Plan](../specs/009-configurar-alertas-stock-minimo/plan.md) | T010–T012 | Chromium comprueba permiso, edición, artículo inactivo y ausencia de pedido o correo. [Acta](../specs/009-configurar-alertas-stock-minimo/validation/acceptance.md) | A · registro A+B pendiente en T016. |
+| HU-07 · SC-007 | Medir consulta y guardados con 25 sesiones y el perfil de carga documentado. [Plan](../specs/007-gestionar-pedidos-proveedores/plan.md) | T055 | p95 de consulta 1,25 s, alta 3,65 s y corrección 3,60 s. El resultado mantiene abierto el criterio. [Medición](../specs/007-gestionar-pedidos-proveedores/validation/performance.md) | A · revisión técnica A+B registrada en [el acta](../specs/007-gestionar-pedidos-proveedores/validation/shared-review.md). |
+| HU-08 · Q-01, duplicados | Normalizar códigos y validar unicidad conservando la entrada del usuario. [Plan](../specs/002-gestionar-datos-maestros/plan.md) | T025 y T088 | Pruebas de maestro y demo de familias con duplicado y datos conservados. [Aceptación](../specs/002-gestionar-datos-maestros/validation/acceptance.md) | A · evidencia técnica en acta. |
+
+### Balance de iteración y evidencias
+
+- **Clarify, HU-04.** Q1 y Q2 quedaron respondidas en `4d0a7cd`, 2/2 preguntas de esa iteración. En la misma historia, la decisión P-07 distingue la diferencia física y el acumulado servido del pedido. La demo muestra un despacho registrado de 6 con 4 unidades realmente salidas. El ajuste devuelve 2 al físico y el pedido conserva 6 servidas. [Especificación y decisiones](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/tree/fae4f7c7d942ef97a3ad3827339a634333ddbd25/specs/006-realizar-inventarios-ciclicos).
+- **Analyze, HU-04.** El primer informe registró 6 hallazgos altos y 0 críticos. El segundo registró 0 altos y 0 críticos tras corregir los 6 altos. [Informe inicial](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/tree/fae4f7c7d942ef97a3ad3827339a634333ddbd25/specs/006-realizar-inventarios-ciclicos/validation/analyze-1.md) · [informe final](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/tree/fae4f7c7d942ef97a3ad3827339a634333ddbd25/specs/006-realizar-inventarios-ciclicos/validation/analyze-2.md).
+- **Converge, HU-04.** G1–G8 se abordaron en C1–C8. El segundo informe abrió una brecha menor G9, cerrada en `8548d79`. [Iteración 1](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/tree/fae4f7c7d942ef97a3ad3827339a634333ddbd25/specs/006-realizar-inventarios-ciclicos/validation/converge-1.md) · [iteración 2](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/tree/fae4f7c7d942ef97a3ad3827339a634333ddbd25/specs/006-realizar-inventarios-ciclicos/validation/converge-2.md).
+- **Balance de esta matriz.** 6 de 8 filas tienen verificación positiva del criterio entero en su corte. La fila de HU-04 tiene cobertura parcial porque falta la recepción con destino congelado y la de HU-07 tiene un resultado de rendimiento desfavorable. Es una muestra de 8 criterios, con uno por historia. Los 34 escenarios de vídeo son 13 de A y 21 de B.
+- **Registro de herramientas.** `.specify/init-options.json` registra Spec Kit 1.0.5 en el checkout de A. Los expedientes de B enlazados conservan las salidas publicadas. Esta memoria no atribuye a otras historias informes, versiones de herramienta o revisiones cruzadas sin evidencia específica. El historial de referencia incluye HU-07 `b13bcd9`, HU-03 `f65fefe`, HU-01 `018cff8`, HU-06 `5718ce8` y la demo `d9684f9`.
 
 ## Conclusiones
 
-La base integrada permite gestionar maestros y ubicaciones y registrar compromisos de clientes sin perder la relación con el saldo. El refinamiento aportó recorridos verificables para recuperar altas y reservar más allá de la primera página. El cierre de entrega requiere consolidar el estado de las ocho historias, verificar los recorridos cruzados y registrar las limitaciones operativas con su evidencia.
+El equipo implementó los recorridos de inventario, compras y aprovisionamiento y demostró las ocho historias en vídeo. El refinamiento mejoró la recuperación de altas, la cobertura de filtros y reservas y la trazabilidad del consumo de una salida. Quedan pendientes la regresión conjunta, la prueba de recepción con destino congelado y los registros de revisión de HU-01 y HU-06. El rendimiento de guardados de HU-07 superó el objetivo. Los ensayos completos de HU-01 y HU-06 y las condiciones operativas de H5 siguen abiertos. El E2E de compensación de HU-01 y el de alta y edición de artículos de HU-08 fallaron al grabar y sus escenas se omitieron.
 
 ## Anexos
 
 - [Enunciado de la práctica](https://drive.google.com/file/d/160hShHX_Xp8y3mAqIh653aqKPReyR_wA/view?usp=drivesdk).
-- [Especificaciones](../specs/), [constitución](../.specify/memory/constitution.md) y [plan global](../.specify/memory/project-plan.md).
+- [Especificaciones del corte A](../specs/), [expedientes del corte B](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/tree/fae4f7c7d942ef97a3ad3827339a634333ddbd25/specs), [escenarios de la demo](https://github.com/santirdl6/Inventario-Almacen-Ingenieria-Requisitos/blob/d9684f9ba3afda96eab4c12eba91213000488357/docs/demo.md), [constitución](../.specify/memory/constitution.md) y [plan global](../.specify/memory/project-plan.md).
 - **Físico** es la cantidad registrada en una ubicación y lote. **Reservado** es la cantidad comprometida. **Disponible** es la diferencia entre físico y reservado.
 - **Conteo cíclico** es el recuento físico de un ámbito del almacén. **ETag** es la versión que comprueba una escritura. **Idempotencia** permite volver a consultar o repetir una intención sin duplicar sus efectos.
