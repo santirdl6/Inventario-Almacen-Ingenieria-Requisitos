@@ -110,9 +110,15 @@ de destino congelada → 409 `CountScopeFrozen` (P-05; S5 de tasks.md).
 - **T014**: `operation-areas.spec.ts` (H0, archivo de B) se toca en una línea para contar
   `/inventarios` como área desarrollada.
 - **T016**: el 409 `ReservedStockConflict` enlaza a `/existencias` para liberar la reserva, no al
-  pedido como dice el [contrato UI](contracts/cycle-counts-ui.md) § Errores.
+  pedido como decía el [contrato UI](contracts/cycle-counts-ui.md) § Errores (contrato corregido en Convergence C4).
 - **T015**: la fila de hallazgo no comprueba en local si el artículo admite fracciones; lo rechaza el
   servidor (422 por línea). Las filas esperadas sí lo comprueban.
+- **Recorrido historial → conteo (US2, US4.2; Convergence C7)**: el historial del artículo (archivo de A)
+  muestra el ajuste con el tipo «Conteo», el autorizador como responsable, un motivo genérico y el
+  `countCode` como soporte. No enlaza con el conteo. El motivo de cada diferencia, quién contó y la salida
+  corregida están en el detalle del conteo, al que se llega por su código desde `/inventarios`. Así lo
+  decidió B en [analyze-1 § H3](validation/analyze-1.md): acotar FR-022 y US4.2 al `countCode` como soporte,
+  sin enlace obligatorio y sin tocar archivos de A.
 - **T017**: sin rojo natural observable (el fixture de A exige una imagen con las migraciones actuales,
   que ya incluye T014–T016); comprobado con `tsc` del proyecto E2E. M1 de analyze-1 resuelto con datos
   únicos por ejecución y un `finally` que cancela por API el conteo abierto con una sesión propia del

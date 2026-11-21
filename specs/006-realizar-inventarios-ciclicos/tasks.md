@@ -437,9 +437,13 @@ queda como estaba (la skill solo añade).
     (HU-05, archivo de B) lo recoge como campo opcional y el hallazgo valida con él («Este artículo solo
     admite cantidades enteras.», el mismo mensaje que las filas esperadas). Si faltara, decide el servidor.
     Con `allowsFractional: true`, 2.5 se admite. Verde: Vitest 229/229, `tsc` y build. Sin cambios de backend.
-- [ ] C7 Decidir el recorrido historial → conteo de la prueba independiente de US2: documentarlo en
+- [X] C7 Decidir el recorrido historial → conteo de la prueba independiente de US2: documentarlo en
   el quickstart o pedir a A un enlace del soporte `cycle-count` a `/inventarios/{id}` en
   `article-history.component.ts`, según US2 y US4.2 (partial, G7).
+  - **Cerrada por documentación**: se mantiene la decisión H3 de [analyze-1](validation/analyze-1.md). El
+    historial muestra el `countCode` como soporte, sin enlace obligatorio al conteo, y el motivo de cada
+    diferencia, quién contó y la salida corregida se ven en el detalle del conteo. Recorrido documentado en
+    el quickstart (§ Desviaciones). No se tocan archivos de A.
 - [X] C8 ⚑ Cerrar T034 de HU-02 (`specs/003-gestionar-ubicaciones/tasks.md`) con la evidencia de HU-04
   (T005) y añadir un Vitest de `location-detail.page` con `inOpenCount: true`, según FR-016 (partial,
   G8).
