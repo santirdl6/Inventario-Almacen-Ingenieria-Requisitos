@@ -111,6 +111,63 @@ internal static class ShippingApiSupport
         return JsonDocument.Parse(text).RootElement.GetProperty("reservationId").GetGuid();
     }
 
+    /// <summary>
+    /// H-14: invariantes 1–7 de data-model para una salida confirmada. Saldos y reservas por bucket,
+    /// Σ consumos = ConsumedQuantity por asignación, consumos = ShipReserved y resto = ShipAvailable
+    /// por línea, servido = Σ salidas confirmadas, remanente ≤ pendiente, diario = saldo, un único
+    /// movimiento y todo consumo con la operación de su cabecera.
+    /// </summary>
+    public static async Task AssertShipmentInvariantsAsync(StockApiSupport support, Guid shipmentId)
+    {
+        await using var database = support.Stock.Fixture.ApplicationDatabase();
+        var shipment = await database.Set<Shipment>().AsNoTracking().Include(value => value.Lines).SingleAsync(value => value.Id == shipmentId);
+        Assert.Equal(ShipmentState.Confirmed, shipment.State);
+        var lineIds = shipment.Lines.Select(line => line.Id).ToList();
+        var consumptions = await database.Set<ShipmentReservationConsumption>().AsNoTracking()
+            .Where(value => lineIds.Contains(value.ShipmentLineId)).ToListAsync();
+        // 7. Ningún consumo de otra operación.
+        Assert.All(consumptions, value => Assert.Equal(shipment.OperationId, value.OperationId));
+        // 6. Un único movimiento Shipment.
+        var movement = await database.Set<StockMovement>().AsNoTracking().Include(value => value.Entries)
+            .SingleAsync(value => value.SourceDocumentType == "shipment" && value.SourceDocumentId == shipmentId);
+        Assert.Equal(MovementKind.Shipment, movement.Kind);
+        Assert.Equal(shipment.OperationId, movement.OperationId);
+        // 3. Por línea: Σ consumos = ShipReserved y Quantity − Σ consumos = ShipAvailable de su bucket.
+        foreach (var line in shipment.Lines)
+        {
+            var own = consumptions.Where(value => value.ShipmentLineId == line.Id).Sum(value => value.Quantity);
+            var entries = movement.Entries.Where(entry => entry.LocationId == line.LocationId && entry.LotId == line.LotId).ToList();
+            Assert.Equal(own, entries.Where(entry => entry.Effect == StockEffect.ShipReserved).Sum(entry => entry.Quantity));
+            Assert.Equal(line.Quantity - own, entries.Where(entry => entry.Effect == StockEffect.ShipAvailable).Sum(entry => entry.Quantity));
+        }
+        // 2. Por asignación: Σ consumos de todas las salidas = ConsumedQuantity.
+        var allocationIds = consumptions.Select(value => value.ReservationAllocationId).Distinct().ToList();
+        foreach (var allocation in await database.Set<ReservationAllocation>().AsNoTracking()
+                     .Where(value => allocationIds.Contains(value.Id)).ToListAsync())
+            Assert.Equal(allocation.ConsumedQuantity, await database.Set<ShipmentReservationConsumption>()
+                .Where(value => value.ReservationAllocationId == allocation.Id).SumAsync(value => value.Quantity));
+        // 4. Por línea de pedido: servido = Σ líneas confirmadas; remanente activo ≤ pendiente.
+        foreach (var orderLineId in shipment.Lines.Select(line => line.CustomerOrderLineId).Distinct())
+        {
+            var orderLine = await database.Set<CustomerOrderLine>().AsNoTracking().SingleAsync(value => value.Id == orderLineId);
+            var shipped = await (from line in database.Set<ShipmentLine>()
+                                 join header in database.Set<Shipment>() on line.ShipmentId equals header.Id
+                                 where line.CustomerOrderLineId == orderLineId && header.State == ShipmentState.Confirmed
+                                 select line.Quantity).SumAsync();
+            Assert.Equal(orderLine.ShippedQuantity, shipped);
+            var remaining = await database.Set<Reservation>().Where(value => value.CustomerOrderLineId == orderLineId
+                    && value.State == ReservationState.Active)
+                .SelectMany(value => value.Allocations).SumAsync(value => value.RemainingQuantity);
+            Assert.True(remaining <= orderLine.PendingQuantity, $"Remanente {remaining} > pendiente {orderLine.PendingQuantity}");
+        }
+        // 1 y 5. Σ remanente = reservado y diario = saldo, por bucket.
+        foreach (var line in shipment.Lines)
+        {
+            await support.AssertCommitmentsMatchBalancesAsync(line.ArticleId, line.LocationId);
+            await support.Stock.AssertJournalMatchesBalanceAsync(line.ArticleId, line.LocationId);
+        }
+    }
+
     /// <summary>GET /shipments/{id}: cuerpo y ETag.</summary>
     public static async Task<(JsonElement Body, string ETag)> DetailAsync(HttpClient client, Guid id)
     {

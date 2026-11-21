@@ -351,7 +351,7 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
     `ShipAvailable` 6, soporte = referencia y contraparte = cliente. H-10: propia 4 `Consumed`, ajena
     3 intacta, consumo de 4 con `ShipReserved` 4 y `ShipAvailable` 2, y conciliación.
   - Suite 258/1/0; sin cambios de modelo.
-- [ ] T010 [P] [US1] [US2] [US3] [US5] [INT-HU03-02] `Shipping/ShipmentConfirmTests.cs`. Depende de
+- [X] T010 [P] [US1] [US2] [US3] [US5] [INT-HU03-02] `Shipping/ShipmentConfirmTests.cs`. Depende de
   T009, de T008 (`ShippingApiSupport.cs`) y de T006 (pedido de H-03). [P] solo frente a T011:
   archivos de prueba distintos y las mismas dependencias. **Rojo esperado**: escribirlas con `/confirm` respondiendo 501 y
   anotarlo.
@@ -373,6 +373,29 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
   - **V-07** (H-18) y operario sin `Reservations.Manage` que consume reservas (parte de H-20).
 
   (US1.3–US1.5, US2, US3, US5.2; FR-007–FR-016, FR-021; SC-001, SC-002, SC-005.)
+
+  **Hecho (2026-11-21)**: `ShipmentConfirmTests` tiene 11 pruebas: las 2 de T009 y 9 nuevas.
+  - H-09 (parcial y dos orígenes, después `Fulfilled`).
+  - H-10 continuación: A con posible 1 → 409 con «disponible 1.000»; B con 5 sobre posible 4 → 409.
+  - H-11 (regla 5: 409 `ReservedStockConflict` con «liberar 4.000»; tras liberar con HU-05,
+    confirma).
+  - Regla 3: dos reservas de la misma línea y bucket, consumo por Id de asignación, `Consumed` y
+    `Active`, `ConsumedQuantity` solo crece.
+  - H-12 (regla 4): el pedido cambia con y sin reserva y solo la reserva consumida; reservar y
+    liberar con `ETag` viejo → 412; `orderVersion` viejo → 412.
+  - H-13 (S-18 completo, antes y después, con dos buckets y tres reservas).
+  - H-15 (INT-HU03-02): preparar y confirmar con el artículo inactivo; los mismos límites; alta nueva
+    → 409 `ArticleInactive`.
+  - H-18 (V-07): replay idéntico, misma clave con otra `orderVersion` → `IdempotencyConflict`, otra
+    clave → `DocumentAlreadyConfirmed`, y `PUT`/`DELETE` de la confirmada → 409, pendiente de T008.
+  - H-20: GestorMaestros, Comprador y ResponsableAlmacen → 403; el Operario sin
+    `Reservations.Manage` confirma consumiendo.
+  - H-14: `AssertShipmentInvariantsAsync` (invariantes 1–7, incluida Σ consumos =
+    `ConsumedQuantity`) en cada escenario confirmado.
+  - **Rojo**: no hubo rojo natural, porque T009 ya implementaba el comportamiento. Se comprobó con
+    mutaciones temporales, sin commit: sin `Touch` del pedido falla H-12; consumiendo por Id
+    descendente falla la regla 3. Después se restauró el archivo.
+  - Suite 267/1/0; sin cambios de modelo.
 - [ ] T011 [P] [US2] [US3] [US5] [INT-HU03-01] [INT-HU03-02] `Shipping/ShipmentConcurrencyTests.cs` y
   `Shipping/ShipmentReliabilityTests.cs`. Depende de T009 y de T008 (`ShippingApiSupport.cs`). [P]
   solo frente a T010.
