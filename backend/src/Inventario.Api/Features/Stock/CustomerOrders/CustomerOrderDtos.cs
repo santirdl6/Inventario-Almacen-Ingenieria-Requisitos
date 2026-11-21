@@ -125,10 +125,12 @@ public sealed record CustomerOrderAllocationView(Guid Id, Guid ArticleId, Guid L
 /// GET /customer-orders/{id}/context: datos actuales que cambian por su cuenta, sin ETag (patrón
 /// de GET /articles/{id}/context de HU-08). <see cref="OrderVersion"/> es el mismo token que el ETag
 /// del detalle; si no coinciden, la UI leyó dos revisiones distintas y vuelve a leer ambas.
+/// <see cref="CreationOperationId"/> es la operación del alta (Convergence C3, FR-026): sale del
+/// OperationResult registrado, no del pedido, así que no forma parte del ETag ni del esquema.
 /// </summary>
 public sealed record CustomerOrderContext(string OrderVersion, DateTimeOffset AsOf,
     IReadOnlyList<CustomerOrderContextArticle> Articles, IReadOnlyList<CustomerOrderContextLocation> Locations,
-    IReadOnlyList<CustomerOrderContextLot> Lots);
+    IReadOnlyList<CustomerOrderContextLot> Lots, Guid? CreationOperationId);
 
 public sealed record CustomerOrderContextArticle(Guid Id, string Sku, string Name, string BaseUnit, bool IsActive,
     bool TracksLot, bool AllowsFractional);

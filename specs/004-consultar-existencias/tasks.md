@@ -44,8 +44,11 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
 ## Phase 1: Coordinación con A (pendiente explícita, no se aplica ahora)
 
-- [ ] T001 ⏸ **PENDIENTE: solicitar la revisión de A en el PR** (COORD-01), sin bloquear la
-  implementación, de:
+- [X] T001 **Hecha: visto bueno de A en la revisión del PR #9 (2026-11-21)**, condicionado a cerrar
+  G2 y G3 (C3 y C4). Cubre (a), salvo P-04, que queda pendiente con S1, y también (b), (c) y (d).
+  En (c) se mantiene `SupportReference`. Decisión, fecha y revisor en
+  [plan.md § Estado de la revisión de A](plan.md#estado-de-la-revisión-de-a). Era la tarea de
+  solicitar la revisión de A en el PR (COORD-01), sin bloquear la implementación, de:
   - (a) los diffs pendientes de [plan.md § Cambios al modelo común](plan.md#cambios-al-modelo-común-pendientes-de-a):
     P-01 (solo lo que falta tras #7), P-02…P-06 y P-08. P-07 ya está aplicado y aprobado en el
     PR #7 de A;
@@ -70,7 +73,11 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
   El PR #8 de A (XOR de contraparte, abierto) es compatible con el diseño: reservar y liberar solo
   pasan `CounterpartyReference`, y T017 solo `CounterpartyNotApplicableReason`.
-- [ ] T002 ⏸ **PENDIENTE, bloqueada por T001: aplicar los diffs aprobados** (#7 ya está fusionado)
+- [X] T002 **Hecha (2026-11-21)**: aplicados P-01 (lo que faltaba) y P-02 en `data-model.md`;
+  P-03 (con `creationOperationId`, C3) y P-05 en `api.md`; P-06 en `stock-operations.md`; y P-08,
+  apartado 10 de `quickstart.md`. P-04 **no se aplica** (S1, pendiente). INT-HU05-01 e INT-HU05-02
+  quedan marcadas en el backlog con su evidencia. `CountScopeFrozen` sigue en INT-HU04-03. Era la
+  tarea de aplicar los diffs aprobados (#7 ya está fusionado):
   P-01 (lo que falta), P-02…P-06 y P-08 en `.specify/memory/project/data-model.md`,
   `.specify/memory/project/contracts/api.md`, `.specify/memory/project/contracts/stock-operations.md`
   y `.specify/memory/project/quickstart.md` (evidencia, tras T014). **No toca** `research.md` (R-10)
@@ -908,8 +915,8 @@ siempre en commit propio. Nunca `git add -A`.
 ## Phase 10: Convergence
 
 Tareas de [validation/converge-1.md](validation/converge-1.md), fuera de la numeración T001–T020
-(siguen siendo 20 tareas). G2 y G3 no generan tarea: B los acepta como límites conocidos de esta
-entrega, con la justificación del informe.
+(siguen siendo 20 tareas). G2 y G3 se aceptaron primero como límites conocidos. A pidió cerrarlos
+para aprobar el PR #9, así que pasan a C3 y C4.
 
 - [X] C1 [US2] [US3] [US4] Cerrar G1 (FR-027, FR-028, accesibilidad de
   [stock-ui](contracts/stock-ui.md#accesibilidad)): tras un rechazo del servidor, el foco va al
@@ -944,4 +951,53 @@ entrega, con la justificación del informe.
     las dos pruebas fallan. Después se restauraron los archivos.
   - Vitest 143/143 (línea base 136); `tsc` de app y specs limpio; `npm run build` correcto.
 
-**C1 en `b87852b`; C2 en el commit «/speckit-implement Convergence C2».**
+- [X] C3 [US2] Cerrar G2 (FR-026, US2.1): el detalle del pedido muestra el identificador de la
+  operación del alta, tanto al crear como al recuperar el pedido (tras cerrar sesión, por «Abrir
+  pedido» o por URL).
+
+  **Hecho (2026-11-21)**:
+  - **Vía**: `GET /customer-orders/{id}/context` añade `creationOperationId`, leído en la misma
+    transacción SNAPSHOT del `OperationResult` del alta. Su `SourceDocumentId` ya era el pedido,
+    con `POST` y el recurso canónico `/api/v1/customer-orders`. Sin cambio de esquema ni de
+    migración, sin ruta nueva y sin tocar el detalle ni su `ETag`. Al venir del servidor, sirve
+    igual en cualquier camino de llegada; pasar estado entre rutas no cubría el regreso tras
+    cerrar sesión ni la URL directa.
+  - `CustomerOrderQueries.ContextAsync` y `CustomerOrderContext` (backend); `stock.models.ts` y
+    `order-detail.page.ts`, que muestra «Pedido creado con la operación {id}» (frontend). Ningún
+    archivo de A.
+  - Pruebas:
+    - Backend: `CustomerOrderTests.C3_context_returns_the_creation_operation_also_after_a_replay_and_never_another_order`.
+      Cubre la clave del alta, el replay, otro pedido con otra operación y el `ETag` sin cambios.
+    - Vitest: 2 en `order-detail.page.spec.ts`, con y sin operación en el contexto.
+  - **Rojo previo anotado**: la de backend fallaba con `KeyNotFoundException`, porque
+    `creationOperationId` no existía; la primera de Vitest, porque faltaba el elemento
+    `creation-operation`. La segunda de Vitest pasa desde el principio: es la guarda del caso
+    `null`.
+  - Verde: `CustomerOrderTests` 16/16; `order-detail.page.spec.ts` 14/14.
+  - **Límite**: `OperationResults` no tiene índice por `SourceDocumentId`, así que la lectura
+    recorre la tabla. Añadir el índice sería un cambio de esquema en una tabla común. Queda
+    anotado para SC-006, sin aplicarlo.
+
+- [X] C4 [US1] [US3] Cerrar G3 (FR-004, FR-015): en artículos con más de 25 combinaciones, las
+  opciones de filtro de `/existencias` y las filas del diálogo de reservar salen de todas las
+  combinaciones del artículo, no solo de la primera página.
+
+  **Hecho (2026-11-21)**:
+  - `StockApiService.allRows(articleId, includeEmpty)` recorre `GET /stock` en páginas de 100, el
+    máximo del contrato, hasta `totalCount`. Si una combinación se repite entre páginas, se queda
+    la última leída.
+  - El diálogo de reservar usa `allRows(…, false)`.
+  - En `/existencias`, la tabla sigue paginada de 25 en 25. Si la consulta sin filtros tiene más de
+    una página, las opciones se completan con `allRows`, una vez por artículo y casilla.
+  - Sin cambios de backend ni de archivos de A.
+  - Pruebas:
+    - `order-detail.page.spec.ts`: 130 combinaciones en dos páginas; reserva en la 126.
+    - `stock-query.page.spec.ts`: 30 combinaciones dan 30 ubicaciones y 30 lotes en los filtros,
+      con la tabla a 25 y sin volver a leer todo al pasar de página.
+  - **Rojo previo anotado**: el diálogo pedía `pageSize` 25 y no la página 2; la consulta no pedía
+    las 30 combinaciones.
+  - Verde: los dos specs, 23/23. Vitest completo 147/147 (base 143); `tsc` de app, specs y E2E sin
+    errores; `npm run build` correcto.
+
+**C1 en `b87852b`; C2 en el commit «/speckit-implement Convergence C2»; C3 en `8009807`; C4 en
+`363de56`.**

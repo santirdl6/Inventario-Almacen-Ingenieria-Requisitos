@@ -172,6 +172,9 @@ Una recepción confirmada no se edita ni se confirma de nuevo.
 Referencia mínima local del pedido: Id, ExternalReference única, CustomerReference,
 State (Open/Fulfilled/Cancelled), Version; líneas con Id, CustomerOrderId, ArticleId,
 OrderedQuantity > 0 y ShippedQuantity entre cero y lo pedido.
+Una línea por artículo: (CustomerOrderId, ArticleId) es único (HU-05, clarificación 1).
+ExternalReference se compara sin distinguir mayúsculas ni espacios extremos.
+Cada cambio de reservas o servido toca la cabecera para renovar su rowversion (ETag).
 No incluye precios comerciales, facturación ni integración ERP automática.
 Su alta mínima controlada permite vincular y probar las salidas de las historias.
 
@@ -187,6 +190,10 @@ Cancelled se conserva en el modelo para evolución posterior.
 Cabecera: Id, CustomerOrderLineId, State (Active/Consumed/Released), Version.
 Asignación: Id, ReservationId, ArticleId, LocationId, LotId, AllocatedQuantity,
 ConsumedQuantity, ReleasedQuantity. Remaining = Allocated − Consumed − Released ≥ 0.
+Una asignación por bucket y reserva: (ReservationId, ArticleId, LocationId, LotId) único;
+LotId con FK compuesta (ArticleId, LotId) como StockBalance. Remaining es columna calculada.
+Pedidos, líneas, reservas y asignaciones no se borran (DENY DELETE a inventory_runtime).
+Cada liberación toca la cabecera de la reserva (ETag) y la del pedido.
 
 Las asignaciones remanentes suman Reserved por bucket; nunca exceden lo pendiente del
 pedido descontando otras reservas activas. Reservar aumenta Reserved, no Physical.

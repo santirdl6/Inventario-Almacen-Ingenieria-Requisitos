@@ -6,6 +6,15 @@
 con lo construido en T003–T020 (historial desde `92686c5`). Con la [constitución](../../../.specify/memory/constitution.md)
 como marco. Sin cambios de código y sin tareas nuevas: [tasks.md](../tasks.md) conserva sus 20 tareas.
 
+**Revisión de A del PR #9 (2026-11-21)**: A aprueba los diffs de los documentos comunes (salvo
+P-04, pendiente con S1), aplicados en T002. Aprueba también:
+
+- los cambios de B en archivos de A (tabla de commits del plan);
+- la cuarta cuenta E2E `ResponsableAlmacen` (`ef296cc`, `110df1a`);
+- que HU-05 llame a `pending.begin(…, appRoute)` + `send()` sin modificar `mutate()`.
+
+La aprobación quedaba condicionada a cerrar G2 y G3: resueltos con C3 (`8009807`) y C4 (`363de56`).
+
 ## Desviación respecto a la skill
 
 `/speckit-converge` solo añade una fase `## Phase N: Convergence` a `tasks.md` con una tarea por
@@ -39,8 +48,8 @@ skill cargada. El método fue el mismo: pruebas primero, rojo anotado y un commi
 | ID | Severidad | Fuente | Evidencia | Qué falta |
 |----|-----------|--------|-----------|-----------|
 | G1 | MEDIA | stock-ui § Accesibilidad («El foco va al primer error tras rechazo»); FR-027, FR-028 | `order-form.page.ts`, `reserve-dialog.ts` y `release-dialog.ts` no mueven el foco. Solo los diálogos usan `cdkTrapFocus` y cierran con Escape. | **Resuelto** con la tarea C1 de la fase «Convergence» de tasks.md: foco al primer `aria-invalid` o al aviso, con 5 pruebas Vitest. |
-| G2 | BAJA | FR-026, US2.1 («se muestra su identificador como resultado registrado») | `order-form.page.ts` pone «Pedido creado. Operación …» y navega en el acto al detalle, que no muestra ese identificador. | **Límite conocido aceptado por B** (2026-11-20). |
-| G3 | BAJA | FR-004 (filtros) y FR-015 (asignación explícita) en artículos con más de 25 combinaciones | Las opciones de filtro (`stock-query.page.ts`) y las filas del diálogo de reservar (`reserve-dialog.ts`) salen de la página 1 de `GET /stock` (`pageSize` 25). | **Límite conocido aceptado por B** (2026-11-20). |
+| G2 | BAJA | FR-026, US2.1 («se muestra su identificador como resultado registrado») | `order-form.page.ts` pone «Pedido creado. Operación …» y navega en el acto al detalle, que no muestra ese identificador. | **Resuelto** con C3 (2026-11-21), a petición de A: el contexto del pedido da `creationOperationId` y el detalle lo muestra. |
+| G3 | BAJA | FR-004 (filtros) y FR-015 (asignación explícita) en artículos con más de 25 combinaciones | Las opciones de filtro (`stock-query.page.ts`) y las filas del diálogo de reservar (`reserve-dialog.ts`) salen de la página 1 de `GET /stock` (`pageSize` 25). | **Resuelto** con C4 (2026-11-21), a petición de A: se leen todas las páginas del artículo. |
 | G4 | BAJA (prueba) | FR-025 en la interfaz (412: «recargar sin perder las cantidades escritas») | El camino 412 de los diálogos existe (evento `stale`, relectura) pero no tiene prueba Vitest. | **Resuelto** con la tarea C2: 2 pruebas en `order-detail.page.spec.ts`, comprobadas con una mutación temporal. |
 
 ### Resolución tras `/speckit-implement` Convergence (2026-11-20)
@@ -48,15 +57,24 @@ skill cargada. El método fue el mismo: pruebas primero, rojo anotado y un commi
 - **G1, resuelto** en `b87852b` (C1): foco al primer `aria-invalid` o al aviso tras un rechazo, en el
   alta y en los dos diálogos, con 5 pruebas. Reutiliza el patrón de HU-02 sin tocar archivos de A.
 - **G4, resuelto** en el commit «/speckit-implement Convergence C2»: 2 pruebas del 412.
-- **G2, límite conocido aceptado.** El identificador de la operación se ve al confirmar el alta y
-  el usuario llega al detalle del pedido creado, que sí identifica el resultado. Además,
-  `OperationResult` lo conserva y se consulta con `GET /operations/{id}`. Mostrarlo de nuevo en el
-  detalle exigiría pasar estado entre rutas, sin cambiar el resultado registrado.
-- **G3, límite conocido aceptado.** Los datos del vídeo y de E2E-01 tienen muy pocas combinaciones
-  por artículo. Paginar las opciones de filtro y el diálogo de reservar amplía la interfaz sin
-  necesidad para esta entrega. Las combinaciones que no salen en la primera página siguen
-  consultándose con «Siguiente» en la tabla, y la API admite filtrar y reservar cualquier
-  combinación.
+- ~~G2, límite conocido aceptado.~~ **Reabierto y resuelto** (2026-11-21): ver la sección
+  siguiente.
+- ~~G3, límite conocido aceptado.~~ **Reabierto y resuelto** (2026-11-21): ver la sección
+  siguiente.
+
+### Revisión de A del PR #9 y resolución de G2 y G3 (2026-11-21)
+
+A condicionó la aprobación del PR #9 a cerrar G2 y G3, que dejan de ser límites aceptados.
+
+- **G2, resuelto** en `8009807` (C3). El identificador sale del
+  servidor: `GET /customer-orders/{id}/context` añade `creationOperationId`, leído del
+  `OperationResult` del alta. Así se ve tras crear, tras cerrar sesión, por «Abrir pedido» y por
+  URL. Sin cambio de esquema ni de migración y sin ruta nueva. Límite anotado: la lectura no tiene
+  índice por `SourceDocumentId` (SC-006).
+- **G3, resuelto** en `363de56` (C4). `StockApiService.allRows`
+  recorre `GET /stock` en páginas de 100 hasta `totalCount`. El diálogo de reservar lista todas las
+  combinaciones con existencias, y las opciones de filtro se completan con todas cuando la consulta
+  sin filtros tiene más de una página. Probado con 130 y 30 combinaciones. Sin cambios de backend.
 
 Ya documentados y no son huecos nuevos: el 409 `CountScopeFrozen` de FR-016, que depende de
 INT-HU04-03; S-04, S-13 y la consulta de S-06, en «Si hay tiempo» S4; y FR-020 en la interfaz, que es
@@ -70,7 +88,7 @@ S2. No se ha visto ninguna infracción de los principios MUST de la constitució
 | FR-001 | `StockQueryTests` (S-03: 422 sin artículo), `stock-query.page.spec.ts` («Elige un artículo», selector con `state=all`) | Cumplido |
 | FR-002 | `StockQueryTests` (S-01, S-05), `StockBalanceReaderTests`, `stock-query.page.spec.ts` (`includeEmpty`, «sin lote») | Cumplido |
 | FR-003 | `StockQueryTests` (12/8/4, S-02 frente a HU-02), `StockBalanceReader` sin otro contador | Cumplido |
-| FR-004 | `StockQueryTests` (filtros y páginas con totales del filtro), `stock-query.page.spec.ts` | Cumplido (G3 en la UI, límite aceptado) |
+| FR-004 | `StockQueryTests` (filtros y páginas con totales del filtro), `stock-query.page.spec.ts` (opciones de todas las combinaciones, C4) | Cumplido |
 | FR-005 | SNAPSHOT sobre `StockBalances`, que solo cambian en commits (`StockBalanceReader.cs`); S-04 no ejecutado | Parcial (sin borradores que probar) |
 | FR-006 | `asOf` y «Actualizar» (`stock-query.page.spec.ts`), SNAPSHOT | Cumplido |
 | FR-007 | `article.isActive` (API), «Inactivo» en texto (`stock-query.page.spec.ts`, `order-detail.page.spec.ts`) | Cumplido |
@@ -81,7 +99,7 @@ S2. No se ha visto ninguna infracción de los principios MUST de la constitució
 | FR-012 | `CustomerOrderTests` (S-08: `Open`, servido 0, sin reservas) | Cumplido |
 | FR-013 | `CustomerOrderTests` (detalle), `order-detail.page.spec.ts` (detalle + contexto) | Cumplido |
 | FR-014 | `ReservationTests`/`ReleaseTests` (Operario 403), `order-detail.page.spec.ts` (sin botones) | Cumplido |
-| FR-015 | `ReservationTests` (asignaciones explícitas, lote ajeno, bucket repetido), diálogo de reservar | Cumplido (G3, límite aceptado) |
+| FR-015 | `ReservationTests` (asignaciones explícitas, lote ajeno, bucket repetido), diálogo de reservar con todas las combinaciones (`order-detail.page.spec.ts`, C4) | Cumplido |
 | FR-016 | `ReservationTests` (pendiente, `InsufficientStock`, `CustomerOrderNotOpen`, `ArticleInactive`); conteo abierto pendiente de HU-04 | Parcial (dependencia registrada) |
 | FR-017 | `ReservationTests` (S-10: físico 10, reservado 7), `ReleaseTests` (físico sin cambios) | Cumplido |
 | FR-018 | `ReleaseTests` (S-14, S-15), diálogo de liberar (motivo obligatorio, `releaseId`) | Cumplido |
@@ -92,7 +110,7 @@ S2. No se ha visto ninguna infracción de los principios MUST de la constitució
 | FR-023 | Replays e `IdempotencyConflict` en `CustomerOrderTests`, `ReservationTests` y `ReleaseTests`; `DocumentAlreadyConfirmed` | Cumplido |
 | FR-024 | V-05 en `ReservationTests` (20 rondas); carreras con `LockBarrier` y `SaveBarrier`; conciliación | Cumplido |
 | FR-025 | 412/428 en `ReservationTests` y `ReleaseTests`; relectura en `order-detail.page.spec.ts` (`orderVersion` ≠ `ETag` y 412 en los dos diálogos, C2) | Cumplido |
-| FR-026 | «Resultado pendiente de comprobar», restauración y «Abrir pedido» (`order-detail.page.spec.ts`, `operation-status-hu05.spec.ts`) | Cumplido (G2, límite aceptado) |
+| FR-026 | «Resultado pendiente de comprobar», restauración y «Abrir pedido» (`order-detail.page.spec.ts`, `operation-status-hu05.spec.ts`); operación del alta en el detalle (`CustomerOrderTests.C3_…`, C3) | Cumplido |
 | FR-027 | Revisión antes de confirmar en alta, reservar y liberar; 409/422 conservando datos y con el foco en el primer error (`order-form.page.spec.ts`, `order-detail.page.spec.ts`; C1) | Cumplido |
 | FR-028 | Español, unidad junto a cada cantidad, estados en texto, diálogos con teclado y foco tras rechazo (E2E-01 por roles y etiquetas; C1) | Cumplido |
 | SC-001 | `StockQueryTests` (S-01, totales en todas las páginas), S-02 | Cumplido |

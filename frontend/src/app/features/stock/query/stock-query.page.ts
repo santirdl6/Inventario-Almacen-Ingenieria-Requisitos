@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { apiProblem } from '../../../core/http/api-problem';
 import { StockApiService } from '../data/stock-api.service';
-import { StockArticleOption, StockLocation, StockLot, StockQueryResult, isZeroQuantity, lotText } from '../data/stock.models';
+import { StockArticleOption, StockLocation, StockLot, StockQueryResult, StockRow, isZeroQuantity, lotText } from '../data/stock.models';
 
 /**
  * HU-05 T015 · /existencias (US1; FR-001–FR-008; contracts/stock-ui.md § Consulta de existencias).
@@ -128,6 +128,8 @@ export class StockQueryPage {
   /** Opciones de filtro del artículo, tomadas de su consulta sin filtros y conservadas al filtrar. */
   readonly locations = signal<StockLocation[]>([]);
   readonly lots = signal<StockLot[]>([]);
+  /** Artículo y casilla cuyas opciones ya se leyeron de todas las páginas. */
+  private completeOptions: string | null = null;
   readonly data = signal<StockQueryResult | null>(null);
   readonly error = signal<string | null>(null);
   readonly empty = computed(() => {
@@ -157,6 +159,7 @@ export class StockQueryPage {
     this.lotId.set('');
     this.locations.set([]);
     this.lots.set([]);
+    this.completeOptions = null;
     this.data.set(null);
     this.load(1);
   }
@@ -180,7 +183,18 @@ export class StockQueryPage {
       includeEmpty: this.includeEmpty(), page }).subscribe({
       next: result => {
         this.data.set(result);
-        if (unfiltered) this.collectOptions(result);
+        if (!unfiltered) return;
+        this.collectOptions(result.items);
+        // Con más de una página, las opciones salen de todas las combinaciones (C4, FR-004), una
+        // vez por artículo y casilla.
+        const key = `${article.id}|${this.includeEmpty()}`;
+        if (result.totalCount > result.pageSize && this.completeOptions !== key) {
+          this.completeOptions = key;
+          this.api.allRows(article.id, this.includeEmpty()).subscribe({
+            next: rows => { if (this.article()?.id === article.id) this.collectOptions(rows); },
+            error: () => { this.completeOptions = null; }
+          });
+        }
       },
       error: (error: unknown) => {
         const problem = apiProblem(error);
@@ -198,10 +212,10 @@ export class StockQueryPage {
     return (event.target as HTMLInputElement).checked;
   }
 
-  private collectOptions(result: StockQueryResult): void {
+  private collectOptions(rows: StockRow[]): void {
     const locations = new Map(this.locations().map(place => [place.id, place]));
     const lots = new Map(this.lots().map(lot => [lot.id, lot]));
-    for (const row of result.items) {
+    for (const row of rows) {
       locations.set(row.location.id, row.location);
       if (!row.lot.isUntracked) lots.set(row.lot.id, row.lot);
     }

@@ -89,6 +89,15 @@ no adquirir familia/proveedor después de bloquear un artículo.
   nuevo lote. El lock de ubicación impide iniciar un conteo mientras cambia su stock.
 - Un comando de modificación del pedido de cliente declara primero las reservas que va
   a liberar y sus ubicaciones, conservando la jerarquía documento → ubicación → artículo.
+- Tipos de documento de HU-05: customer-order-reference (UUID v5 de la referencia
+  normalizada), customer-order, reservation-release y reservation; orden ordinal
+  customer-order-reference < customer-order < reservation-release < reservation, pedidos
+  en una sola llamada. Todo escritor de reservas o servido de un pedido (HU-05, HU-03)
+  bloquea customer-order:{id}.
+- Reservar usa reservation/{reservationId} como documento; cada liberación usa
+  reservation-release/{releaseId}, con SupportReference reservation:{reservationId}.
+- Cuando el StockCommand depende de lecturas bajo bloqueo, la OperationRequest lleva el
+  DTO HTTP normalizado y el StockCommand se prepara dentro de change (HU-05 D-05).
 
 ## Implementación H0 (B, 2026-11-18)
 

@@ -274,6 +274,9 @@ No se tocan `StockCore`, `InventoryOperationExecutor`, `InventoryLocks`, `Operat
 ## Cambios al modelo común pendientes de A
 
 Ningún documento común se edita en esta rama hasta la revisión de A en el PR, según AGENTS.md.
+**Aprobados por A el 2026-11-21 y aplicados en T002**: P-01 (lo que faltaba), P-02, P-03 (con
+`creationOperationId` en el contexto, C3), P-05, P-06 y P-08. P-04 queda **pendiente** con S1: la
+ruta no existe y no se añade a `api.md`.
 
 ### P-01 · `data-model.md` — `### CustomerOrder y CustomerOrderLine`
 
@@ -428,6 +431,18 @@ después a `send()`, que es lo que hace `mutate()` (D-15).
 - **Tras `/speckit-converge` (2026-11-20)**: T001 y T002 siguen sin marcar. Los cambios en archivos
   de A del apartado anterior están implementados y probados, cada uno en su commit, a la espera de
   la revisión de A (COORD-01). Los documentos comunes no se han editado.
+- **Revisión de A del PR #9 (2026-11-21): aprobada**, con la condición de cerrar G2 y G3 (C3
+  `8009807` y C4 `363de56`). Revisor: Persona A. Aprueba:
+  - (a) P-01 en lo que faltaba, P-02, P-03, P-05, P-06 y P-08. Se aplican en T002.
+  - (b) los cambios en sus archivos y en los comunes de la lista anterior, incluida la cuarta
+    cuenta E2E `ResponsableAlmacen` (`ef296cc`, `110df1a`).
+  - (c) `SupportReference` frente a la tabla `ReservationRelease` de research D-06. La alternativa
+    no se adopta.
+  - (d) el endpoint de preparación de pruebas de D-17.
+  - Que HU-05 use `pending.begin(…, appRoute)` + `send()` sin modificar `mutate()`.
+
+  Quedan fuera de la aprobación, como pendientes: P-04 (búsqueda por prefijo, S1) y el 409
+  `CountScopeFrozen`, que pasa a HU-04 (INT-HU04-03).
 
 ## Complexity Tracking
 
@@ -440,4 +455,4 @@ después a `send()`, que es lo que hace `mutate()` (D-15).
 | Endpoint de preparación de existencias solo para pruebas (D-17). | El vídeo necesita existencias y HU-01 aún no ofrece recepciones por HTTP. | Escribir saldos directamente, prohibido por la constitución IV y la guía común. | Persona B; se retira cuando HU-01 integre recepciones. Además de la opción, no existe en Production (`3b24957`). |
 | Búsqueda de pedidos `GET /customer-orders` (P-04) y pantalla `/existencias/pedidos`, sin implementar. | No salen en el vídeo; al pedido se llega desde el alta o por URL. | — | Persona B; S1 de tasks.md. |
 | Congelación por conteo abierto al reservar (FR-016, US3.7), sin prueba. | `IsInOpenCountAsync` devuelve `false` hasta HU-04. | — | INT-HU04-03. |
-| Cuarta cuenta E2E `ResponsableAlmacen` en el aprovisionamiento de A. | E2E-01 necesita `Reservations.Manage` y no hay API de alta de usuarios. | Reservar por API en el E2E, que no muestra la interfaz del vídeo. | Autorizado por B; pendiente de la revisión de A (`ef296cc`). |
+| Cuarta cuenta E2E `ResponsableAlmacen` en el aprovisionamiento de A. | E2E-01 necesita `Reservations.Manage` y no hay API de alta de usuarios. | Reservar por API en el E2E, que no muestra la interfaz del vídeo. | Autorizado por B y aprobado por A en la revisión del PR #9 (2026-11-21; `ef296cc`). |

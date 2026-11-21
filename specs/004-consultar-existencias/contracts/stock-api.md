@@ -163,11 +163,16 @@ de las líneas, y las ubicaciones y lotes de todas las asignaciones.
   "articles": [ { "id": "…", "sku": "ART-01", "name": "…", "baseUnit": "UD", "isActive": true,
                   "tracksLot": true, "allowsFractional": false } ],
   "locations": [ { "id": "…", "code": "P01-E01-N01", "aisle": "P01", "rack": "E01", "level": "N01", "isActive": true } ],
-  "lots": [ { "id": "…", "articleId": "…", "code": "L-001", "isUntracked": false } ] }
+  "lots": [ { "id": "…", "articleId": "…", "code": "L-001", "isUntracked": false } ],
+  "creationOperationId": "…" }
 ```
 
 - `orderVersion` es el mismo token que el `ETag` del detalle (`EntityTags.Format`). Si la UI recibe
   un detalle y un contexto de revisiones distintas, vuelve a leer ambos.
+- `creationOperationId` (Convergence C3, FR-026): la operación del alta, leída del
+  `OperationResult` registrado (`POST /api/v1/customer-orders` con `SourceDocumentId` = pedido). Es
+  `null` solo si no existe ese resultado. No forma parte del pedido ni de su `ETag`, y no cambia el
+  esquema.
 - Pedido inexistente: 404. No es una precondición: reservar y liberar siguen exigiendo el `If-Match`
   del detalle versionado.
 

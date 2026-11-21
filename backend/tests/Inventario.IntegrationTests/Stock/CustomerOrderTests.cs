@@ -201,6 +201,33 @@ public sealed class CustomerOrderTests(IdentityFixture fixture) : IClassFixture<
         Assert.False(await db.Set<CustomerOrder>().AnyAsync(order => order.ExternalReference == reference));
     }
 
+    // Convergence C3 (G2; FR-026, US2.1): el contexto da la operación del alta, que se lee del
+    // OperationResult registrado (POST /customer-orders con SourceDocumentId = pedido). Así el
+    // detalle la muestra también al recuperar el pedido, sin cambiar el esquema ni el ETag.
+    [Fact]
+    public async Task C3_context_returns_the_creation_operation_also_after_a_replay_and_never_another_order()
+    {
+        using var factory = fixture.Factory();
+        using var support = new StockApiSupport(fixture, factory);
+        var operario = await support.SessionAsync("Operario");
+        var gestor = await support.SessionAsync("GestorMaestros");
+        var article = await ArticleAsync();
+        var key = Guid.NewGuid();
+        var body = Order("PED-" + StockApiSupport.Unique(8), "Cliente", (article.Id, "2"));
+        using var created = await operario.WriteAsync(HttpMethod.Post, Orders, body, key);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var id = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("resource").GetProperty("id").GetGuid();
+        var other = await CreateAsync(operario, (article.Id, "1"));
+        var (_, etag) = await DetailAsync(gestor.Client, id);
+
+        Assert.Equal(key, (await ContextAsync(gestor.Client, id)).GetProperty("creationOperationId").GetGuid());
+        using (var replay = await operario.WriteAsync(HttpMethod.Post, Orders, body, key))
+            Assert.Equal(HttpStatusCode.Created, replay.StatusCode);
+        Assert.Equal(key, (await ContextAsync(gestor.Client, id)).GetProperty("creationOperationId").GetGuid());
+        Assert.NotEqual(key, (await ContextAsync(gestor.Client, other)).GetProperty("creationOperationId").GetGuid());
+        Assert.Equal(etag, (await DetailAsync(gestor.Client, id)).ETag);
+    }
+
     [Fact]
     public async Task Etag_covers_only_own_data_renaming_the_article_changes_only_the_context()
     {

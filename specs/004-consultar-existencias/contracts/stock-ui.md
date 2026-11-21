@@ -23,7 +23,9 @@ El área `/existencias` ya está declarada en `operation-areas.ts` con `Inventor
   existencias» (US1.4).
 - Filtros opcionales «Ubicación» y «Lote». El de lote solo aparece si el artículo tiene
   seguimiento (caso límite). **Construido**: las opciones se toman de la consulta del artículo sin
-  filtros (solo su primera página, 25 filas) y se conservan al filtrar.
+  filtros y se conservan al filtrar. Si esa consulta tiene más de una página, se leen todas sus
+  combinaciones en páginas de 100, una vez por artículo y casilla (Convergence C4). La tabla sigue
+  paginada de 25 en 25.
 - Casilla «Mostrar ubicaciones sin existencias» (`includeEmpty`), desmarcada por defecto
   (clarificación 2).
 - Totales (físico, reservado y disponible, con la unidad) en un bloque separado de la tabla, con la
@@ -44,7 +46,7 @@ El área `/existencias` ya está declarada en `operation-areas.ts` con `Inventor
 - Revisión antes de confirmar (estado 2) y confirmación (estado 3) con la intención idempotente
   conservada.
 - Los errores por línea se asocian a su campo y los datos válidos se conservan (estado 5).
-- Al confirmar se muestra el identificador y se navega al detalle.
+- Al confirmar se muestra el identificador y se navega al detalle, que también lo muestra (C3).
 
 ## Detalle del pedido, reservar y liberar
 
@@ -56,12 +58,15 @@ El área `/existencias` ya está declarada en `operation-areas.ts` con `Inventor
   La pantalla une ambas por id. Si `context.orderVersion` difiere del `ETag` del detalle, vuelve a
   leer las dos antes de mostrar o permitir reservar o liberar, igual que la ficha de artículo de
   HU-08. «Actualizar» repite las dos lecturas.
-- Cabecera con referencia, cliente y estado en texto. Por línea: artículo (SKU y nombre del
+- Cabecera con referencia, cliente y estado en texto, y «Pedido creado con la operación {id}» con
+  el `creationOperationId` del contexto (Convergence C3, FR-026). Al venir del servidor, se ve
+  igual tras crear, tras cerrar sesión, al entrar por «Abrir pedido» o por URL. Por línea: artículo (SKU y nombre del
   contexto, con «Inactivo» en texto si procede), pedido, servido, pendiente y reservado remanente,
   con la unidad del contexto, y las reservas con sus asignaciones (ubicación y lote del contexto).
 - **Reservar** (por línea, con `Reservations.Manage` y el pedido `Open`): diálogo que lista las
-  existencias del artículo con `GET /stock` (ubicación, lote y disponible). **Construido**: solo la
-  primera página (25 filas) de `GET /stock`. El responsable escribe
+  existencias del artículo con `GET /stock` (ubicación, lote y disponible). **Construido**: todas las
+  combinaciones con existencias, leídas en páginas de 100 hasta `totalCount` (Convergence C4). El
+  responsable escribe
   la cantidad en una o varias filas. Se muestra el máximo reservable, mín(pendiente − reservado,
   disponible), como ayuda, y el servidor revalida. Revisión → confirmar con el `If-Match` del pedido.
 - **Liberar** (por reserva activa): diálogo con las asignaciones y su remanente, la cantidad por

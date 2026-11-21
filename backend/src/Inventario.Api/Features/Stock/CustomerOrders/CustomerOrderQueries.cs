@@ -4,6 +4,7 @@ using Inventario.Api.Domain.MasterData;
 using Inventario.Api.Domain.Stock;
 using Inventario.Api.Infrastructure.Http;
 using Inventario.Api.Infrastructure.Persistence;
+using Inventario.Api.Infrastructure.Persistence.Operations;
 using Microsoft.EntityFrameworkCore;
 
 namespace Inventario.Api.Features.Stock.CustomerOrders;
@@ -15,6 +16,8 @@ namespace Inventario.Api.Features.Stock.CustomerOrders;
 /// </summary>
 public sealed class CustomerOrderQueries(InventoryDbContext database)
 {
+    private static readonly string CreationResource = RequestFingerprint.CanonicalResource(CustomerOrderCommands.Resource);
+
     /// <summary>GET /customer-orders/{id}: null si no existe.</summary>
     public Task<(CustomerOrderView View, byte[] Version)?> DetailAsync(Guid id, CancellationToken cancellation) =>
         database.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
@@ -54,8 +57,13 @@ public sealed class CustomerOrderQueries(InventoryDbContext database)
                 .OrderBy(lot => lot.Code)
                 .Select(lot => new CustomerOrderContextLot(lot.Id, lot.ArticleId, lot.Code, lot.IsUntracked))
                 .ToListAsync(cancellation);
+            // El alta guarda su OperationResult con SourceDocumentId = pedido (Convergence C3).
+            var creation = await database.OperationResults.AsNoTracking()
+                .Where(result => result.SourceDocumentId == id && result.Method == "POST" && result.Resource == CreationResource)
+                .Select(result => (Guid?)result.OperationId)
+                .SingleOrDefaultAsync(cancellation);
             await transaction.CommitAsync(cancellation);
-            return new CustomerOrderContext(EntityTags.Format(order.Version), asOf, articles, locations, lots);
+            return new CustomerOrderContext(EntityTags.Format(order.Version), asOf, articles, locations, lots, creation);
         });
 
     /// <summary>Pedido con sus líneas, reservas y asignaciones, sin seguimiento.</summary>

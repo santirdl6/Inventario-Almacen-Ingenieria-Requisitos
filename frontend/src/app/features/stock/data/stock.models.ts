@@ -55,6 +55,8 @@ export interface CustomerOrderContext {
   articles: { id: string; sku: string; name: string; baseUnit: string; isActive: boolean; tracksLot: boolean; allowsFractional: boolean }[];
   locations: { id: string; code: string; aisle: string; rack: string; level: string; isActive: boolean }[];
   lots: { id: string; articleId: string; code: string; isUntracked: boolean }[];
+  /** Operación del alta (Convergence C3, FR-026), leída del resultado registrado. */
+  creationOperationId?: string | null;
 }
 
 /** Detalle combinado: las dos lecturas pertenecen a la misma revisión (orderVersion === etag). */

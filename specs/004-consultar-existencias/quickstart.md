@@ -69,7 +69,7 @@ Reconciliado con `/speckit-converge` el 2026-11-20.
 | S-04 | **No ejecutado**: aún no hay documentos en borrador (HU-01); «Si hay tiempo» S4 | — |
 | S-06 | Parcial: `article.isActive` en la API (S-01) y «Inactivo» en la UI (Vitest); la consulta con el artículo desactivado queda en S4 | `StockQueryTests`, `stock-query.page.spec.ts` |
 | S-07 | En verde, como conciliación de las asignaciones con `StockBalances.Reserved` y del diario con los saldos | `StockApiSupport.AssertCommitmentsMatchBalancesAsync` en `ReservationTests`, `ReleaseTests` y `StockReliabilityTests` |
-| S-08, S-09, S-19 | En verde | `CustomerOrderTests` |
+| S-08, S-09, S-19 | En verde; el contexto da la operación del alta (C3) | `CustomerOrderTests` (`C3_context_returns_the_creation_operation_…`) |
 | S-10, S-11, S-12 (V-05, 20 rondas), S-18 | En verde | `ReservationTests`, `CustomerOrderTests` |
 | S-13 | **No ejecutado**; «Si hay tiempo» S4 | — |
 | S-14, S-15 | En verde | `ReleaseTests` |
@@ -94,11 +94,13 @@ Las unitarias (Vitest/TestBed) cubren:
   visibilidad según `Reservations.Manage`.
 - Estado «Resultado pendiente de comprobar».
 
-Construido: `stock-query.page.spec.ts` (7), `order-form.page.spec.ts` (7), `order-detail.page.spec.ts`
-(12) y las specs de los cambios en archivos de A (`pending-operation-hu05.spec.ts`, 5;
+Construido: `stock-query.page.spec.ts` (8), `order-form.page.spec.ts` (7), `order-detail.page.spec.ts`
+(15) y las specs de los cambios en archivos de A (`pending-operation-hu05.spec.ts`, 5;
 `operation-status-hu05.spec.ts`, 4). Incluyen el foco al primer error tras un rechazo (C1, FR-027
-y FR-028) y el 412 en los diálogos de reservar y liberar (C2, FR-025). Límites aceptados: G2 y G3
-de [validation/converge-1.md](validation/converge-1.md).
+y FR-028), el 412 en los diálogos de reservar y liberar (C2, FR-025), la operación del alta en el
+detalle (C3, G2 de [validation/converge-1.md](validation/converge-1.md)) y las combinaciones más
+allá de la primera página en los filtros y en el diálogo de reservar (C4, G3). Las pruebas usan 30 y
+130 combinaciones.
 
 ## E2E (solo el recorrido del vídeo)
 
@@ -137,6 +139,7 @@ pruebas, el resultado por caso y las incidencias. Después, llevar un resumen al
 | 2026-11-20 | Proyecto Compose `inventario-hu08-e2e` (http://localhost:8082, base InventoryHu08E2E), Playwright 1.65 + Chromium, Windows 11 + Docker Desktop; imagen construida desde `110df1a` más `e2e/stock.spec.ts`. | **E2E-01 (T019)** y suite Playwright completa con `--grep-invert SC-005`, con `TESTING_ENABLE_STOCK_SEEDING=true` solo en ese proyecto (fixture de T018). | E2E-01 en verde; suite 16/16 (línea base 15/15), sin intermitencias. |
 | 2026-11-20 | Igual (backend con `git archive` de `e220381`; Vitest y `tsc` locales con Node 26; Playwright en el proyecto `inventario-hu08-e2e`). | **Verificación final tras `/speckit-converge`**: suite backend completa, `has-pending-model-changes`, Vitest completo, `tsc` de app, specs y E2E, y Playwright con `--grep-invert SC-005`. | Backend 206 aprobadas, 1 omitida, 0 fallidas; modelo sin cambios; Vitest 136/136 (35 archivos); tipos sin errores; Playwright 16/16. Detalle FR/SC en [validation/converge-1.md](validation/converge-1.md). |
 | 2026-11-20 | Igual; Vitest y `tsc` locales con Node 26 sobre `b/hu-05-consultar-existencias` (C1 en `b87852b` más C2). | **Convergence C1 y C2** (G1 y G4): Vitest completo, `tsc` de app y specs y `npm run build`. | Vitest 143/143 (antes 136); tipos sin errores; build correcto. La primera ejecución completa tras C1 tuvo el fallo intermitente conocido de `location-detail.page.spec.ts` (HU-02); al repetir, en verde. |
+| 2026-11-21 | Igual: backend con `git archive` de `363de56`, Vitest, `tsc` y build locales con Node 26, y Playwright en el proyecto `inventario-hu08-e2e`. | **Convergence C3 y C4** (G2 y G3, a petición de A) y verificación para la aprobación del PR #9: suite backend completa, `has-pending-model-changes`, Vitest, `tsc` de app, specs y E2E, `npm run build` y Playwright con `--grep-invert SC-005` una sola vez. | Backend 207 aprobadas (206 + C3), 1 omitida, 0 fallidas; modelo sin cambios; Vitest 147/147 (143 + 2 de C3 + 2 de C4); tipos sin errores; build correcto; Playwright 16/16 con E2E-01. Resumen en el quickstart común, apartado 10 (P-08). |
 
 **Nota de proceso (honesta)**: T003 a T007 se ejecutaron siguiendo a mano el `SKILL.md` de
 `/speckit-implement`. La sesión se había abierto en la carpeta padre del repositorio y la skill no se

@@ -9,8 +9,8 @@ import { CustomerOrderContext, OrderLine, StockRow, lotText } from '../data/stoc
 import { allocationErrorIndexes, focusFirstError } from '../shared/focus-first-error';
 
 /**
- * HU-05 T016 · Reservar existencias para una línea (US3; contracts/stock-ui.md). Lista GET /stock
- * del artículo con el máximo reservable como ayuda, mín(pendiente − reservado, disponible); el
+ * HU-05 T016 · Reservar existencias para una línea (US3; contracts/stock-ui.md). Lista todas las
+ * páginas de GET /stock del artículo (C4) con el máximo reservable como ayuda, mín(pendiente − reservado, disponible); el
  * servidor revalida. Revisión → confirmar con el If-Match del pedido. Un 412 pide releer el pedido
  * sin perder las cantidades escritas.
  */
@@ -92,8 +92,9 @@ export class ReserveDialog implements OnInit {
   readonly total = computed(() => this.chosen().reduce((sum, row) => sum + Number(this.quantities()[this.key(row)]), 0).toFixed(3));
 
   ngOnInit(): void {
-    this.stock.stock({ articleId: this.line().articleId, includeEmpty: false, page: 1 }).subscribe({
-      next: result => { this.rows.set(result.items); this.loaded.set(true); },
+    // Todas las combinaciones del artículo, no solo la primera página (Convergence C4, FR-015).
+    this.stock.allRows(this.line().articleId, false).subscribe({
+      next: rows => { this.rows.set(rows); this.loaded.set(true); },
       error: (error: unknown) => this.error.set(apiProblem(error).detail)
     });
   }
