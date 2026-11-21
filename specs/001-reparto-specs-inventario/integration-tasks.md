@@ -38,8 +38,19 @@ Un escritor no se habilita sin esa cobertura; HU-08 no necesita reabrirse para a
 
 ## HU-03 — Salidas — Persona B
 
-- [ ] INT-HU03-01 Integrar Shipment/Line con el contrato de aceptación de escritores, incluidos borradores retirados, lectores, marca y carreras reales con definición/borrado. Consumir el CustomerOrder/Line y las reservas entregadas por HU-05, sin duplicar sus altas; confirmar salida/servido/consumo de reserva con el protocolo común. Origen HU-08 T035/T064/T066/T075/T100/T101; FR-009/010/019.
-- [ ] INT-HU03-02 Permitir servir compromisos anteriores de artículos inactivos con sus límites, reservas propias/ajenas y permisos originales; comprobar conservación de historial/saldos y coordinación con la desactivación. El rechazo de pedidos nuevos pertenece al escritor HU-05. Origen HU-08 T078/T103; FR-013/019, Q-09/V-12.
+- [x] INT-HU03-01 Integrar Shipment/Line con el contrato de aceptación de escritores, incluidos borradores retirados, lectores, marca y carreras reales con definición/borrado. Consumir el CustomerOrder/Line y las reservas entregadas por HU-05, sin duplicar sus altas; confirmar salida/servido/consumo de reserva con el protocolo común. Origen HU-08 T035/T064/T066/T075/T100/T101; FR-009/010/019.
+- [x] INT-HU03-02 Permitir servir compromisos anteriores de artículos inactivos con sus límites, reservas propias/ajenas y permisos originales; comprobar conservación de historial/saldos y coordinación con la desactivación. El rechazo de pedidos nuevos pertenece al escritor HU-05. Origen HU-08 T078/T103; FR-013/019, Q-09/V-12. **Hechas (2026-11-21, PR #10, T002 de HU-03 con la luz verde de A)**:
+  - INT-HU03-01: contrato de escritores en `ShipmentDraftTests` (crear, editar, retirar y borrar
+    borradores; carreras con definición y borrado en ambos órdenes); confirmación frente a `PUT` de
+    definición y `DELETE` en `ShipmentConcurrencyTests`; contributor en `AddStockCore`
+    (`Hu03SchemaTests`); consumo del pedido y las reservas de HU-05 (reglas 1–5 del
+    [contrato HU-05 → HU-03](../004-consultar-existencias/contracts/hu03-integration.md)).
+  - INT-HU03-02: `ShipmentConfirmTests.H15_…` y la carrera con la desactivación en
+    `ShipmentConcurrencyTests`.
+  - Evidencia: suite 291 aprobadas, 1 omitida (V-14), 0 fallidas tras Convergence C4 (`f65fefe`);
+    registro en el [quickstart común § 11](../../.specify/memory/project/quickstart.md#11-hu-03--evidencia-de-integración-del-2026-11-21)
+    y el [quickstart de HU-03](../005-registrar-salida-mercancia/quickstart.md#evidencia).
+  - Sigue pendiente, fuera de estas tareas: `CountScopeFrozen` al confirmar (INT-HU04-03).
 
 ## HU-05 — Consultas, pedido mínimo y reservas — Persona B
 
@@ -66,6 +77,7 @@ Un escritor no se habilita sin esa cobertura; HU-08 no necesita reabrirse para a
 - [ ] INT-HU04-01 Integrar CountLine y hallazgos con el contrato de aceptación de escritores desde su primera referencia, antes del ajuste; comprobar retirada permitida de borradores y carreras de definición/borrado sin crear dimensiones técnicas que impidan eliminar artículos nunca usados. Origen HU-08 T064/T066/T070/T075/T100/T101; FR-009/010/011/019.
 - [ ] INT-HU04-02 Verificar ajustes de artículos inactivos solo con autorización/motivo persistidos, respetando reservas y congelación, sin borrar ni reescribir diario y conservando ubicaciones/unidades históricas. Origen HU-08 T078/T103; FR-013, Q-09/V-12 y Constitution IV/V.
 - [ ] INT-HU04-03 Al integrar CountLocation, conectar ILocationUsage.IsInOpenCountAsync de HU-02 y los controles de congelación de los escritores de stock/reservas; probar 409 CountScopeFrozen al desactivar/cambiar tipo de una ubicación en conteo y mostrar inOpenCount real en sus consultas. No habilitar conteos dejando el lector constante false. Origen HU-02 T034 y revisión PR #6; FR-008/012 y US3.3/US4.3 de HU-02.
+- [ ] INT-HU04-04 Corregir una salida confirmada errónea (cantidad u origen) mediante un ajuste trazable vinculado a la salida, sin revertirla. Corrige **solo el físico**: con una salida de 6 cuando salieron 4, el ajuste devuelve 2 al saldo, pero el pedido sigue mostrando 6 servidas, su estado no cambia y el consumo de reservas se conserva; no se corrige el pedido. Corregirlo exigiría su acumulado servido y su estado en el mismo commit ([contrato de stock § Correcciones](../../.specify/memory/project/contracts/stock-operations.md#correcciones-y-contingencia)) y sería un cambio compartido. La pantalla del conteo debe avisarlo de forma visible. Origen HU-03 clarificación Q3 y P-07 (limitación pedida por A).
 
 ## HU-06 — Mínimos y alertas — Persona A
 

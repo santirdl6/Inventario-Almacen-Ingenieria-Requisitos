@@ -8,7 +8,9 @@ export interface PendingOperation {
   appRoute?: string;
 }
 const KEY = 'inventario.pending-operations';
-const APP_ROUTE = /^\/existencias\/pedidos\/(nuevo|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+// HU-05: /existencias/pedidos/…; HU-03: /salidas/pedidos/{id} (alta) y /salidas/{id} (salida).
+const APP_ROUTE = new RegExp(`^(/existencias/pedidos/(nuevo|${UUID})|/salidas/(pedidos/)?${UUID})$`, 'i');
 
 export function mutationPermission(resource: string): string | null {
   if (/^\/api\/v1\/(families|articles|suppliers)(\/[0-9a-f-]{36})?$/i.test(resource)) return 'MasterData.Manage';
@@ -16,6 +18,8 @@ export function mutationPermission(resource: string): string | null {
   // HU-05: alta de pedido, reservar y liberar.
   if (/^\/api\/v1\/customer-orders$/i.test(resource)) return 'Shipping.Record';
   if (/^\/api\/v1\/reservations(\/[0-9a-f-]{36}\/release)?$/i.test(resource)) return 'Reservations.Manage';
+  // HU-03: crear, editar, eliminar y confirmar una salida.
+  if (/^\/api\/v1\/shipments(\/[0-9a-f-]{36}(\/confirm)?)?$/i.test(resource)) return 'Shipping.Record';
   return null;
 }
 

@@ -100,3 +100,22 @@ comprueba pendiente y remanente por bucket. **Construido**:
 - `CustomerOrderTests`, sin reservas y con un pedido inexistente (null);
 - `ReservationTests.S18_…`, con asignaciones en dos buckets, comparado con `GET /customer-orders/{id}`. HU-03 añadirá sus pruebas de salida (V-04) sobre este
 contrato.
+
+**Construidas por HU-03 (T010, 2026-11-21)**, en
+`backend/tests/Inventario.IntegrationTests/Shipping/ShipmentConfirmTests.cs`:
+
+- **Regla 3** (consumo por asignación en orden de Id, estado derivado y `ConsumedQuantity` que solo
+  crece): `Rule3_consumes_allocations_in_id_order_and_derives_each_reservation_state`.
+- **Regla 4** (renovar la cabecera del pedido en toda salida y la de cada reserva consumida; 412 a
+  reservar, liberar y confirmar con versiones viejas):
+  `H12_every_shipment_renews_the_order_and_each_consumed_reservation`.
+- **Regla 5** (remanente sobrante → `ReservedStockConflict`, sin liberar en silencio):
+  `H11_a_leftover_reservation_is_rejected_until_it_is_released`.
+- **S-18 completo** (lector antes y después de servir, dos buckets y varias reservas de la línea):
+  `H13_the_order_reader_matches_the_order_detail_before_and_after_shipping`.
+- **V-04**: `H10_consumes_the_own_reservation_and_never_the_foreign_one` y
+  `H10_afterwards_neither_order_can_ship_beyond_its_possible`.
+- **Regla 1**, la única serialización por `customer-order` (T011, `ShipmentConcurrencyTests`):
+  `H17_a_confirmation_and_a_reservation_of_another_line_of_the_same_order_serialize_on_the_order`.
+- Invariantes, incluida Σ remanente = reservado por bucket:
+  `ShippingApiSupport.AssertShipmentInvariantsAsync`, en cada escenario confirmado.

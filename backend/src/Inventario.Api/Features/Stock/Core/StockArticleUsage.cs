@@ -57,6 +57,11 @@ public static class StockCoreRegistration
         services.AddScoped<CustomerOrders.CustomerOrderArticleUsageContributor>();
         services.AddScoped<IArticleUsageContributor>(provider => provider.GetRequiredService<CustomerOrders.CustomerOrderArticleUsageContributor>());
         services.AddScoped<IArticleFirstReferenceContributor>(provider => provider.GetRequiredService<CustomerOrders.CustomerOrderArticleUsageContributor>());
+        // HU-03 (T004, D-09): las líneas de salida también referencian Article. Aquí y no en
+        // AddShipping(), para que la cobertura de HU-08 no dependa del registro de la feature.
+        services.AddScoped<Shipping.ShipmentArticleUsageContributor>();
+        services.AddScoped<IArticleUsageContributor>(provider => provider.GetRequiredService<Shipping.ShipmentArticleUsageContributor>());
+        services.AddScoped<IArticleFirstReferenceContributor>(provider => provider.GetRequiredService<Shipping.ShipmentArticleUsageContributor>());
         services.AddScoped<IArticleMovementReader, StockArticleMovementReader>();
         return services;
     }

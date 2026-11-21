@@ -30,15 +30,16 @@ public sealed class Hu05SchemaTests(IdentityFixture fixture) : IClassFixture<Ide
         Assert.NotNull(database.Model.FindEntityType(typeof(CustomerOrderLine)));
         Assert.NotNull(database.Model.FindEntityType(typeof(Reservation)));
         Assert.NotNull(database.Model.FindEntityType(typeof(ReservationAllocation)));
+        // Conjunto exacto de tipos con FK a Article; HU-03 (T004, D-09) añade ShipmentLine.
         Assert.Equal(new HashSet<Type> { typeof(Lot), typeof(StockBalance), typeof(StockEntry),
-                typeof(CustomerOrderLine), typeof(ReservationAllocation) },
+                typeof(CustomerOrderLine), typeof(ReservationAllocation), typeof(Inventario.Api.Domain.Shipping.ShipmentLine) },
             ArticleUsageCoverageValidator.RequiredTypes(database.Model));
         // Sin contributor de HU-05, HU-08 respondería 503 DependencyUnavailable.
         scope.ServiceProvider.GetRequiredService<ArticleUsageCoverageValidator>().EnsureCovered();
         scope.ServiceProvider.GetRequiredService<ArticleDefinitionReadiness>().EnsureReady();
         Assert.False(database.Database.HasPendingModelChanges());
+        // HU-05 sigue en la cadena; desde HU-03 (T004) ya no es la última (Hu03SchemaTests lo comprueba).
         Assert.Contains(database.Database.GetMigrations(), name => name.EndsWith(MigrationSuffix, StringComparison.Ordinal));
-        Assert.EndsWith(MigrationSuffix, database.Database.GetMigrations().Last());
     }
 
     [Fact]

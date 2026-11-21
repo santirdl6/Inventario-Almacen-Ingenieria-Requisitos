@@ -35,7 +35,7 @@ describe('Áreas de B sobre la base de A', () => {
     }
     expect(OPERATION_AREAS.map(area => [area.path, area.permission])).toEqual([
       ['ubicaciones', 'Inventory.Read'], ['existencias', 'Inventory.Read'],
-      ['salidas', 'Shipping.Record'], ['inventarios', 'Counts.Record']
+      ['salidas', 'Inventory.Read'], ['inventarios', 'Counts.Record']
     ]);
     expect(routes.at(-1)!.path).toBe('**');
   });
@@ -44,7 +44,7 @@ describe('Áreas de B sobre la base de A', () => {
     signIn(operario);
     const harness = await RouterTestingHarness.create();
     const titles: Record<string, string> = { ubicaciones: 'Ubicaciones', existencias: 'Existencias', salidas: 'Salidas', inventarios: 'Inventarios cíclicos' };
-    const developed = ['ubicaciones', 'existencias']; // HU-02, HU-05
+    const developed = ['ubicaciones', 'existencias', 'salidas']; // HU-02, HU-05, HU-03
     for (const area of OPERATION_AREAS) {
       await harness.navigateByUrl(`/${area.path}`);
       expect(TestBed.inject(Router).url).toBe(`/${area.path}`);
@@ -61,8 +61,9 @@ describe('Áreas de B sobre la base de A', () => {
     const harness = await RouterTestingHarness.create();
     await harness.navigateByUrl('/ubicaciones');
     expect(TestBed.inject(Router).url).toBe('/ubicaciones');
+    // HU-03 (D-14): el área de salidas solo exige Inventory.Read; registrar pide Shipping.Record.
     await harness.navigateByUrl('/salidas');
-    expect(TestBed.inject(Router).url).toBe('/sin-permiso');
+    expect(TestBed.inject(Router).url).toBe('/salidas');
     await harness.navigateByUrl('/inventarios');
     expect(TestBed.inject(Router).url).toBe('/sin-permiso');
 
@@ -86,8 +87,7 @@ describe('Áreas de B sobre la base de A', () => {
     const operarioLinks = await links(operario);
     expect(operarioLinks).toEqual(expect.arrayContaining(['/ubicaciones', '/existencias', '/salidas', '/inventarios']));
     const gestorLinks = await links(gestor);
-    expect(gestorLinks).toEqual(expect.arrayContaining(['/ubicaciones', '/existencias']));
-    expect(gestorLinks).not.toContain('/salidas');
+    expect(gestorLinks).toEqual(expect.arrayContaining(['/ubicaciones', '/existencias', '/salidas']));
     expect(gestorLinks).not.toContain('/inventarios');
     const adminLinks = await links(administrador);
     for (const area of OPERATION_AREAS) expect(adminLinks).not.toContain(`/${area.path}`);

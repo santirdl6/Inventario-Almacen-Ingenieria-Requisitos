@@ -2,6 +2,7 @@ using Inventario.Api.Infrastructure.Http;
 using Inventario.Api.Features.MasterData;
 using Inventario.Api.Features.Locations;
 using Inventario.Api.Features.MasterData.Maintenance;
+using Inventario.Api.Features.Shipping;
 using Inventario.Api.Features.Stock;
 using Inventario.Api.Features.Stock.Core;
 using Inventario.Api.Infrastructure.Identity;
@@ -25,6 +26,7 @@ builder.Services.AddMasterData();
 builder.Services.AddStockCore();
 builder.Services.AddLocations();
 builder.Services.AddStock();
+builder.Services.AddShipping();
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
 {
     context.ProblemDetails.Extensions.TryAdd("traceId", context.HttpContext.TraceIdentifier);
@@ -103,6 +105,7 @@ else
     api.MapMasterDataEndpoints();
     api.MapLocationEndpoints();
     api.MapStockEndpoints();
+    api.MapShippingEndpoints();
 }
 
 if (app.Environment.IsDevelopment())

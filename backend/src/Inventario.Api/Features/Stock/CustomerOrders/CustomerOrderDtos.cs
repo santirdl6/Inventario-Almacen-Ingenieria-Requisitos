@@ -139,3 +139,9 @@ public sealed record CustomerOrderContextLocation(Guid Id, string Code, string A
 
 /// <summary>En artículos sin seguimiento, IsUntracked = true: la UI muestra «sin lote», nunca SIN-LOTE.</summary>
 public sealed record CustomerOrderContextLot(Guid Id, Guid ArticleId, string Code, bool IsUntracked);
+
+/// <summary>
+/// HU-03 (D-11, FR-001a) · GET /customer-orders/lookup: el único pedido con esa referencia externa,
+/// con su estado. Sin lista ni coincidencias parciales.
+/// </summary>
+public sealed record CustomerOrderLookup(Guid Id, string ExternalReference, string State);

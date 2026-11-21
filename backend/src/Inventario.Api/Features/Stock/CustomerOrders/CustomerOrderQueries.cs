@@ -66,6 +66,27 @@ public sealed class CustomerOrderQueries(InventoryDbContext database)
             return new CustomerOrderContext(EntityTags.Format(order.Version), asOf, articles, locations, lots, creation);
         });
 
+    /// <summary>
+    /// HU-03 (D-11, FR-001a): búsqueda exacta por referencia externa con la regla de unicidad del alta
+    /// (recorte y mayúsculas invariantes sobre la columna con intercalación CI). 422 si viene vacía o
+    /// supera la longitud; null si no hay ningún pedido.
+    /// </summary>
+    public async Task<CustomerOrderLookup?> LookupAsync(string? externalReference, CancellationToken cancellation)
+    {
+        var text = externalReference?.Trim() ?? "";
+        if (text.Length == 0)
+            throw InventoryProblemException.Validation("externalReference", "Escribe la referencia del pedido.");
+        if (text.Length > CustomerOrder.ExternalReferenceMaxLength)
+            throw InventoryProblemException.Validation("externalReference",
+                $"La referencia no puede superar {CustomerOrder.ExternalReferenceMaxLength} caracteres.");
+        var normalized = StockDocuments.NormalizeReference(text);
+        var found = await database.Set<CustomerOrder>().AsNoTracking()
+            .Where(order => order.ExternalReference == normalized)
+            .Select(order => new { order.Id, order.ExternalReference, order.State })
+            .SingleOrDefaultAsync(cancellation);
+        return found is null ? null : new CustomerOrderLookup(found.Id, found.ExternalReference, found.State.ToString());
+    }
+
     /// <summary>Pedido con sus líneas, reservas y asignaciones, sin seguimiento.</summary>
     internal static async Task<(CustomerOrder Order, IReadOnlyList<Reservation> Reservations)?> LoadAsync(
         InventoryDbContext database, Guid id, CancellationToken cancellation)
