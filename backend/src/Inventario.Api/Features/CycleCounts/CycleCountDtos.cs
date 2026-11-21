@@ -32,6 +32,71 @@ public sealed record CycleCountWrite(IReadOnlyList<string?>? LocationIds)
         new { locationIds = (LocationIds ?? []).OrderBy(value => value, StringComparer.Ordinal).ToList() }, OperationResponse.JsonOptions);
 }
 
+/// <summary>
+/// Cuerpo de PUT /cycle-counts/{id}/lines (T008): contado de líneas existentes y hallazgos. Sin motivo:
+/// el motivo de cada diferencia se fija solo en la revisión (H6 de analyze-1), así que «reason» es un
+/// campo desconocido. Conserva el orden para los errores; la huella ordena líneas y hallazgos.
+/// </summary>
+public sealed record CycleCountLinesWrite(IReadOnlyList<CountedWrite>? Counted, IReadOnlyList<FoundWrite>? Found)
+{
+    public static CycleCountLinesWrite Read(JsonElement body)
+    {
+        var root = CycleCountJson.Object(body);
+        List<CountedWrite>? counted = null;
+        List<FoundWrite>? found = null;
+        foreach (var property in root.EnumerateObject())
+            switch (property.Name)
+            {
+                case "counted": counted = CycleCountJson.Items(property.Value, ReadCounted); break;
+                case "found": found = CycleCountJson.Items(property.Value, ReadFound); break;
+                default: throw InventoryProblemException.Validation(property.Name, "Este campo no forma parte del contado.");
+            }
+        return new(counted, found);
+    }
+
+    private static CountedWrite ReadCounted(JsonElement item)
+    {
+        string? line = null, quantity = null;
+        foreach (var property in item.EnumerateObject())
+            switch (property.Name)
+            {
+                case "lineId": line = CycleCountJson.NormalizeId(CycleCountJson.Text(property.Value)); break;
+                case "countedPhysical": quantity = CycleCountJson.Quantity(property.Value); break;
+                default: throw InventoryProblemException.Validation(property.Name, "Este campo no forma parte de la línea contada.");
+            }
+        return new(line, quantity);
+    }
+
+    private static FoundWrite ReadFound(JsonElement item)
+    {
+        string? article = null, location = null, lot = null, quantity = null;
+        foreach (var property in item.EnumerateObject())
+            switch (property.Name)
+            {
+                case "articleId": article = CycleCountJson.NormalizeId(CycleCountJson.Text(property.Value)); break;
+                case "locationId": location = CycleCountJson.NormalizeId(CycleCountJson.Text(property.Value)); break;
+                case "lotCode":
+                    var text = CycleCountJson.Text(property.Value);
+                    lot = string.IsNullOrEmpty(text) ? null : text.ToUpperInvariant();
+                    break;
+                case "countedPhysical": quantity = CycleCountJson.Quantity(property.Value); break;
+                default: throw InventoryProblemException.Validation(property.Name, "Este campo no forma parte del hallazgo.");
+            }
+        return new(article, location, lot, quantity);
+    }
+
+    public JsonElement Fingerprint() => JsonSerializer.SerializeToElement(new
+    {
+        counted = (Counted ?? []).OrderBy(line => line.LineId, StringComparer.Ordinal).ToList(),
+        found = (Found ?? []).OrderBy(line => line.ArticleId, StringComparer.Ordinal).ThenBy(line => line.LocationId, StringComparer.Ordinal)
+            .ThenBy(line => line.LotCode, StringComparer.Ordinal).ToList()
+    }, OperationResponse.JsonOptions);
+}
+
+public sealed record CountedWrite(string? LineId, string? CountedPhysical);
+
+public sealed record FoundWrite(string? ArticleId, string? LocationId, string? LotCode, string? CountedPhysical);
+
 /// <summary>Lectura estricta de JSON compartida por los cuerpos de conteos.</summary>
 internal static class CycleCountJson
 {
@@ -43,6 +108,13 @@ internal static class CycleCountJson
         if (value.ValueKind == JsonValueKind.Null) return null;
         if (value.ValueKind != JsonValueKind.Array) throw InvalidTypes();
         return value.EnumerateArray().Select(item => NormalizeId(Text(item))).ToList();
+    }
+
+    public static List<T>? Items<T>(JsonElement value, Func<JsonElement, T> read)
+    {
+        if (value.ValueKind == JsonValueKind.Null) return null;
+        if (value.ValueKind != JsonValueKind.Array) throw InvalidTypes();
+        return value.EnumerateArray().Select(item => item.ValueKind == JsonValueKind.Object ? read(item) : throw InvalidTypes()).ToList();
     }
 
     public static string? Text(JsonElement value) => value.ValueKind switch

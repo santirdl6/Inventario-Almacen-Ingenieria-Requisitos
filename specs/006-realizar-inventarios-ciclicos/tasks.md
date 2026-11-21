@@ -137,12 +137,16 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     `location:{id}`; los saldos, tras bloquear las ubicaciones. Verde: `CycleCountStartTests` 3/3
     (C-04 con saldo a 0 sin línea, C-05 nombrando el `countCode`, ubicación desactivada tras el
     borrador → 422, borrador sin congelar); suite 307/1 omitida.
-- [ ] T008 [US1] [US5] [INT-HU04-01] Contar, hallazgos y enviar: `PUT /cycle-counts/{id}/lines`
+- [X] T008 [US1] [US5] [INT-HU04-01] Contar, hallazgos y enviar: `PUT /cycle-counts/{id}/lines`
   (`counted` y `found`, cero explícito, fracciones según el artículo, hallazgo en el alcance y con lote
   si el artículo lo gestiona, bloqueo `article:{id}` y primera referencia), `DELETE …/lines/{lineId}`
   (solo hallazgos; retira la referencia) y `POST …/submit` (todas contadas, 422 por línea). Pruebas en
   `CycleCountLinesTests.cs` (C-06, C-07, 409 `CountStateConflict`). **Rojo esperado**: 404 en
   `/lines`. Depende de T007.
+  - **Hecho**: rojo observado: 404 en `/lines`. `reason` al contar es un campo desconocido (422, H6). La
+    forma (negativo, hallazgo a cero) se valida antes de bloquear y la fracción, con el artículo leído
+    tras el bloqueo, así que llegan en respuestas distintas. Cada escritura renueva el ETag; `DELETE`
+    responde 204 con `ETag`. Verde: `CycleCountLinesTests` 2/2; suite 309/1 omitida.
 
 ## Phase 4: User Story 2 — Autorizar el ajuste (P1) 🎯 MVP
 

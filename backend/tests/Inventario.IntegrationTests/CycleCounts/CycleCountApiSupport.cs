@@ -42,6 +42,30 @@ internal static class CycleCountApiSupport
         return (id, JsonDocument.Parse(text).RootElement.GetProperty("count").Clone(), started.Headers.ETag!.ToString());
     }
 
+    public static Task<HttpResponseMessage> LinesAsync(MasterDataApi session, Guid id, string? etag, object body, Guid? key = null) =>
+        session.WriteAsync(HttpMethod.Put, $"{Counts}/{id:D}/lines", body, key, etag);
+
+    public static Task<HttpResponseMessage> RemoveLineAsync(MasterDataApi session, Guid id, Guid line, string? etag, Guid? key = null) =>
+        session.WriteAsync(HttpMethod.Delete, $"{Counts}/{id:D}/lines/{line:D}", new { }, key, etag);
+
+    public static Task<HttpResponseMessage> SubmitAsync(MasterDataApi session, Guid id, string? etag, Guid? key = null) =>
+        session.WriteAsync(HttpMethod.Post, $"{Counts}/{id:D}/submit", new { }, key, etag);
+
+    /// <summary>Contado de líneas existentes: (lineId, countedPhysical).</summary>
+    public static object Counted(params (Guid Line, string Quantity)[] lines) => new
+    {
+        counted = lines.Select(line => new { lineId = line.Line, countedPhysical = line.Quantity }),
+        found = Array.Empty<object>()
+    };
+
+    /// <summary>Escritura que debe responder 200: devuelve el nuevo ETag.</summary>
+    public static async Task<string> OkAsync(Task<HttpResponseMessage> write)
+    {
+        using var response = await write;
+        Assert.True(HttpStatusCode.OK == response.StatusCode, await response.Content.ReadAsStringAsync());
+        return response.Headers.ETag!.ToString();
+    }
+
     /// <summary>Línea del detalle por artículo y ubicación.</summary>
     public static JsonElement Line(JsonElement detail, Guid article, Guid location) =>
         detail.GetProperty("lines").EnumerateArray().Single(line => line.GetProperty("articleId").GetGuid() == article
