@@ -290,13 +290,23 @@ real en salidas, reservas y ubicaciones.
     Aviso P-07 visible (`data-testid="p07-notice"`) siempre que haya una línea vinculada; en el cerrado, cada
     línea vinculada muestra la salida (referencia del pedido) y `shipmentCorrectionNotice`. Cancelar con motivo
     1–500. Verde: Vitest 223/223, build correcto.
-- [ ] T017 [US1] [US2] E2E-03 en `frontend/e2e/hu04-cycle-counts.spec.ts`: operario crea, inicia y cuenta
+- [X] T017 [US1] [US2] E2E-03 en `frontend/e2e/hu04-cycle-counts.spec.ts`: operario crea, inicia y cuenta
   con una diferencia; responsable revisa con motivo y confirma; existencias ajustadas y ubicación fuera de
   conteo. Reutiliza las cuentas `operario` y `responsable` y `POST /testing/stock-receipts`; sin cambios en
   fixtures de A (si hicieran falta, preguntar). **Rojo esperado**: falla en la primera navegación a
   `/inventarios/nuevo`. Depende de T016. **M1 de analyze-1**: si el E2E falla a mitad, debe limpiar
   (cancelar) o reutilizar su conteo abierto para no dejar ubicaciones congeladas que rompan la
   siguiente ejecución.
+  - **Hecho**: el rojo natural no fue observable: el fixture de A exige una imagen con las migraciones del
+    código actual (la imagen previa de HU-03 da «Preparación E2E rechazada») y la imagen actual ya trae
+    T014–T016; se comprobó con `tsc` del proyecto E2E. Recorrido: el operario crea el borrador en
+    `/inventarios/nuevo`, ve el aviso de congelación, inicia (`inOpenCount = true` en el detalle de la
+    ubicación), cuenta 8 de 10 («Faltan 2 UD»), guarda y envía; el responsable pone el motivo en la revisión,
+    confirma en la revisión final y ve «Ajuste registrado. Operación …»; `/existencias` muestra físico 8 y
+    la ubicación vuelve a `inOpenCount = false`. M1: datos únicos por ejecución y un `finally` que cancela por
+    API (cuenta del responsable, sesión propia sin tocar el fixture) el conteo si quedó abierto. Verde:
+    Playwright `--grep-invert SC-005` 18/18 (17 de la base + E2E-03); Docker del proyecto E2E retirado
+    (`down`, volúmenes conservados).
 
 ## Phase 8: Cierre
 
