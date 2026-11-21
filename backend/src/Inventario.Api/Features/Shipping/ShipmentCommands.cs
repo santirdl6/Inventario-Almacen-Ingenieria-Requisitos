@@ -174,9 +174,8 @@ public sealed class ShipmentCommands(InventoryOperationExecutor executor)
 
             var usage = context.Services.GetRequiredService<ILocationUsage>();
             foreach (var location in locationIds)
-                if (await usage.IsInOpenCountAsync(location, token))
-                    throw new InventoryProblemException(409, "CountScopeFrozen",
-                        "Una ubicación de origen está en un conteo abierto. Espera a que termine.");
+                if (await usage.FindOpenCountAsync(location, token) is { } frozen)
+                    throw frozen.Problem();
 
             // 4. Reserva propia por bucket (regla 2), repartida por Id de asignación (regla 3).
             var plan = new List<(ShipmentLine Line, ReservationAllocationSnapshot Allocation, decimal Quantity)>();

@@ -93,9 +93,8 @@ public sealed class ReservationCommands(InventoryOperationExecutor executor)
             // 5. Conteo abierto (activo desde HU-04, INT-HU04-03).
             var usage = context.Services.GetRequiredService<ILocationUsage>();
             foreach (var location in locationIds)
-                if (await usage.IsInOpenCountAsync(location, token))
-                    throw new InventoryProblemException(409, "CountScopeFrozen",
-                        $"La ubicación {locations[location].Code} está en un conteo abierto. Espera a que termine.");
+                if (await usage.FindOpenCountAsync(location, token) is { } frozen)
+                    throw frozen.Problem();
 
             // 6. Σ asignaciones + remanente activo de la línea ≤ pendiente.
             var lineReservations = await db.Set<Reservation>().AsNoTracking().Include(value => value.Allocations)

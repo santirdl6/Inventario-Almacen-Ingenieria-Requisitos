@@ -31,25 +31,30 @@ public sealed class CountScopeFrozenTests(IdentityFixture fixture) : IClassFixtu
         var reservation = await ShippingApiSupport.ReserveAsync(responsable, seed.Order, seed.OrderLine, seed.Location, seed.Lot, "2");
         var (shipment, _) = await ShippingApiSupport.CreateDraftAsync(operario, ShippingApiSupport.Body(seed, "3"));
         var empty = await support.LocationAsync("N02-" + StockApiSupport.Unique(6));
-        await CountScopeSeed.FreezeAsync(fixture, seed.Location, empty);
+        var countId = await CountScopeSeed.FreezeAsync(fixture, seed.Location, empty);
+        var named = await CountScopeSeed.NamesAsync(fixture, countId, seed.Location, empty);
 
-        // Confirmar una salida desde la ubicación congelada.
+        // Confirmar una salida desde la ubicación congelada. Cada rechazo nombra la ubicación y el conteo (US3.1, C1).
         using (var confirm = await ShippingApiSupport.ConfirmAsync(operario, shipment, seed.Order))
-            await StockApiSupport.ProblemAsync(confirm, HttpStatusCode.Conflict, "CountScopeFrozen");
+            CountScopeSeed.AssertNames(await StockApiSupport.ProblemAsync(confirm, HttpStatusCode.Conflict, "CountScopeFrozen"),
+                named.CountCode, named.Codes[seed.Location]);
         // Reservar en la ubicación congelada.
         var (_, orderTag) = await StockApiSupport.OrderAsync(responsable.Client, seed.Order);
         using (var reserve = await StockApiSupport.PostReservationAsync(responsable, seed.OrderLine, orderTag, null,
                    (seed.Location, seed.Lot, "1")))
-            await StockApiSupport.ProblemAsync(reserve, HttpStatusCode.Conflict, "CountScopeFrozen");
+            CountScopeSeed.AssertNames(await StockApiSupport.ProblemAsync(reserve, HttpStatusCode.Conflict, "CountScopeFrozen"),
+                named.CountCode, named.Codes[seed.Location]);
 
         // Desactivar y cambiar el tipo, ocupada y vacía: la congelación va antes que LocationNotEmpty (H2).
         foreach (var location in new[] { seed.Location, empty })
         {
             var (current, etag) = await LocationsTestSupport.GetAsync(operario, location);
             using (var deactivate = await LocationsTestSupport.UpdateAsync(operario, location, current, etag, isActive: false))
-                await StockApiSupport.ProblemAsync(deactivate, HttpStatusCode.Conflict, "CountScopeFrozen");
+                CountScopeSeed.AssertNames(await StockApiSupport.ProblemAsync(deactivate, HttpStatusCode.Conflict, "CountScopeFrozen"),
+                    named.CountCode, named.Codes[location]);
             using (var kind = await LocationsTestSupport.UpdateAsync(operario, location, current, etag, kind: "Receiving"))
-                await StockApiSupport.ProblemAsync(kind, HttpStatusCode.Conflict, "CountScopeFrozen");
+                CountScopeSeed.AssertNames(await StockApiSupport.ProblemAsync(kind, HttpStatusCode.Conflict, "CountScopeFrozen"),
+                    named.CountCode, named.Codes[location]);
             Assert.True(current.GetProperty("inOpenCount").GetBoolean());
             var stock = await operario.Client.GetFromJsonAsync<JsonElement>($"/api/v1/locations/{location:D}/stock");
             Assert.True(stock.GetProperty("inOpenCount").GetBoolean());
@@ -156,6 +161,25 @@ internal static class CountScopeSeed
         count.Start([], count.CreatedBy, DateTimeOffset.UtcNow);
         await database.SaveChangesAsync();
         return id;
+    }
+
+    /// <summary>Código del conteo y códigos de las ubicaciones, para comprobar el detail de CountScopeFrozen.</summary>
+    public static async Task<(string CountCode, IReadOnlyDictionary<Guid, string> Codes)> NamesAsync(IdentityFixture fixture, Guid countId,
+        params Guid[] locations)
+    {
+        await using var database = fixture.ApplicationDatabase();
+        var code = await database.Set<CycleCount>().Where(value => value.Id == countId).Select(value => value.CountCode).SingleAsync();
+        var codes = await database.Set<Location>().Where(value => locations.Contains(value.Id))
+            .ToDictionaryAsync(value => value.Id, value => value.Code);
+        return (code, codes);
+    }
+
+    /// <summary>US3.1: el rechazo indica la ubicación y el conteo que la ocupa.</summary>
+    public static void AssertNames(JsonElement problem, string countCode, string locationCode)
+    {
+        var detail = problem.GetProperty("detail").GetString() ?? "";
+        Assert.Contains(locationCode, detail);
+        Assert.Contains(countCode, detail);
     }
 
     private static async Task<Guid> ActorAsync(IdentityFixture fixture)

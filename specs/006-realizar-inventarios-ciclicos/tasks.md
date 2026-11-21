@@ -380,9 +380,17 @@ Tareas `C1…` de [converge-1](validation/converge-1.md) (2026-11-21), fuera de 
 T001–T018. **Sin implementar**: B las revisa con A antes de pasar `/speckit-implement`. La fase 9
 queda como estaba (la skill solo añade).
 
-- [ ] C1 ⚑ Nombrar la ubicación y el `countCode` que la ocupa en el 409 `CountScopeFrozen` de
+- [X] C1 ⚑ Nombrar la ubicación y el `countCode` que la ocupa en el 409 `CountScopeFrozen` de
   `ShipmentCommands.cs` (HU-03), `ReservationCommands.cs` (HU-05) y `LocationCommands.cs` (HU-02), y
   comprobar el `detail` en `CountScopeFrozenTests`, según US3.1 y FR-014 (partial, G1).
+  - **Hecho**: rojo observado en `CountScopeFrozenTests.Writers_are_rejected_…` (entrada: U1 y U2 congeladas
+    por un conteo sembrado; confirmar una salida desde U1). Esperado: `detail` con el código de U1 y el
+    `countCode`. Observado: «Una ubicación de origen está en un conteo abierto…», `Not found: "N01-41D7F4"`.
+    Las reservas nombraban la ubicación, pero no el conteo; las ubicaciones, ninguno de los dos.
+    `ILocationUsage.FindOpenCountAsync` (HU-02) devuelve `OpenCountScope(LocationCode, CountCode)` y su
+    `Problem()` da el mismo 409 a los tres escritores: «La ubicación U está en el conteo abierto CC-…».
+    `IsInOpenCountAsync` y el orden de D-04 no cambian. Verde: la prueba comprueba ubicación y conteo en
+    salida, reserva, desactivar y cambiar el tipo (vacía y ocupada). Suite 347/1/0.
 - [ ] C2 Mostrar en `/inventarios` los responsables (creó; aprobó o canceló) y los códigos del alcance,
   ampliando `CycleCountSummary` y el contrato de la lista, o reformular FR-023 con `/speckit-clarify`,
   según FR-023 (partial, G2).
