@@ -178,13 +178,22 @@ real en salidas, reservas y ubicaciones.
 
 ## Phase 5: User Story 3 y User Story 6 — Congelación bajo concurrencia y fiabilidad (P1/P3)
 
-- [ ] T010 🔀 PR #10 [US3] [INT-HU04-01] [INT-HU04-03] Carreras en `CycleCountConcurrencyTests.cs` con
+- [X] T010 🔀 PR #10 [US3] [INT-HU04-01] [INT-HU04-03] Carreras en `CycleCountConcurrencyTests.cs` con
   `LockBarrier` y conexiones independientes, **en ambos órdenes**: iniciar frente a confirmar una salida,
   reservar y desactivar la ubicación (C-13, 20 rondas); confirmar frente a liberar una reserva; añadir y
   retirar un hallazgo frente a la edición de definición y el borrado del artículo (C-15); tras la
   retirada, el artículo sin otras referencias admite la edición y el borrado. **Rojo esperado**: sin rojo
   natural si T005–T009 ya serializan; comprobar con una mutación temporal (quitar `LocationsAsync` del
   inicio) que la carrera falla, y anotarla. Depende de T009.
+  - **Hecho**: sin rojo natural. Mutación temporal sin commit (quitar `LocationsAsync` del inicio): fallan 4
+    pruebas (salida primero, desactivar en ambos órdenes y las 20 rondas sin barrera); restaurado.
+    `CycleCountConcurrencyTests` 17/17: C-13 (iniciar frente a salida, reserva y desactivación; confirmar
+    frente a liberar; 20 rondas) y C-15 (añadir y retirar hallazgo frente a definición y borrado, H4). Quien
+    llega segundo con una vista anterior recibe 412: el ETag de ubicación incluye `inOpenCount` (HU-02) y
+    la primera referencia renueva la versión del artículo; el reintento con versión actual da
+    `CountScopeFrozen` / `ArticleDefinitionLocked` / `HistoryPreventsDeletion`. Tras retirar el hallazgo
+    se admite el borrado; la definición sigue bloqueada por la regla común de A («la primera referencia
+    bloquea la definición aunque después se retire»). Suite 333/1 omitida.
 - [ ] T011 [P] [US6] Fiabilidad y permisos en `CycleCountReliabilityTests.cs`: replay de las nueve
   escrituras, `IdempotencyConflict`, 412/428 (C-17), `FailAfterSaveInterceptor` en la confirmación con
   `GET /operations/{id}` (C-18) y matriz 401/403/400 por ruta (Operario sin `Inventory.Adjust`).
