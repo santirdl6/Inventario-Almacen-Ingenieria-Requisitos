@@ -446,7 +446,7 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
 
 ## Phase 4: User Story 4 — Consultar las salidas de un pedido (P2)
 
-- [ ] T012 [US4] [US1] Contexto con revisión y lista del pedido (D-12). Depende de T007, de T008
+- [X] T012 [US4] [US1] Contexto con revisión y lista del pedido (D-12). Depende de T007, de T008
   (`ShippingApiSupport.cs`) y de T009. **No es paralela a T009**: las dos editan
   `ShipmentEndpoints.cs`, así que va después.
   - **Rojo esperado**: `Shipping/ShipmentQueryTests.cs` (H-21) falla con 404 en
@@ -463,6 +463,20 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
     `articles[].isActive = false` en el contexto de un borrador (US3.2).
 
   (US1.2, US4.1–US4.3; FR-006, FR-018.)
+
+  **Hecho (2026-11-21)**:
+  - `ShipmentQueries.ContextAsync` y `ListAsync`; `ShipmentContext`, `ShipmentReviewLine` y
+    `ShipmentSummary`.
+  - Rutas `GET /shipments/{id}/context` y `GET /shipments?customerOrderId=`, con `no-store`.
+  - No hay un `Paging` común en el código: página y tamaño (1–100, 422) se validan como en
+    `MasterDataQueryOptions`, y se reutiliza `PageResult<T>`.
+  - Rojo previo: 4/4 de `ShipmentQueryTests` fallaban porque las rutas no existían.
+  - Verde: 4/4 (H-21). Cubre el detalle con el mismo cuerpo y `ETag` tras renombrar y desactivar el
+    artículo; contexto con el nombre nuevo, `isActive = false` y `shipmentVersion` = `ETag`;
+    `review` de V-04 (propio 4, ajeno 3, posible 6 acotado por el pendiente; pedido B con posible 5),
+    vacío tras confirmar; lista paginada con borrador y confirmadas, más reciente primero; 422 y
+    404; Administrador → 403.
+  - Suite 287/1/0; sin cambios de modelo.
 
 ---
 

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Inventario.Api.Domain.Shipping;
+using Inventario.Api.Features.Stock.CustomerOrders;
 using Inventario.Api.Infrastructure.Http;
 
 namespace Inventario.Api.Features.Shipping;
@@ -154,3 +155,23 @@ public sealed record ShipmentConfirmation(Guid OperationId, Guid ShipmentId, Gui
     string OrderState, IReadOnlyList<ShipmentConfirmedLine> Lines);
 
 public sealed record ShipmentConfirmedLine(Guid Id, string Quantity, string OwnReservationConsumed);
+
+/// <summary>
+/// GET /shipments/{id}/context (D-12): datos actuales sin ETag. <see cref="ShipmentVersion"/> es el
+/// ETag del detalle (la UI relee si no coinciden) y <see cref="OrderVersion"/> el del pedido, que se
+/// envía al confirmar. <see cref="Review"/> solo existe en borradores; es orientativo.
+/// </summary>
+public sealed record ShipmentContext(string ShipmentVersion, string OrderVersion, DateTimeOffset AsOf, string ActorName,
+    ShipmentContextOrder Order, IReadOnlyList<CustomerOrderContextArticle> Articles,
+    IReadOnlyList<CustomerOrderContextLocation> Locations, IReadOnlyList<CustomerOrderContextLot> Lots,
+    IReadOnlyList<ShipmentReviewLine> Review);
+
+public sealed record ShipmentContextOrder(Guid Id, string ExternalReference, string CustomerReference, string State);
+
+/// <summary>Revisión de una línea: possible = min(físico, propio + (físico − reservado), pendiente).</summary>
+public sealed record ShipmentReviewLine(Guid LineId, string Pending, string Physical, string Reserved, string OwnReserved,
+    string OtherReserved, string Possible);
+
+/// <summary>Fila de GET /shipments?customerOrderId= (sin ETag).</summary>
+public sealed record ShipmentSummary(Guid Id, string State, DateTimeOffset OccurredAt, DateTimeOffset RecordedAt,
+    string ActorName, int LineCount, string TotalQuantity);

@@ -40,6 +40,26 @@ public static class ShipmentEndpoints
                 return Results.Ok(found.Value.View);
             })
             .RequireAuthorization(Read).Produces<ShipmentView>().ProducesProblem(404);
+        // T012 (US1.2, US4; FR-006, FR-018): contexto actual sin ETag con la revisión y lista del pedido.
+        shipments.MapGet("/{id:guid}/context", async (Guid id, ShipmentQueries queries, HttpContext context,
+                CancellationToken token) =>
+            {
+                var found = await queries.ContextAsync(id, token);
+                if (found is null) return ApiProblems.Status(404);
+                context.Response.Headers.CacheControl = "no-store";
+                return Results.Ok(found);
+            })
+            .RequireAuthorization(Read).Produces<ShipmentContext>().ProducesProblem(404);
+        shipments.MapGet("", async (string? customerOrderId, int? page, int? pageSize, ShipmentQueries queries,
+                HttpContext context, CancellationToken token) =>
+            {
+                var found = await queries.ListAsync(customerOrderId, page, pageSize, token);
+                if (found is null) return ApiProblems.Status(404);
+                context.Response.Headers.CacheControl = "no-store";
+                return Results.Ok(found);
+            })
+            .RequireAuthorization(Read).Produces<Inventario.Api.Features.MasterData.Queries.PageResult<ShipmentSummary>>()
+            .ProducesProblem(404).ProducesProblem(422);
         shipments.MapPut("/{id:guid}", (Guid id, JsonElement body, HttpContext context, ShipmentCommands commands,
                 CancellationToken token) =>
                 commands.UpdateAsync(LocationEndpoints.Key(context), id, ShipmentWrite.Read(body),
