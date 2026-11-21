@@ -129,6 +129,45 @@ describe('OrderDetailPage', () => {
     expect(root.querySelector('[data-testid="creation-operation"]')).toBeNull();
   });
 
+  // Convergence C4 (G3; FR-015): el diálogo lista todas las combinaciones del artículo, no solo
+  // la primera página. 130 combinaciones: dos páginas de 100 (el máximo de GET /stock).
+  it('reservar: recorre todas las páginas de existencias y deja reservar en una combinación posterior a la 25', async () => {
+    const stockRow = (index: number) => ({
+      location: { id: `loc-${index}`, code: `N${String(index).padStart(3, '0')}`, aisle: 'P01', rack: 'E01', level: 'N01', kind: 'Storage', isActive: true },
+      lot: { id: 'lot-1', code: 'L-001', isUntracked: false }, physical: '1.000', reserved: '0.000', available: '1.000'
+    });
+    const page = (number: number, items: object[]) => ({
+      asOf: 'x', article: { id: 'art-1', sku: 'ART-01', name: 'Tornillo', baseUnit: 'UD', isActive: true, tracksLot: true },
+      totals: { physical: '130.000', reserved: '0.000', available: '130.000' }, items, page: number, pageSize: 100, totalCount: 130
+    });
+    const { fixture, root } = await render();
+    await flushPair(fixture, order(), '"v1"');
+    click(root, `[data-testid="reserve-${LINE_B}"]`);
+    await settle(fixture);
+    const first = httpMock().expectOne(r => r.url === '/api/v1/stock' && r.params.get('page') === '1');
+    expect(first.request.params.get('pageSize')).toBe('100');
+    expect(first.request.params.get('includeEmpty')).toBe('false');
+    first.flush(page(1, Array.from({ length: 100 }, (_, index) => stockRow(index + 1))));
+    await settle(fixture);
+    httpMock().expectOne(r => r.url === '/api/v1/stock' && r.params.get('page') === '2')
+      .flush(page(2, Array.from({ length: 30 }, (_, index) => stockRow(index + 101))));
+    await settle(fixture);
+
+    expect(root.querySelectorAll('[data-testid="reserve-dialog"] tbody tr')).toHaveLength(130);
+    type(root, '[data-testid="reserve-qty-loc-126-lot-1"]', '1');
+    await settle(fixture);
+    click(root, '[data-testid="reserve-review"]');
+    await settle(fixture);
+    click(root, '[data-testid="reserve-confirm"]');
+    await settle(fixture);
+    const request = httpMock().expectOne('/api/v1/reservations');
+    expect(request.request.body).toEqual({ customerOrderLineId: LINE_B, allocations: [{ locationId: 'loc-126', lotId: 'lot-1', quantity: '1' }] });
+    request.flush({ operationId: 'op-r', reservationId: RESERVATION, customerOrderId: ORDER, movementId: 'm' },
+      { status: 201, statusText: 'Created', headers: { Location: `/api/v1/reservations/${RESERVATION}` } });
+    await settle(fixture);
+    await flushPair(fixture, order(), '"v2"');
+  });
+
   it('si orderVersion no coincide con el ETag vuelve a leer y no reserva con un ETag mezclado', async () => {
     const { fixture, root } = await render();
     await flushPair(fixture, order(), '"v1"', '"v2"');

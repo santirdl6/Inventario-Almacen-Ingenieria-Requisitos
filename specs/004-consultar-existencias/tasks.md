@@ -971,5 +971,26 @@ para aprobar el PR #9, así que pasan a C3 y C4.
     recorre la tabla. Añadir el índice sería un cambio de esquema en una tabla común. Queda
     anotado para SC-006, sin aplicarlo.
 
-**C1 en `b87852b`; C2 en el commit «/speckit-implement Convergence C2»; C3 en el commit
-«/speckit-implement Convergence C3».**
+- [X] C4 [US1] [US3] Cerrar G3 (FR-004, FR-015): en artículos con más de 25 combinaciones, las
+  opciones de filtro de `/existencias` y las filas del diálogo de reservar salen de todas las
+  combinaciones del artículo, no solo de la primera página.
+
+  **Hecho (2026-11-21)**:
+  - `StockApiService.allRows(articleId, includeEmpty)` recorre `GET /stock` en páginas de 100, el
+    máximo del contrato, hasta `totalCount`. Si una combinación se repite entre páginas, se queda
+    la última leída.
+  - El diálogo de reservar usa `allRows(…, false)`.
+  - En `/existencias`, la tabla sigue paginada de 25 en 25. Si la consulta sin filtros tiene más de
+    una página, las opciones se completan con `allRows`, una vez por artículo y casilla.
+  - Sin cambios de backend ni de archivos de A.
+  - Pruebas:
+    - `order-detail.page.spec.ts`: 130 combinaciones en dos páginas; reserva en la 126.
+    - `stock-query.page.spec.ts`: 30 combinaciones dan 30 ubicaciones y 30 lotes en los filtros,
+      con la tabla a 25 y sin volver a leer todo al pasar de página.
+  - **Rojo previo anotado**: el diálogo pedía `pageSize` 25 y no la página 2; la consulta no pedía
+    las 30 combinaciones.
+  - Verde: los dos specs, 23/23. Vitest completo 147/147 (base 143); `tsc` de app, specs y E2E sin
+    errores; `npm run build` correcto.
+
+**C1 en `b87852b`; C2 en el commit «/speckit-implement Convergence C2»; C3 en `8009807`; C4 en el
+commit «/speckit-implement Convergence C4».**

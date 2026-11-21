@@ -112,6 +112,42 @@ describe('StockQueryPage', () => {
     expect(httpMock().expectOne(r => r.url === '/api/v1/stock').request.params.get('locationId')).toBe('loc-N02');
   });
 
+  // Convergence C4 (G3; FR-004): con más de 25 combinaciones, las opciones de filtro salen de todas
+  // las páginas del artículo (pageSize 100) y la tabla sigue paginada de 25 en 25.
+  it('con 30 combinaciones las opciones de ubicación y lote salen de todas, no solo de la primera página', async () => {
+    const lot = (index: number) => ({ id: `lot-${index}`, code: `L-${String(index).padStart(3, '0')}`, isUntracked: false });
+    const rows = Array.from({ length: 30 }, (_, index) =>
+      row(`N${String(index + 1).padStart(2, '0')}`, lot(index + 1), '1.000', '0.000', '1.000'));
+    const { fixture, root } = await render();
+    await choose(fixture, root);
+    httpMock().expectOne(r => r.url === '/api/v1/stock' && r.params.get('pageSize') === '25')
+      .flush(result({ items: rows.slice(0, 25), totalCount: 30 }));
+    await settle(fixture);
+    const all = httpMock().expectOne(r => r.url === '/api/v1/stock' && r.params.get('pageSize') === '100');
+    expect(all.request.params.get('page')).toBe('1');
+    expect(all.request.params.get('includeEmpty')).toBe('false');
+    expect(all.request.params.has('locationId')).toBe(false);
+    all.flush(result({ items: rows, pageSize: 100, totalCount: 30 }));
+    await settle(fixture);
+
+    const locations = Array.from(root.querySelector<HTMLSelectElement>('#stock-location')!.options).map(option => option.value);
+    expect(locations).toHaveLength(31);
+    expect(locations).toContain('loc-N30');
+    const lots = Array.from(root.querySelector<HTMLSelectElement>('#stock-lot')!.options).map(option => option.value);
+    expect(lots).toHaveLength(31);
+    expect(lots).toContain('lot-30');
+    // La tabla sigue mostrando 25 filas; la página 2 no vuelve a pedir todas las combinaciones.
+    expect(root.querySelectorAll('tbody tr')).toHaveLength(25);
+    root.querySelector<HTMLButtonElement>('nav.pager button:last-of-type')!.click();
+    await settle(fixture);
+    const second = httpMock().expectOne(r => r.url === '/api/v1/stock');
+    expect(second.request.params.get('page')).toBe('2');
+    expect(second.request.params.get('pageSize')).toBe('25');
+    second.flush(result({ items: rows.slice(25), page: 2, totalCount: 30 }));
+    await settle(fixture);
+    httpMock().expectNone(r => r.url === '/api/v1/stock');
+  });
+
   it('artículo sin lote e inactivo: «sin lote», «Inactivo» en texto y sin filtro de lote', async () => {
     const untracked = { ...ARTICLE, tracksLot: false, isActive: false };
     const { fixture, root } = await render();

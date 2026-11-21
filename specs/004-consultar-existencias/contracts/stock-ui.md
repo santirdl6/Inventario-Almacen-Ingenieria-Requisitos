@@ -23,7 +23,9 @@ El área `/existencias` ya está declarada en `operation-areas.ts` con `Inventor
   existencias» (US1.4).
 - Filtros opcionales «Ubicación» y «Lote». El de lote solo aparece si el artículo tiene
   seguimiento (caso límite). **Construido**: las opciones se toman de la consulta del artículo sin
-  filtros (solo su primera página, 25 filas) y se conservan al filtrar.
+  filtros y se conservan al filtrar. Si esa consulta tiene más de una página, se leen todas sus
+  combinaciones en páginas de 100, una vez por artículo y casilla (Convergence C4). La tabla sigue
+  paginada de 25 en 25.
 - Casilla «Mostrar ubicaciones sin existencias» (`includeEmpty`), desmarcada por defecto
   (clarificación 2).
 - Totales (físico, reservado y disponible, con la unidad) en un bloque separado de la tabla, con la
@@ -62,8 +64,9 @@ El área `/existencias` ya está declarada en `operation-areas.ts` con `Inventor
   contexto, con «Inactivo» en texto si procede), pedido, servido, pendiente y reservado remanente,
   con la unidad del contexto, y las reservas con sus asignaciones (ubicación y lote del contexto).
 - **Reservar** (por línea, con `Reservations.Manage` y el pedido `Open`): diálogo que lista las
-  existencias del artículo con `GET /stock` (ubicación, lote y disponible). **Construido**: solo la
-  primera página (25 filas) de `GET /stock`. El responsable escribe
+  existencias del artículo con `GET /stock` (ubicación, lote y disponible). **Construido**: todas las
+  combinaciones con existencias, leídas en páginas de 100 hasta `totalCount` (Convergence C4). El
+  responsable escribe
   la cantidad en una o varias filas. Se muestra el máximo reservable, mín(pendiente − reservado,
   disponible), como ayuda, y el servidor revalida. Revisión → confirmar con el `If-Match` del pedido.
 - **Liberar** (por reserva activa): diálogo con las asignaciones y su remanente, la cantidad por
