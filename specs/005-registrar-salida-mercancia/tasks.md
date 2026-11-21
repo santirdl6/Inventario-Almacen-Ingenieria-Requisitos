@@ -396,7 +396,7 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
     mutaciones temporales, sin commit: sin `Touch` del pedido falla H-12; consumiendo por Id
     descendente falla la regla 3. Después se restauró el archivo.
   - Suite 267/1/0; sin cambios de modelo.
-- [ ] T011 [P] [US2] [US3] [US5] [INT-HU03-01] [INT-HU03-02] `Shipping/ShipmentConcurrencyTests.cs` y
+- [X] T011 [P] [US2] [US3] [US5] [INT-HU03-01] [INT-HU03-02] `Shipping/ShipmentConcurrencyTests.cs` y
   `Shipping/ShipmentReliabilityTests.cs`. Depende de T009 y de T008 (`ShippingApiSupport.cs`). [P]
   solo frente a T010.
   - **V-05 extendido** (H-16): 20 repeticiones, dos salidas de 8 sobre físico 10 de pedidos
@@ -421,6 +421,24 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
   - Repetir la suite de concurrencia tres veces.
 
   (US3.3, US5.4–US5.7; FR-020, FR-022; SC-003, SC-004.)
+
+  **Hecho (2026-11-21)**: 16 pruebas.
+  - `ShipmentConcurrencyTests`:
+    - H-16 (V-05 extendido): 20 rondas, una 200 y una 409 `InsufficientStock`, físico 2.
+    - H-17: 12 carreras con `LockBarrier` en ambos órdenes frente a otra salida del mismo pedido,
+      reservar, liberar, desactivación (las dos 200), `PUT` de definición (409
+      `ArticleDefinitionLocked`) y `DELETE` del artículo (409 `HistoryPreventsDeletion`). El
+      perdedor por versión recibe 412.
+    - 2 carreras más, frente a una reserva de otra línea del mismo pedido, que solo serializa
+      `customer-order`.
+  - `ShipmentReliabilityTests`: H-19 (V-08) en crear, editar, eliminar y confirmar.
+  - **Rojo**: no hubo rojo natural. Mutaciones temporales, sin commit: (1) sin `Touch` del pedido,
+    fallan 3 carreras (reservar tras confirmar y salida/salida en ambos órdenes); (2) sin
+    `customer-order` en los bloqueos, al principio no falló nada, porque los bloqueos de bucket y
+    artículo lo tapaban. Por eso se añadió la carrera X/Y del mismo pedido, que falla en ambos
+    órdenes. Después se restauró el archivo.
+  - Concurrencia (26 pruebas, con las de T008) repetida tres veces: 26/26 las tres.
+  - Suite 283/1/0; sin cambios de modelo.
 
 **Checkpoint backend del MVP**: H-01…H-19 en verde tres veces.
 
