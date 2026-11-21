@@ -13,8 +13,8 @@ Las rutas siguientes son de diseño; no se crean componentes en esta fase.
 | /recepciones | HU-01 | A | Elegir compra enviada, registrar aceptado/diferencias y destinos, confirmar. |
 | /alertas | HU-06 | A | Configurar mínimo y consultar alertas con sugerencia. |
 | /ubicaciones | HU-02 | B | Código único y pasillo/estantería/nivel; cantidades almacenadas. |
-| /existencias | HU-05 | B | Buscar artículo y filtrar por ubicación/lote; físico, reservado y disponible. |
-| /salidas | HU-03 | B | Elegir pedido, origen, lote y cantidad; revisar reserva propia/ajena y confirmar. |
+| /existencias | HU-05 | B | Buscar artículo y filtrar por ubicación/lote; físico, reservado y disponible. Incluye los flujos de alta/consulta del pedido mínimo y reservar/liberar, con rutas particulares definidas en su plan. |
+| /salidas | HU-03 | B | Elegir un pedido existente de HU-05, origen, lote y cantidad; revisar reserva propia/ajena y confirmar la salida. |
 | /inventarios | HU-04 | B | Seleccionar ubicaciones, iniciar conteo, registrar, revisar y autorizar ajustes. |
 
 Inicio de sesión y layout son comunes. La navegación muestra funciones permitidas,
@@ -45,6 +45,16 @@ en cookies HttpOnly. No persistir contraseñas ni tokens de autenticación en al
 - Conteo: ubicaciones congeladas, teórico, contado, diferencia y autor de aprobación.
 - Artículo inactivo: indicador textual y consulta del historial; no desaparece de documentos.
 - Alerta: disponible, mínimo y sugerencia; no presentar la sugerencia como pedido ya creado.
+
+## Concreción de compras y recuperación HU-07
+
+Diseño 2026-11-20, revisión A+B pendiente: Compras reutiliza el transporte/almacén de
+intenciones común y amplía permisos por acción, navegación y exclusión local por pedido
+entre edición y envío. Recuperar respuesta incierta conserva intención; retry de Failed
+crea otra acción sobre entrega congelada. Detalle histórico y contacto actual se separan;
+la revisión confirma destinatario/documento exactos. Rutas/estados/accesibilidad en
+[UI HU-07](../../../../specs/007-gestionar-pedidos-proveedores/contracts/ui.md).
+Esta ampliación conserva entradas previas de maestros/ubicaciones y separación por actor.
 
 ## Accesibilidad y validación con operarios
 

@@ -4,9 +4,14 @@
   "private": true,
   "scripts": {
     "build": "ng build --configuration production",
-    "start": "ng serve --proxy-config proxy.conf.json"
+    "start": "ng serve --proxy-config proxy.conf.json",
+    "test": "ng test inventario --watch=false --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:types": "tsc --noEmit -p tsconfig.e2e.json"
   },
-  "engines": { "node": ">=24.15.0 <25 || >=26" },
+  "engines": {
+    "node": ">=24.15.0 <25 || >=26"
+  },
   "dependencies": {
     "@angular/cdk": "22.2.3",
     "@angular/common": "22.2.3",
@@ -24,6 +29,11 @@
     "@angular/build": "22.2.3",
     "@angular/cli": "22.2.3",
     "@angular/compiler-cli": "22.2.3",
-    "typescript": "6.0.3"
+    "@playwright/test": "1.65.0",
+    "@types/node": "24.19.2",
+    "@vitest/coverage-v8": "5.1.0",
+    "jsdom": "31.0.0",
+    "typescript": "6.0.3",
+    "vitest": "5.1.0"
   }
 }

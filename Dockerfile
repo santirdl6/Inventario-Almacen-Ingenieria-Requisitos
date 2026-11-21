@@ -13,7 +13,11 @@ RUN dotnet restore backend/src/Inventario.Api/Inventario.Api.csproj
 COPY backend/ backend/
 RUN dotnet publish backend/src/Inventario.Api/Inventario.Api.csproj \
     --configuration Release --no-restore --output /publish /p:UseAppHost=false
-COPY --from=frontend-build /source/frontend/dist/inventario/browser/ /publish/wwwroot/
+
+FROM backend-build AS backend-tests
+WORKDIR /source/backend
+RUN dotnet restore Inventario.slnx
+ENTRYPOINT ["dotnet", "test", "Inventario.slnx", "--configuration", "Release", "--no-restore", "--nologo"]
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 USER root
@@ -23,6 +27,7 @@ RUN apt-get update \
     && install -d -o "$APP_UID" -g "$APP_UID" /app/keys
 WORKDIR /app
 COPY --from=backend-build /publish/ ./
+COPY --from=frontend-build /source/frontend/dist/inventario/browser/ ./wwwroot/
 ENV ASPNETCORE_HTTP_PORTS=8080 \
     DataProtection__KeyDirectory=/app/keys
 USER $APP_UID

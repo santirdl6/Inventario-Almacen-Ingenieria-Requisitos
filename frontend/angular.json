@@ -26,6 +26,16 @@
         "serve": {
           "builder": "@angular/build:dev-server",
           "options": { "buildTarget": "inventario:build:development" }
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "runner": "vitest",
+            "buildTarget": "inventario:build:development",
+            "tsConfig": "tsconfig.spec.json",
+            "watch": false,
+            "coverage": true
+          }
         }
       }
     }

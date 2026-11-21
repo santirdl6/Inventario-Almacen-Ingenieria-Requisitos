@@ -2,6 +2,11 @@
 
 **Date**: 2026-10-25 | **Ámbito**: todas las specs del proyecto.
 **Ampliación**: entorno contenedorizado y base ejecutable H0, 2026-10-25.
+**Persona A / H0**: API de sesión Identity, migración y bootstrap de identidad, contratos
+y pruebas de integración SQL. Preparación técnica transversal, sin nueva spec de negocio.
+**Desbloqueo A → B, 2026-11-12**: referencia mínima de Article, configuraciones por entidad
+e ICurrentActor implementados para que el núcleo H0 de B pueda consumir identidad y claves
+foráneas reales. La revisión cruzada A+B de esta ampliación sigue pendiente de registrarse.
 **Base normativa**: [constitución v1.0.0](constitution.md).
 **Origen**: solicitud de arquitectura conjunta con Angular + PrimeNG, ASP.NET Core
 con CQRS ligero y SQL Server; [catálogo y reparto](../../specs/001-reparto-specs-inventario/spec.md).
@@ -62,7 +67,8 @@ aprobación y restauración demostrada antes de producción. La base H0 incluye 
 de estado y arranque Compose; la implementación del inventario corresponde a las ocho specs.
 
 **Scale/Scope**: una pyme, un almacén inicial con varias ubicaciones, dos desarrolladores,
-ocho futuras specs. Pedidos de cliente y reservas mínimos como soporte de HU-03/HU-05;
+ocho futuras specs. Alta/consulta del pedido de cliente mínimo y reservas en HU-05,
+consumidos por las salidas de HU-03 (reparto confirmado 2026-11-19);
 sin facturación, módulo comercial completo ni reservas automáticas.
 
 ## Constitution Check
@@ -184,7 +190,9 @@ sin copia obligatoria de `.env` y sin inicialización manual. El
 - SQL debe superar su healthcheck real; `initialize` crea la base y aplica migraciones
   EF Core, habilita RCSI/SNAPSHOT y configura un usuario de ejecución sin permisos DDL.
   La app solo se inicia si el inicializador termina correctamente. No hay reseteo ni
-  carga de datos de negocio al arrancar.
+  carga de datos de negocio al arrancar. Después de la migración de Identity se crean
+  los cinco roles y la cuenta administrativa configurada. La reinicialización no resetea
+  su contraseña ni duplica roles/usuarios.
 - La automatización de migraciones se limita al Compose de desarrollo. En producción
   se mantiene la aplicación explícita de migraciones y la validación previa de cambios.
 - `sqlserver-data`, `app-keys` y `mailpit-data` conservan base, claves Data Protection
@@ -198,11 +206,108 @@ sin copia obligatoria de `.env` y sin inicialización manual. El
 - SQL Server usa `linux/amd64`; Apple Silicon requiere emulación Docker para este entorno
   local. La ejecución de producción se realiza sobre SQL Server x64 soportado.
 
-La entrega H0 inicial es la pantalla de estado y la comprobación SQL; no implica haber
-implementado Identity, handlers de negocio, diario, reservas o worker SMTP. Esos cortes
-verticales mantendrán estos contenedores y el contrato de arranque.
+La base de Persona A / H0 incorpora Identity con claves Guid, endpoints de sesión,
+policies de permisos por rol y errores ProblemDetails con traceId. La cookie interna
+antiforgery y el token de Angular son distintos y se renueva el token de petición al
+autenticar. Los endpoints nuevos exigen sesión por defecto y declaran sus excepciones
+anónimas. Cookies Secure fuera de Development; el Compose local mantiene HTTP en loopback.
+OpenAPI generado solo en Development documenta health y sesión. Los contratos de negocio
+siguen siendo borradores para las ocho historias.
+
+El modo de inicialización registra su DbContext de Identity con la conexión administrativa
+de destino, migra y siembra cuentas. La API registra únicamente la conexión de ejecución.
+Ambos procesos comparten el modelo, no sus credenciales administrativas. La configuración
+de diseño respeta ConnectionStrings__Inventory y no requiere una contraseña ficticia
+embebida para generar migraciones. La confianza en el certificado SQL autofirmado se
+habilita expresamente en el Compose local, no por defecto en la configuración general.
+
+La preparación A → B incorpora `Domain/MasterData/Article`, tabla `Articles` y
+`InventoryDbContext.Articles`, mediante `20261112105657_H0ArticleReference` sobre
+`20261029111255_H0Identity`. Incluye ID Guid, SKU único, nombre, unidad base, fracciones,
+lotes, estado y rowversion. Es una referencia técnica sin altas HTTP ni mantenimiento:
+familia obligatoria, proveedores, auditoría y política inicial se completan en HU-08.
+No se crean artículos ni existencias de negocio al arrancar. Las referencias de B deben
+usar este Article y restringir el borrado, sin crear otra entidad paralela.
+
+La aclaración de HU-08 del 2026-11-12 fija que unidad base, seguimiento por lote y admisión
+de fracciones solo pueden cambiarse sin documentos, reservas ni movimientos asociados,
+incluidos borradores. La regla se recoge en R-05, modelo y contratos comunes; su revisión
+con B queda pendiente antes de integrar los cambios de las historias consumidoras.
+
+El diseño de HU-08 concreta esa regla con una marca monotónica IsDefinitionLocked, cobertura
+de referencias reales, auditoría que sobrevive al borrado y OperationResult reproducible
+con ETag/Location y permiso original. El rol SQL inventory_runtime coordina las restricciones
+append-only sin depender del nombre de login configurado. Estas concreciones están
+implementadas en el corte H1 descrito abajo, con revisión de B pendiente, y registradas
+en el modelo y contratos comunes.
+El [plan HU-08](../../specs/002-gestionar-datos-maestros/plan.md) detalla migración de familia,
+dependencias H0 y validación; no se crea un segundo ejecutor ni otra cadena de migraciones.
+
+El 2026-11-16 el usuario autorizó a A a adelantar el resultado/ejecutor/bloqueos comunes
+ante la ausencia de entrega B. Es el mismo componente que consumirá H0_StockCore, con
+pruebas SQL reales y revisión de B pendiente antes de integrar; no reasigna las operaciones
+ni las cuatro historias de B. Las migraciones de B deben partir de la cadena que incluya
+esta base común, evitando crear OperationResult por segunda vez.
+
+Estado verificado 2026-11-17: esa base, auditoría/rol SQL, familias y catálogo Article H1
+están implementados y pasan 64 pruebas backend, 22 unitarias frontend y 7 E2E, cuatro de
+ellas en Chromium. También hay sesión/layout frontend mínimos. Cadena añadida:
+H0OperationProtocol → HU08AuditInfrastructure → HU08Families → HU08MasterDataExpand →
+HU08RequireArticleFamily, sin modificar migraciones H0 previas. La marca de definición,
+familia obligatoria y política inicial cero están implementadas; evidencia en
+[US2](../../specs/002-gestionar-datos-maestros/validation/us2.md). Este estado no acredita
+referencias/stock integrados, revisión de B ni aceptación humana.
+
+La preparación de FamilyId se diseña como mantenimiento HTTP autenticado: actor real de
+Identity, MasterData.Manage, antiforgery y ejecutor común, con la conexión de ejecución sin
+DDL. El modo explícito de transición no habilita escritores ordinarios; las migraciones
+siguen siendo externas. Antes de admitir cambios de definición se verifica lector y enlace
+de primera referencia de cada consumidor presente; las features futuras completan esa
+integración antes de habilitarse. Mantenimiento/gate H1 verificados en ese corte; los
+consumidores futuros y la revisión cruzada siguen pendientes, sin despliegue productivo.
+
+`Domain/Identity/ICurrentActor.GetRequiredActorIdAsync` es el contrato de actor de los
+comandos. Su implementación scoped usa el principal autenticado de Identity y comprueba
+que el usuario existe en el mismo contexto; sin actor válido rechaza la escritura, con
+401 ProblemDetails en HTTP. No acepta ActorId del cliente ni asigna un actor predeterminado
+fuera de una petición. Las pruebas del núcleo pueden sustituir la interfaz por un actor
+controlado que corresponda a un usuario de su base de pruebas.
+
+El contexto aplica `IEntityTypeConfiguration` del ensamblado después de configurar Identity;
+cada entidad nueva tiene su archivo en `Infrastructure/Persistence/Configurations/`.
+Esto reduce conflictos de configuración, pero no divide el contexto ni la cadena de
+migraciones. B genera `H0_StockCore` después de integrar `H0ArticleReference`, regenerando
+su migración local no compartida si partía de un snapshot antiguo.
+La preparación y evidencia particulares están en el
+[handoff H0 de HU-08](../../specs/002-gestionar-datos-maestros/h0-handoff.md).
+
+Las pruebas WebApplicationFactory usan SQL Server real y bases/logins temporales con
+nombre aleatorio. El perfil `test` permite ejecutarlas sin SDK local, con una imagen
+backend independiente de la compilación Angular. No altera InventoryDev.
+El diario, reservas y Receive/Reserve/Ship mínimos para probar el protocolo corresponden
+a la parte B de H0; sus reglas completas se concretan en HU-01/HU-03/HU-04/HU-05.
+El worker SMTP y la interfaz de login se desarrollan en sus cortes posteriores.
+La parte B del núcleo de stock y la revisión conjunta de H0
+se coordinan con el [plan de reparto](../../specs/001-reparto-specs-inventario/plan.md).
 
 ### Sincronización con las futuras specs
+
+La reserva de numeración se mantiene en [docs/agrupamiento.md](../../docs/agrupamiento.md):
+B 004–006 (HU-05/HU-03/HU-04), A 007–009 (HU-07/HU-01/HU-06). El acuerdo adelanta el
+pedido mínimo a HU-05 sin cambiar modelo, estados, permisos ni cálculo de stock;
+HU-03 consume el mismo pedido y las reservas para confirmar salidas y actualizar servido.
+
+El cierre técnico de HU-08 asigna las integraciones de nuevos escritores al
+[backlog receptor por HU](../../specs/001-reparto-specs-inventario/integration-tasks.md).
+Sus tareas se incorporan a cada spec consumidora al crearla; no bloquean la entrega del
+catálogo ya implementado. La revisión de cambios compartidos se conserva en COORD-01
+y las condiciones de puesta en servicio en H5, con las mismas obligaciones constitucionales.
+
+La ampliación `20261119171332_HU08MovementCounterparty` añade al diario
+CounterpartyNotApplicableReason opcional y exige contraparte o motivo en cada hecho nuevo.
+Conserva filas y huellas históricas; detalle en el modelo y protocolo comunes. Se prepara
+localmente por la solicitud del usuario de terminar HU-08, con revisión cruzada antes de
+integrar/fusionar registrada en COORD-01; no se presume una aprobación de B.
 
 1. Cada futura spec y plan enlaza este plan, la constitución vigente y las secciones
    de contratos/modelo que consume. Identifica HU original y responsable principal.
@@ -238,7 +343,36 @@ parciales repetidas y recuperación de respuestas perdidas. Builds, tests de apl
 usabilidad y restauración de las historias siguen pendientes. La validación del contenedor
 se realiza por separado con la guía común y su prueba de persistencia.
 
+### Concreción de diseño HU-07, 2026-11-20
+
+El [plan HU-07](../../specs/007-gestionar-pedidos-proveedores/plan.md) concreta compras y
+correo sin cambiar arquitectura ni efectos/estados de stock. Propone MailKit 5.0.0 en el
+BackgroundService previsto y factoring privado del ejecutor único para comandos internos
+tipados, autorizados por una solicitud persistida, sin sesión simulada ni ActorId libre.
+Su [protocolo](../../specs/007-gestionar-pedidos-proveedores/contracts/integration.md)
+define claim/SMTP/finalización separados, lease/fencing y recuperación; el retry humano
+usa nueva operación HTTP sobre la misma entrega/MessageId/documento. No actualiza resultados
+históricos. Se conservan permisos actuales y primera referencia de borrador HU-08.
+
+Entrega funcional local cerrada con [evidencia](../../specs/007-gestionar-pedidos-proveedores/validation/acceptance.md);
+SC-007 sigue pendiente en guardados. El usuario confirmó la [revisión A+B de HU-07](../../specs/007-gestionar-pedidos-proveedores/validation/shared-review.md).
+Impacto: HU-08 consume cobertura/locks reales
+de PurchaseOrderLine; H0/StockCore/HU-02 requieren regresión del ejecutor/transporte; HU-01
+actualiza versión del pedido junto a sus acumulados y acepta V-02/V-06; HU-06 mantiene
+solo navegación a compras, sin generación automática. HU-03/HU-04/HU-05 conservan su
+protocolo/aritmética y deben seguir consumiendo el mismo ejecutor. H5 mantiene restauración
+y aceptación humana. No se acredita revisión ni aceptación por esta actualización.
+
 ## Complexity Tracking
+
+Optimización local HU-07 del 2026-11-21: tras dos ensayos SC-007 inconclusos se reduce
+la lectura de snapshots antes de paginar y el número de viajes para bloqueos de una fase,
+sin cambiar su protocolo. La migración aditiva `20261120194234_HU07PurchasingQueryIndexes`
+añade el índice estado/creación/número/ID sobre la cadena que incluye HU07PurchasingOutbox.
+`20261121025020_HU07ArticleLookupIndex` añade cobertura por estado/SKU/ID del catálogo,
+consumida por el filtro opcional skuPrefix sin cambiar q, entidades o permisos.
+La semántica y los permisos permanecen sujetos a las pruebas comunes. Perfil y ensayos
+en [rendimiento HU-07](../../specs/007-gestionar-pedidos-proveedores/validation/performance.md).
 
 Sin violaciones constitucionales que justificar. Los bloqueos, el diario y la idempotencia
 responden directamente a integridad y trazabilidad. El outbox se limita al correo de compras;

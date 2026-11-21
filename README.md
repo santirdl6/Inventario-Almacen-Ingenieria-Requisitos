@@ -1,9 +1,10 @@
 # Inventario y almacén
 
 Base del proyecto con Angular + PrimeNG, ASP.NET Core 10 y SQL Server 2025.
-El repositorio incluye la infraestructura ejecutable y una pantalla de estado que consulta
-la API y comprueba SQL Server. Las ocho historias del almacén se desarrollarán en sus specs;
-el arranque de esta base no implica que ya estén implementadas.
+El repositorio incluye la infraestructura ejecutable, sesión y los catálogos de artículos,
+familias y proveedores de HU-08, con auditoría y recuperación de operaciones. El diario de
+stock y las demás historias se integrarán en sus specs; la aceptación completa de HU-08
+mantiene pendientes sus pruebas cruzadas y validación operativa.
 
 ## Arranque con un comando
 
@@ -24,6 +25,7 @@ y puede tardar varios minutos.
 
 - **Aplicación:** http://localhost:8081
 - **Estado API/base:** http://localhost:8081/api/v1/health
+- **Borrador OpenAPI de H0:** http://localhost:8081/openapi/v1.json (Development)
 - **Buzón SMTP de desarrollo:** http://localhost:8025
 
 SQL Server no publica su puerto al host. El correo queda capturado en Mailpit; no se envía
@@ -40,9 +42,10 @@ no un despliegue de producción soportado.
 | Servicio | Función |
 |----------|---------|
 | `sqlserver` | Base SQL Server con healthcheck de conexión real. |
-| `initialize` | Tarea de un solo uso: migraciones y permisos. Debe terminar con código 0. |
+| `initialize` | Tarea de un solo uso: migraciones, permisos SQL, roles Identity y cuenta inicial. Debe terminar con código 0. |
 | `smtp` | Mailpit con persistencia para capturar los correos de desarrollo. |
 | `app` | API ASP.NET Core que sirve el frontend Angular compilado en el mismo origen. |
+| `tests` | Perfil opcional `test`: pruebas de H0 contra bases SQL aisladas. |
 
 El `Dockerfile` tiene etapas de compilación frontend, publicación backend y ejecución.
 La imagen final ejecuta la app como usuario sin privilegios e incluye únicamente runtime,
@@ -69,7 +72,18 @@ de desarrollo. Se pueden sobrescribir desde el shell o mediante un archivo `.env
 | `SQL_SA_PASSWORD` | `LocalSqlAdmin_2026!` | Inicialización y healthcheck SQL. |
 | `SQL_APP_USER` | `inventory_app` | Usuario de ejecución, con las mismas reglas de nombre que la base. |
 | `SQL_APP_PASSWORD` | `LocalSqlApp_2026!` | Contraseña del usuario de ejecución. |
-| `SMTP_FROM` | `inventario@localhost.test` | Remitente previsto para el futuro worker de compras. |
+| `INITIAL_ADMIN_EMAIL` | `admin@localhost.test` | Cuenta local creada por el inicializador; solo para desarrollo. |
+| `INITIAL_ADMIN_PASSWORD` | `LocalAdmin_2026!ChangeMe` | Contraseña local inicial; cambiar antes de compartir el entorno. |
+| `SMTP_FROM` | `inventario@localhost.test` | Remitente congelado al solicitar el envío de compras. |
+| `SMTP_HOST` / `SMTP_PORT` | `smtp` / `1025` | Servidor de correo; defaults del Mailpit local. |
+| `SMTP_SECURITY` | `None` en Compose local | `StartTls` obligatorio o `SslOnConnect` fuera de desarrollo/pruebas. Sin downgrade automático. |
+| `SMTP_USERNAME` / `SMTP_PASSWORD` | Vacíos | Credenciales opcionales, ambas presentes o ambas ausentes; no se guardan en documentos. |
+| `PURCHASING_CURRENCY` | `EUR` | Moneda ISO 4217 de nuevas compras; los documentos anteriores conservan la suya. |
+| `PURCHASE_DELIVERY_ENABLED` | `true` | Pausar/reanudar worker sin perder la cola persistida. |
+| `PURCHASE_DELIVERY_MAX_ATTEMPTS` | `5` | Claims por ciclo autorizado; rango 1–5. |
+| `PURCHASE_DELIVERY_POLL_SECONDS` | `5` | Intervalo de búsqueda de entregas elegibles. |
+| `PURCHASE_DELIVERY_TIMEOUT_SECONDS` | `30` | Plazo total de conexión/autenticación/transmisión SMTP. |
+| `PURCHASE_DELIVERY_LEASE_SECONDS` | `120` | Concesión SQL, estrictamente mayor que timeout + 30 s. |
 
 Ejemplo para publicar en otro puerto, sin reconstruir Angular:
 
@@ -85,6 +99,48 @@ del contenedor siguen la configuración estándar de ASP.NET Core.
 Al reutilizar un volumen SQL existente, conservar sus credenciales: cambiar una variable
 no cambia automáticamente la contraseña de un login ya creado. La inicialización detecta
 una contraseña de ejecución incompatible y falla, en lugar de reemplazar datos o usuarios.
+
+La configuración Compose crea los cinco roles Operario, ResponsableAlmacen, Comprador,
+GestorMaestros y Administrador. Solo crea una cuenta: el administrador local indicado arriba.
+Repetir la inicialización conserva esa cuenta, su contraseña y sus datos; no crea usuarios
+de almacén ni concede todos los permisos al administrador. La administración de cuentas
+por API se desarrollará posteriormente. No hay registro público.
+
+## Sesión e Identity — base H0 de la Persona A
+
+Cuenta local inicial: `admin@localhost.test` / `LocalAdmin_2026!ChangeMe`, configurables
+antes del primer arranque. La contraseña solo se entrega al inicializador, no al proceso API.
+Identity almacena su hash en SQL; las cookies están protegidas con las claves persistidas.
+
+| Método y ruta | Resultado |
+|---------------|-----------|
+| `GET /api/v1/auth/csrf` | 200 con `{ requestToken }` y las cookies antiforgery. |
+| `POST /api/v1/auth/login` | JSON `{ email, password }`; 200 con sesión y token renovado. |
+| `GET /api/v1/auth/me` | 200 con `id`, `email`, `roles`, `permissions`; 401 sin sesión. |
+| `POST /api/v1/auth/logout` | 204 y eliminación de la sesión; requiere sesión y token. |
+
+El cliente debe conservar cookies y enviar `X-XSRF-TOKEN` en los POST. El token se
+obtiene de la cookie legible `XSRF-TOKEN` o del cuerpo JSON. `Inventario.Antiforgery`
+es otra cookie interna HttpOnly: no se copia a esa cabecera. Tras login se utiliza el
+token renovado; tras logout se solicita uno anónimo nuevo antes del siguiente login.
+Angular HttpClient usa los nombres acordados automáticamente con peticiones relativas.
+
+La cookie `Inventario.Session` es HttpOnly, SameSite=Lax y de sesión; el ticket dura
+8 horas con renovación deslizante. Las cookies son Secure fuera de Development.
+Contraseñas: mínimo 12 caracteres, mayúscula, minúscula, número y símbolo. Cinco fallos
+bloquean nuevos accesos durante 15 minutos; la respuesta pública continúa siendo un 401
+genérico. Campos inválidos devuelven 422 y antiforgery incorrecto, 400.
+
+Los permisos se derivan de roles mediante policies del servidor. La cuenta Administrador
+tiene `Users.Manage`, no permisos implícitos de stock. Para proteger un futuro endpoint,
+se utiliza `.RequireAuthorization("MasterData.Manage")` o el permiso que le corresponda.
+Las rutas nuevas del grupo `/api/v1` heredan autenticación y el filtro antiforgery;
+las excepciones anónimas deben declararse explícitamente.
+
+Los errores usan `application/problem+json`, `code` y `traceId`, sin redirecciones HTML
+ni detalles de SQL. El OpenAPI expone los endpoints implementados de H0; el borrador
+de los futuros recursos está en [contracts/api.md](.specify/memory/project/contracts/api.md).
+La sesión incluye ahora pantalla de login y navegación por permisos para el MVP de familias.
 
 ## Comandos habituales
 
@@ -110,17 +166,55 @@ docker compose config --quiet
 
 # Prueba integrada: arranque, migraciones, rutas SPA y datos tras recrear contenedores
 sh scripts/verify-containers.sh
+
+# Pruebas H0: Identity, permisos, antiforgery y bootstrap SQL (sin SDK local)
+docker compose --profile test run --build --rm tests
 ```
 
 La prueba integrada crea y elimina una tabla técnica `__ContainerPersistenceCheck`,
 recrea los contenedores y deja el entorno arrancado. No ejecuta las ocho historias de negocio.
+
+Las pruebas del perfil `test` crean una base `InventoryH0Tests_...` y un login SQL aleatorios,
+aplican las migraciones, ejercitan la API real con WebApplicationFactory y los eliminan
+al finalizar. No se borran ni se reinician los datos de `InventoryDev`. Para ejecutarlas
+fuera de Docker, definir `Testing__SqlConnection` con una conexión administrativa de un
+SQL Server de desarrollo/pruebas y ejecutar `dotnet test backend/Inventario.slnx`.
+
+La preparación HU-08 incorpora pruebas de la pantalla H0 y un smoke E2E de API/sesión.
+Desde `frontend/`, con Node 24 LTS ≥24.15.0 y Docker iniciado:
+
+```bash
+npm ci
+npm test
+npm run test:e2e:types
+npm run test:e2e -- e2e/environment.spec.ts
+```
+
+Para validar los tres catálogos, retirada y recuperación en navegador, instalar Chromium y ejecutar
+`npx --no-install playwright install chromium` y `npm run test:e2e` desde frontend.
+El login común y /maestros/familias, /maestros/articulos y /maestros/proveedores están
+implementados. /maestros redirige a artículos. El borrado de artículos sin uso conserva
+auditoría y resultado. El historial consulta el diario real de StockCore, incluso para
+inactivos, con filtros seleccionables por nombres/códigos y tipos en español.
+
+E2E arranca el proyecto dedicado `inventario-hu08-e2e` en 8082/8026 y prepara sus cuentas
+en InventoryHu08E2E mediante Identity, sin API pública de usuarios. Las retira al terminar
+sin borrar actores y detiene ese proyecto conservando volúmenes. Los casos actuales son
+HTTP reales y recorridos Chromium de catálogos, retirada y fiabilidad.
+La suite SC-005 prepara además 10.000 artículos auditados y 25 sesiones; para ejecutar solo
+regresión funcional, usar `npm run test:e2e -- --grep-invert SC-005`.
+Preparación, opciones y alcance en el [quickstart HU-08](specs/002-gestionar-datos-maestros/quickstart.md).
+El recorrido poblado se ejecuta con `npm run test:e2e -- e2e/master-data-lifecycle.spec.ts`:
+prepara stock por el núcleo real en la base E2E y comprueba su conservación. La
+[evidencia de convergencia](specs/002-gestionar-datos-maestros/validation/convergence.md)
+recoge los resultados y bloqueos de la fase 9.
 
 ## Persistencia
 
 | Volumen | Contenido |
 |---------|-----------|
 | `sqlserver-data` | Datos y logs de SQL Server (`/var/opt/mssql`). |
-| `app-keys` | Claves Data Protection (`/app/keys`), reutilizables por la autenticación futura. |
+| `app-keys` | Claves Data Protection (`/app/keys`) para mantener las sesiones entre recreaciones. |
 | `mailpit-data` | Mensajes capturados en el buzón de desarrollo. |
 
 Los volúmenes sobreviven a `stop`, `down`, reconstrucciones y recreación de contenedores.
@@ -137,18 +231,84 @@ docker compose up --build
 
 La API sirve Angular desde `wwwroot`; las peticiones del navegador usan `/api/v1` relativo,
 sin una URL de backend compilada ni CORS adicional. GET `/api/v1/health` devuelve 200
-solo si la conexión SQL funciona y no hay migraciones pendientes; si no, devuelve 503.
+solo si la conexión SQL funciona, no hay migraciones pendientes y no está activo el modo
+de preparación HU-08; si no, devuelve 503.
 Las rutas `/api` desconocidas devuelven 404 y no el HTML de Angular.
 
-El esquema actual contiene el historial de migraciones. Las entidades, autenticación,
-permisos de negocio, diario y worker SMTP se añadirán por sus specs. Al crear el diario,
-su migración debe restringir UPDATE/DELETE al usuario de ejecución según el contrato común.
+El esquema contiene el historial de migraciones, Identity, familias y la misma entidad `Articles`
+compartida con H0. Article incluye ID, código, nombre, familia obligatoria, unidad, fracciones,
+lotes, estado, marca de definición y versión; cada alta crea su StockPolicy a cero sin stock.
+La migración `20261112105657_H0ArticleReference` se conserva después de `H0Identity`.
+Los comandos pueden consumir `ICurrentActor` para obtener el usuario de la sesión validado
+contra Identity. El [handoff H0](specs/002-gestionar-datos-maestros/h0-handoff.md) contiene
+el contrato que utiliza B y los resultados de validación.
+
+La base común añade OperationResult/ejecutor/applocks y auditoría append-only compartidos.
+La cadena incorpora H0OperationProtocol → HU08AuditInfrastructure → HU08Families →
+HU08MasterDataExpand → HU08RequireArticleFamily → HU08Suppliers → H0_StockCore →
+HU08MovementCounterparty, conservando las anteriores. StockCore consume el ejecutor y
+el resultado comunes; cada hecho nuevo conserva contraparte o motivo de no aplicabilidad.
+El endpoint GET /api/v1/operations/{id} permite comprobar resultados autorizados aunque el
+recurso ya no exista; los tres catálogos usan ETag/If-Match e Idempotency-Key con guardado atómico.
+El detalle propio de Article lleva ETag; su contexto auxiliar contiene familia, mínimo y
+capacidades con una revisión comprobable. Las referencias futuras deben integrar lector y
+marca de primer uso antes de habilitar escritores. Evidencia H1: 64 pruebas backend,
+22 unitarias frontend y 7 E2E en [US2](specs/002-gestionar-datos-maestros/validation/us2.md).
+La continuación del 2026-11-18 y sus comprobaciones están en
+[aceptación técnica](specs/002-gestionar-datos-maestros/validation/acceptance.md).
+
+**HU-08 cerrada técnicamente (2026-11-19)**: 101 pruebas SQL, 41 frontend y 12 E2E
+funcionales aprobadas; build correcto y modelo EF sin diferencias. No quedan tareas de
+implementación propias. Los futuros módulos reciben sus integraciones en el
+[backlog por HU](specs/001-reparto-specs-inventario/integration-tasks.md), y la validación
+operativa común se conserva en H5. La revisión compartida de cambios antes de integrar
+se registra en COORD-01.
+
+**Si la base contiene artículos H0**, preparar explícitamente su mapa de familias entre
+expansión y cierre: no ejecutar el inicializador completo esperando una familia automática.
+El [procedimiento HU-08](specs/002-gestionar-datos-maestros/quickstart.md#1-preparación-y-estado-esperado)
+usa mantenimiento HTTP con sesión gestora y conexión sin DDL; las migraciones son externas.
+Una base nueva vacía conserva el arranque normal de un comando.
+
+La autenticación por cookie,
+antiforgery, la sesión y el catálogo inicial de roles se incluyen en H0; los endpoints y
+permisos de negocio se completarán en sus specs. El diario ya está integrado, con DENY
+UPDATE/DELETE para el rol de ejecución; el worker SMTP pertenece al corte de compras.
 Los permisos de DDL permanecen en el inicializador, no en la API.
 
 Para desarrollo fuera de Docker, consultar los comandos del
 [quickstart](.specify/memory/project/quickstart.md); requiere los SDKs correspondientes.
 
 ## Documentación del proyecto
+
+### HU-07 — Compras, correo y recuperación
+
+Compras permite preparar/corregir borradores, revisar destinatario/documento, solicitar
+correo y consultar cantidades/estados. Purchasing.Manage gestiona borradores,
+Purchasing.Send solicita/reintenta e Inventory.Read consulta. El rol Comprador existente
+combina estos permisos; Administrador no los recibe implícitamente.
+
+Un 202 significa solicitud persistida, no correo entregado. La aceptación SMTP pasa el
+pedido a Enviado y no acredita lectura/entrega final. Desde la solicitud el documento
+queda congelado incluso en error. Reintentar un fallo conocido crea otra acción autorizada
+sobre la misma entrega/MessageId/MIME/contacto; recuperar una respuesta incierta conserva
+su clave/cuerpo/ETag originales. Las posibles copias por acuse externo perdido siguen
+identificando el mismo pedido. Las compras no crean existencias ni reservas.
+
+Pausa de desarrollo conservando SQL/Mailpit y sin borrar volúmenes:
+
+```bash
+PURCHASE_DELIVERY_ENABLED=false docker compose up -d app
+PURCHASE_DELIVERY_ENABLED=true docker compose up -d app
+```
+
+Pausar no cancela trabajo ni desbloquea edición. Tras restaurar una copia, mantener envíos
+pausados hasta conciliar posibles correos posteriores al punto recuperado conforme a H5-02;
+un reinicio normal sí recupera la cola persistente y leases vencidos. El worker no trabaja
+durante inicialización/mantenimiento. Guion y pruebas en el
+[quickstart HU-07](specs/007-gestionar-pedidos-proveedores/quickstart.md).
+
+### Acuerdos comunes
 
 - [Constitución](.specify/memory/constitution.md).
 - [Plan global](.specify/memory/project-plan.md).

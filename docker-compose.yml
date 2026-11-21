@@ -8,6 +8,7 @@ x-database-environment: &database-environment
   Database__Name: ${DB_NAME:-InventoryDev}
   Database__User: ${SQL_APP_USER:-inventory_app}
   Database__Password: ${SQL_APP_PASSWORD:-LocalSqlApp_2026!}
+  Database__TrustServerCertificate: "true"
 
 services:
   sqlserver:
@@ -38,7 +39,13 @@ services:
     command: ["--initialize-database", "true"]
     environment:
       <<: *database-environment
+      ASPNETCORE_ENVIRONMENT: Development
       Database__AdminPassword: ${SQL_SA_PASSWORD:-LocalSqlAdmin_2026!}
+      Bootstrap__AdminEmail: ${INITIAL_ADMIN_EMAIL:-admin@localhost.test}
+      Bootstrap__AdminPassword: ${INITIAL_ADMIN_PASSWORD:-LocalAdmin_2026!ChangeMe}
+      Bootstrap__RequireAdmin: "true"
+    volumes:
+      - app-keys:/app/keys
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -65,9 +72,18 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORTS: "8080"
       DataProtection__KeyDirectory: /app/keys
-      Smtp__Host: smtp
-      Smtp__Port: "1025"
+      Smtp__Host: ${SMTP_HOST:-smtp}
+      Smtp__Port: ${SMTP_PORT:-1025}
       Smtp__From: ${SMTP_FROM:-inventario@localhost.test}
+      Smtp__Security: ${SMTP_SECURITY:-None}
+      Smtp__Username: ${SMTP_USERNAME:-}
+      Smtp__Password: ${SMTP_PASSWORD:-}
+      Purchasing__Currency: ${PURCHASING_CURRENCY:-EUR}
+      PurchaseDelivery__Enabled: ${PURCHASE_DELIVERY_ENABLED:-true}
+      PurchaseDelivery__MaxAttempts: ${PURCHASE_DELIVERY_MAX_ATTEMPTS:-5}
+      PurchaseDelivery__PollSeconds: ${PURCHASE_DELIVERY_POLL_SECONDS:-5}
+      PurchaseDelivery__TimeoutSeconds: ${PURCHASE_DELIVERY_TIMEOUT_SECONDS:-30}
+      PurchaseDelivery__LeaseSeconds: ${PURCHASE_DELIVERY_LEASE_SECONDS:-120}
     ports:
       - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8081}:8080"
     volumes:
@@ -78,6 +94,22 @@ services:
       smtp:
         condition: service_started
     restart: unless-stopped
+
+  tests:
+    profiles: [test]
+    image: inventario-h0-tests:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-tests
+    environment:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      Testing__SqlHost: sqlserver
+      Testing__SqlAdminPassword: ${SQL_SA_PASSWORD:-LocalSqlAdmin_2026!}
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: "no"
 
 volumes:
   sqlserver-data:

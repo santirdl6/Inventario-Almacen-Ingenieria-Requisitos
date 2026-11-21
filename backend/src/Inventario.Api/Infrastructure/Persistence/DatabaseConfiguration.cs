@@ -11,6 +11,12 @@ internal static partial class DatabaseConfiguration
     public static string AdministratorConnection(IConfiguration configuration) =>
         Build(configuration, administrator: true);
 
+    public static string InitializationConnection(IConfiguration configuration) =>
+        new SqlConnectionStringBuilder(AdministratorConnection(configuration))
+        {
+            InitialCatalog = Identifier(configuration["Database:Name"] ?? "InventoryDev")
+        }.ConnectionString;
+
     public static string Identifier(string value)
     {
         if (!IdentifierPattern().IsMatch(value))
@@ -32,7 +38,7 @@ internal static partial class DatabaseConfiguration
             UserID = administrator ? "sa" : Identifier(configuration["Database:User"] ?? "inventory_app"),
             Password = password,
             Encrypt = true,
-            TrustServerCertificate = true,
+            TrustServerCertificate = configuration.GetValue("Database:TrustServerCertificate", false),
             ConnectTimeout = 15
         }.ConnectionString;
     }

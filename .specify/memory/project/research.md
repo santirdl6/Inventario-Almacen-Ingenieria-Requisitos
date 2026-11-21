@@ -31,7 +31,8 @@ un proyecto nuevo por su próximo fin de soporte. No se necesita adoptar otro mo
 ## R-02. CQRS ligero y estructura
 
 **Decisión**: una SPA, una API y una base. Un proyecto productivo ASP.NET Core,
-organizado por funcionalidades, con Commands y Queries separados. Controllers delgados
+organizado por funcionalidades, con Commands y Queries separados. Endpoints HTTP delgados
+—Minimal APIs en la base H0—
 llaman handlers directamente mediante inyección de dependencias. Un InventoryDbContext
 por comando y consultas EF Core proyectadas a DTO con AsNoTracking.
 
@@ -97,7 +98,8 @@ detallarlos; cambiarlos requiere actualizar los contratos y las specs afectadas.
 | Tema | Regla inicial |
 |------|---------------|
 | Cantidades | Unidad base por artículo; decimal(18,3), sin float; un artículo de unidades enteras rechaza fracciones. |
-| Reservas | Asignación explícita por pedido, artículo, ubicación y lote; creación y liberación mínimas pertenecen a HU-03/HU-05, sin módulo comercial completo. |
+| Edición de la definición del artículo | Unidad base, seguimiento por lote y admisión de fracciones solo cambian sin documentos, reservas ni movimientos asociados. La primera referencia, incluso en un documento en borrador, bloquea los tres campos. |
+| Reservas | Asignación explícita por pedido, artículo, ubicación y lote; pedido mínimo (alta/consulta), creación y liberación de reservas pertenecen a HU-05. HU-03 consume pedido y reservas al servir, sin módulo comercial completo. |
 | Salidas | Consumen primero la reserva del propio pedido en el saldo indicado; el resto solo consume disponible. Nunca toman reservas ajenas. |
 | Lotes | Artículo con seguimiento exige lote en recepción y movimientos; sin seguimiento usa un bucket no nulo SIN-LOTE propio del artículo. No se introduce gestión por serie o caducidad en esta entrega. |
 | Recepción | Rechaza cantidad aceptada superior al pendiente y artículos ajenos al pedido. Conserva como incidencia las diferencias observadas sin incorporarlas al stock. |
@@ -107,6 +109,12 @@ detallarlos; cambiarlos requiere actualizar los contratos y las specs afectadas.
 | Sugerencia | max(0, mínimo − disponible), en unidad base; no descuenta compras pendientes ni crea pedidos automáticamente. |
 | Aviso | Bandeja dentro de la aplicación; un episodio activo por artículo, actualizado hasta recuperar el mínimo. Sin correo ni SMS en la base inicial. |
 | Envío de compra | Correo al proveedor con documento del pedido; entrega mediante outbox persistente. En desarrollo se usa un servidor SMTP de pruebas. |
+
+**Aclaración HU-08, 2026-11-12**: A elige bloquear los tres campos desde la primera
+referencia, incluidos borradores, en lugar de esperar al primer movimiento. La regla
+afecta al mantenimiento de HU-08 y a las referencias creadas por HU-01/HU-03/HU-04/HU-05/
+HU-07; debe revisarse con B antes de integrar el cambio compartido. No modifica los
+efectos ni los estados de las operaciones de stock.
 
 **Motivo**: son defaults conservadores suficientes para definir los intercambios y evitar
 que cada persona implemente reglas distintas. Las incidencias rechazadas en recepción
@@ -122,6 +130,13 @@ adicional para la base técnica; estas decisiones son revisables con el responsa
 en producción y proxy /api en desarrollo. Antiforgery en mutaciones: cookie XSRF-TOKEN
 y cabecera X-XSRF-TOKEN, emitidas/validadas por el servidor. Roles y políticas en la API;
 usuario de auditoría derivado de la sesión, nunca confiado al cuerpo enviado por el cliente.
+
+Concreción H0: `Inventario.Session` es HttpOnly y SameSite=Lax; el ticket dura 8 horas
+con renovación deslizante. Cookie interna `Inventario.Antiforgery` HttpOnly distinta
+de `XSRF-TOKEN`, que contiene el token de petición legible y se envía en X-XSRF-TOKEN.
+Login renueva ese token ya vinculado a la identidad autenticada. Cookies Secure fuera
+de Development; HTTP local de Compose usa SameAsRequest. Los rechazos por credenciales,
+bloqueo o cuenta no confirmada comparten el error público InvalidCredentials.
 
 Angular usa componentes standalone, formularios reactivos tipados, rutas lazy por función,
 servicios HTTP y estado local con signals. PrimeNG aporta tablas, formularios, diálogos y
@@ -216,3 +231,113 @@ se comprueba recreando contenedores, no solo reiniciando procesos.
 - https://docs.docker.com/build/building/multi-stage/
 - https://docs.docker.com/compose/how-tos/startup-order/
 - https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying
+
+## R-10. Desbloqueo de referencias e identidad del núcleo H0
+
+**Fecha**: 2026-11-12. **Estado**: implementado por solicitud de A; revisión de B pendiente.
+
+**Decisión**: A adelanta Article mínima y su migración antes de `H0_StockCore`. B conserva
+claves foráneas reales a Article desde el inicio. El contexto aplica configuraciones por
+entidad desde archivos separados, manteniendo una única cadena de migraciones. No se
+renombra ni regenera `H0Identity` ya existente. Tras integrar cambios, quien genere después
+regenera su migración local aún no compartida si su snapshot quedó obsoleto.
+
+El núcleo consume `ICurrentActor` sin depender del transporte. A lo implementa con Identity,
+exigiendo un usuario autenticado existente, sin fallback al ejecutar fuera de HTTP. Las
+pruebas pueden usar un actor controlado y las pruebas HTTP conservan la sesión real.
+
+**Motivo**: evita tablas de stock con referencias huérfanas y dos definiciones de artículo,
+y permite a B desarrollar el protocolo sin esperar al mantenimiento completo de HU-08.
+
+**Alternativa descartada**: crear las tablas de B sin las claves foráneas y añadirlas en
+HU-08, porque difiere la comprobación de integridad y puede exigir reparar referencias.
+
+**Impacto y alcance**: no cambia estados ni efectos de stock, ni sustituye la futura
+familia obligatoria, política inicial o auditoría de altas de HU-08. Article de H0 solo
+se crea en preparación controlada de pruebas; no hay alta de negocio provisional. El
+contrato completo de núcleo sigue en stock-operations: operación → documentos → ubicaciones
+→ artículos, y escritura atómica de documento, diario, saldos, reservas aplicables y resultado.
+El esqueleto y Receive/Reserve/Ship mínimos de B se validan en SQL Server real; las reglas
+completas se concretan en sus historias. Por acuerdo de alcance revisado por A el
+2026-11-19, CustomerOrder mínimo (alta y consulta) queda a cargo de B en HU-05, porque
+las reservas lo requieren en H2; HU-03 lo consume para las salidas en H3. Sustituye la
+asignación anterior a HU-03, conservando entidades, estados y permisos comunes.
+
+La spec consumidora HU-08 mantiene sus requisitos y registra esta preparación en su
+[handoff H0](../../../specs/002-gestionar-datos-maestros/h0-handoff.md). HU-02/HU-03/HU-04/
+HU-05/HU-07 aún deben consumir estos acuerdos al preparar sus specs. No se modifican
+obligaciones constitucionales ni se acredita una revisión A+B no realizada.
+
+## R-11. Concreciones de integración del diseño HU-08
+
+**Fecha**: 2026-11-12. **Estado**: diseño propuesto; revisión A+B pendiente antes de integrar.
+
+Actualización de implementación 2026-11-17: el usuario autorizó adelantar la base común
+desde A. Resultado/ejecutor/bloqueos, auditoría append-only y familias están implementados,
+con pruebas descritas en la evidencia local de HU-08. La huella común ordena propiedades
+JSON ordinalmente tras normalizar el DTO; los arrays conservan su orden contractual.
+Las partes restantes de esta decisión siguen pendientes y la revisión de B no está realizada.
+
+**Decisión**: conservar la marca monotónica IsDefinitionLocked en Article, fijada por la
+primera referencia bajo el bloqueo/transacción comunes. Retirar una línea de borrador no
+elimina ese hecho; la comprobación para borrar sigue basada en referencias e historial,
+no únicamente en la marca. Los lectores de uso deben cubrir los consumidores integrados.
+
+OperationId es la clave idempotente; OperationResult común añade cabeceras reproducibles
+ETag/Location y permiso original, para autorizar y reproducir un resultado incluso después
+de borrar el maestro. MasterDataAudit conserva EntityId histórico sin FK al maestro y
+acciones de eliminación. El rol SQL inventory_runtime permite aplicar DENY sobre evidencias
+antes de que el bootstrap cree el usuario de ejecución.
+
+Family y Supplier se coordinan en la fase documental con recursos canónicos propios,
+manteniendo el orden global. B entrega ejecutor/resultados H0 y A los consume en HU-08;
+las contribuciones de A al componente común se revisan con B sin duplicar implementaciones.
+
+Remediación aprobada del análisis HU-08: la preparación de familia se realiza mediante
+handler HTTP de mantenimiento autenticado, ICurrentActor y ejecutor común, en un modo
+explícito sobre esquema expandido y sin DDL en la API. No se acepta un ActorId manual.
+El gate de cambios de definición comprueba lectores y enlaces de primera referencia de
+los consumidores presentes antes de habilitar el endpoint para esos cambios; las nuevas
+features completan esa integración antes de habilitar sus escritores. No exige esperar
+historias futuras cuando H1 acredita ausencia de esos consumidores.
+
+**Motivo**: evitar desbloqueo por pérdida de referencias actuales, evidencia que impida
+borrar o se borre en cascada, replay que falle con 404 tras un DELETE y permisos SQL
+dependientes de un login configurable. No cambia estados ni aritmética de inventario.
+
+**Alternativas**: solo consultas Any, auditoría con FK/cascada a Article, caché idempotente
+en memoria, recurso vivo obligatorio para recuperar resultado y protocolos privados por feature.
+
+**Impacto**: HU-08 y escritores de HU-01/HU-03/HU-04/HU-05/HU-07; HU-06 consume la misma
+StockPolicy y participa en cambios de estado cuando esté integrada. La incorporación exige
+revisión cruzada de entidades, contratos y migraciones. El diseño particular, fuentes y
+validación están en el [plan HU-08](../../../specs/002-gestionar-datos-maestros/plan.md).
+
+## R-12. Concreciones de diseño HU-07
+
+**Fecha**: 2026-11-20. **Estado**: aplicado localmente en HU-07 US1–US5;
+cierre transversal en curso y revisión A+B pendiente antes de integrar.
+
+**Decisión**: correo con MailKit 5.0.0 y BackgroundService en la API; separar compromiso
+inmutable (documento/MIME/destinatario/MessageId) de coordinación mutable (outbox/lease).
+La entrada HTTP del ejecutor mantiene ICurrentActor/policy; su núcleo transaccional se
+factoriza para comandos internos de entrega limitados a autoridad persistida comprobada.
+No cambiar el contrato de ICurrentActor para admitir un actor predeterminado sin HTTP.
+Claim/SMTP/finalización son pasos separados; finalización exige lease/generación vigentes.
+Un retry humano de Failed es una nueva operación idempotente sobre la misma entrega;
+recuperar respuesta HTTP perdida conserva la operación original. SMTP admite copias ante
+aceptación incierta, nunca otra compra. El 202 original no es un progreso mutable.
+
+**Motivo/alternativas**: evita transacciones SMTP largas, sesión ficticia, finalizaciones
+obsoletas y replay que impida reactivar Failed. No requiere broker ni ejecutor paralelo.
+Fechas previstas son fechas civiles date, a diferencia de instantes UTC; moneda única
+capturada en alta. Detalle del pedido con ETag propio y versión tocada por líneas/estados;
+datos actuales de maestros separados y token de revisión para proteger destinatario.
+
+**Fuente e impacto**: [investigación HU-07](../../../specs/007-gestionar-pedidos-proveedores/research.md)
+contiene versiones/fuentes oficiales, defaults, alternativas y concreciones locales;
+[integración](../../../specs/007-gestionar-pedidos-proveedores/contracts/integration.md)
+define autoridad y protocolo. Consumidores afectados: HU-08 (referencias), H0/HU-02/
+StockCore (regresión común), HU-01 (acumulados/versión), UI de compras y recuperación H5.
+No se modifican cálculo de stock ni estados compartidos. Evidencia local por historia en
+el [plan HU-07](../../../specs/007-gestionar-pedidos-proveedores/plan.md); no acredita integración ni H5.

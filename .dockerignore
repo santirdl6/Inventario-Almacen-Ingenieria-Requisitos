@@ -7,6 +7,16 @@
 **/coverage
 **/playwright-report
 **/test-results
+**/out-tsc
+**/build
+**/packages
+**/*.log
+**/*.log.*
+**/*.tmp
+**/*.swp
+**/Thumbs.db
+Dockerfile*
+.dockerignore
 .git
 .opencode
 .specify
@@ -19,4 +29,7 @@ specs
 **/*.pfx
 **/*.pem
 **/*.key
+**/.keys
 **/.DS_Store
+**/.idea
+**/.vscode

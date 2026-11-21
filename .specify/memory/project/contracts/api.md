@@ -19,26 +19,40 @@ deberán ajustarse a él. Cambios compartidos requieren revisión A+B.
 - Toda mutación de negocio lleva `Idempotency-Key` UUID. La misma clave, ruta, actor y
   cuerpo normalizado devuelve el mismo resultado; contenido distinto, 409. Los replays
   autorizados se resuelven antes de evaluar un If-Match que ya quedó obsoleto por el éxito.
+- OperationId coincide con Idempotency-Key. El resultado confirmado conserva también
+  ETag/Location y el permiso original; el replay se resuelve antes de comprobar si el
+  recurso sigue existiendo, sin ejecutar de nuevo un borrado ni reconstruir su respuesta.
+- La huella común es SHA-256 de método en mayúsculas, ruta canónica y JSON normalizado
+  del DTO, separados por salto de línea; cada contrato concreta el orden y normalización
+  de sus campos. No incluye If-Match, cookies ni tokens; el actor se compara por separado.
 - POST de alta: 201 y Location; confirmación: 200 con documento, movimiento(s) y operationId;
   envío de compra: 202 con intención persistida, no afirmación de correo entregado.
 - No hay DELETE/PUT/PATCH de saldos ni de movimientos confirmados.
 - Datos comunes de confirmación: `occurredAt`, `reason`, referencia de soporte o explicación
   de no aplicabilidad. Actor y recordedAt siempre los asigna el servidor.
+  La contraparte se indica con `counterpartyReference` o `counterpartyNotApplicableReason`;
+  el núcleo exige evidencia para cada hecho nuevo. La consulta del diario conserva el motivo
+  y distingue información histórica no registrada; protocolo de replay en stock-operations.
 
 ## Sesión, permisos y errores
 
-Mismo origen, cookie HttpOnly/Secure y antiforgery para todas las mutaciones, incluido
-inicio/cierre de sesión. Angular envía X-XSRF-TOKEN a partir de XSRF-TOKEN.
+Mismo origen, cookie de sesión HttpOnly/SameSite=Lax y antiforgery para todas las mutaciones,
+incluido inicio/cierre de sesión. Fuera de Development las cookies son Secure; el HTTP
+local de Compose usa SameAsRequest. Angular envía X-XSRF-TOKEN a partir de XSRF-TOKEN.
+La cookie interna `Inventario.Antiforgery` es HttpOnly y distinta del token de petición
+legible. Los dos tokens deben pertenecer al mismo cliente y a la identidad actual.
 
 | Método y ruta | Entrada / salida |
 |---------------|-----------------|
-| GET /auth/csrf | Emite token antiforgery y cookie XSRF-TOKEN; 204. Renovar tras login. |
-| POST /auth/login | email, password; 204 con cookie de sesión. 401 sin revelar si existe la cuenta. |
-| POST /auth/logout | Cierra sesión; 204. |
-| GET /auth/me | Usuario y permisos actuales; 401 si no hay sesión. |
+| GET /auth/csrf | Disponible anónimo o autenticado; emite cookie interna y XSRF-TOKEN y devuelve `{ requestToken }` con 200. |
+| POST /auth/login | Anónimo y antiforgery; email, password; 200 con cookie de sesión y nuevo `{ requestToken }`. 401 no revela si existe la cuenta. |
+| POST /auth/logout | Sesión autenticada y antiforgery; cierra cookie; 204. |
+| GET /auth/me | Sesión autenticada; `{ id, email, roles, permissions }`; 401 si no hay sesión. |
 
 Las rutas anteriores se prefijan con /api/v1. No exigen clave idempotente porque no
-son mutaciones de documentos; sí protección antiforgery en los POST.
+son mutaciones de documentos; sí protección antiforgery en login/logout. Solicitudes API
+sin sesión devuelven 401 JSON, nunca una redirección HTML a login. Las cuentas iniciales
+se crean por configuración del entorno durante la inicialización; no hay alta pública.
 
 | Actor | Permisos mínimos |
 |-------|------------------|
@@ -46,10 +60,14 @@ son mutaciones de documentos; sí protección antiforgery en los POST.
 | ResponsableAlmacen | Inventory.Read, Reservations.Manage, Inventory.Adjust, Counts.Record, StockPolicy.Manage, Alerts.Read. |
 | Comprador | Purchasing.Manage, Purchasing.Send, Inventory.Read, Alerts.Read. |
 | GestorMaestros | MasterData.Manage, Inventory.Read. |
-| Administrador | Gestiona cuentas y asigna permisos; no se supone autorización implícita para alterar el diario. |
+| Administrador | Users.Manage; sin permisos implícitos de inventario. La API de gestión de cuentas se incorpora posteriormente. |
 
-Las cuentas pueden combinar roles. La autorización de ajustes y las acciones de un operario
-quedan diferenciadas y registradas. Autorización en cada endpoint y en el recurso consultado.
+Las cuentas pueden combinar roles. Las policies del servidor usan claims `permission`
+derivados de roles; los guards del frontend no son una barrera de autorización. Identity
+comprueba contraseña, bloqueo temporal y unicidad de correo. La autorización de ajustes y
+las acciones de un operario quedan diferenciadas y registradas. La base H0 siembra los
+roles anteriores y crea una cuenta local de Administrador desde variables exclusivas del
+servicio inicializador. Asignar roles a nuevos usuarios queda para las futuras specs.
 
 Errores `application/problem+json`: type, title, status, detail legible en español,
 code, traceId, operationId cuando aplique y errors por campo. No contienen trazas ni SQL.
@@ -59,10 +77,37 @@ code, traceId, operationId cuando aplique y errors por campo. No contienen traza
 | 400 | JSON o identificador inválido; antiforgery rechazado. |
 | 401 / 403 | Sin sesión / permiso insuficiente. |
 | 404 | Recurso inexistente o resultado de operación aún no observado. |
-| 409 | InsufficientStock, ReservedStockConflict, CountScopeFrozen, DocumentAlreadyConfirmed, OverReceipt, ArticleInactive, HistoryPreventsDeletion, IdempotencyConflict. |
+| 409 | InsufficientStock, ReservedStockConflict, CountScopeFrozen, DocumentAlreadyConfirmed, OverReceipt, ArticleInactive, HistoryPreventsDeletion, IdempotencyConflict, DuplicateLocationPlace, LocationIdentityLocked, LocationNotEmpty, NoActiveReceivingLeft. |
 | 412 / 428 | Versión obsoleta / falta If-Match. |
 | 422 | Campos de negocio inválidos, cantidades/unidades o suma de asignaciones incorrectas. |
 | 503 | LockTimeout o indisponibilidad tras reintentos; Retry-After. Comprobar operationId antes de repetir. |
+
+Para esta base H0, credenciales incorrectas, cuenta bloqueada o no confirmada devuelven
+`InvalidCredentials` con 401 genérico para no revelar si existe la cuenta. Cinco fallos
+bloquean nuevos accesos durante 15 minutos. Las contraseñas exigen al menos 12 caracteres,
+mayúsculas, minúsculas, número y símbolo. Antiforgery devuelve `AntiforgeryValidationFailed`
+con 400; campos vacíos/inválidos, `ValidationFailed` con 422. El healthcheck
+no requiere sesión y solo revela `healthy/database ready` o `unhealthy/database unavailable`.
+
+### Estado de implementación del borrador
+
+Implementados: health, csrf, login, me y logout; desde el corte HU-08 del 2026-11-17,
+GET de resultados autorizados, GET/POST/PUT de familias y artículos y contexto auxiliar
+de Article. El mantenimiento de transición solo se registra en su ventana explícita.
+OpenAPI generado en
+`/openapi/v1.json` solo en Development, con los endpoints realmente implementados.
+Las demás rutas de negocio de las secciones siguientes siguen siendo el borrador compartido.
+
+`/auth/me`, `/auth/logout` y los futuros endpoints requieren sesión por defecto; únicamente
+health/csrf/login son anónimos. Ningún grupo de sesión completo lleva AllowAnonymous.
+La cookie se llama `Inventario.Session`, no es persistente en el navegador y protege un
+ticket de 8 horas con renovación deslizante. Login devuelve un token antiforgery vinculado
+al usuario; logout elimina la cookie de sesión y la cookie de petición. Los endpoints de
+sesión envían `Cache-Control: no-store`. No se emiten JWT ni se admiten tokens en localStorage.
+
+La base común, familias y artículos ya implementan ETag, idempotencia, errores y paginación del
+catálogo. Los documentos/operaciones de stock incorporarán esas garantías en sus cortes;
+no se presentan como implementados por la existencia del catálogo.
 
 ## Catálogo de recursos
 
@@ -78,13 +123,52 @@ Todas las rutas siguientes son relativas a /api/v1 y requieren sesión.
 | DELETE /articles/{id} | Solo sin referencias ni historial; con movimientos devuelve HistoryPreventsDeletion. Desactivar mediante PUT conserva datos. |
 | GET /articles/{id}/movements | Historial paginado, filtros from/to/actorId/locationId/lotId. Incluye artículo inactivo. |
 
+El listado de artículos admite además `skuPrefix` opcional: prefijo SKU literal, Trim +
+ToUpperInvariant, máximo 64 caracteres (422 si excede). Se combina con los filtros
+existentes; `q` conserva su búsqueda por contenido de código/nombre. Añadido por la
+optimización HU-07 de 2026-11-21 para selección explícita por código indexado, sin otro
+catálogo ni cambio de permisos/estado. Detalle en el contrato HU-08; revisión A+B pendiente.
+
 Familias y proveedores usan la misma política de lectura/escritura. No se ofrecen borrados
-de esos recursos en la base inicial. No cambia unidad o seguimiento de un artículo con historial.
+de esos recursos en la base inicial. La unidad base, el seguimiento por lote y la admisión
+de fracciones solo pueden cambiarse mientras el artículo no tenga documentos, reservas ni
+movimientos asociados y no tenga activada la marca persistente de primer uso. Una referencia
+en un documento en borrador también fija esa marca; retirar la línea no desbloquea la definición.
+La marca sola no sustituye las comprobaciones de referencias e historial para permitir borrar.
+
+Concreciones HTTP de HU-08: PUT y DELETE requieren If-Match fuerte de rowversion, además
+de clave idempotente; DELETE exitoso devuelve 204. La consulta auxiliar del artículo informa
+capacidades y motivo de bloqueo, sin sustituir la revalidación al guardar. Los DTO, filtros,
+resultados y errores particulares se mantienen en el
+[contrato HU-08](../../../../specs/002-gestionar-datos-maestros/contracts/api.md).
+Los códigos compartidos añaden DuplicateCode, ArticleDefinitionLocked, VersionConflict,
+PreconditionRequired y DependencyUnavailable en sus estados HTTP allí especificados.
+
+Concreción de US2: el detalle de Article con ETag solo incluye datos persistidos propios.
+GET /articles/{id}/context devuelve familia/política/capacidades derivadas sin ETag, con
+articleVersion para detectar lecturas de distinta revisión. Así el ETag fuerte no permanece
+igual ante cambios de su representación por datos relacionados. La UI combina ambas lecturas.
+
+La preparación H0 de familia usa exclusivamente el modo HTTP autenticado de mantenimiento
+definido en ese contrato: MasterData.Manage, antiforgery, ICurrentActor y resultado idempotente
+común, sin ActorId proporcionado por el cliente. No se registra en el modo ordinario ni
+entrega DDL al proceso API; no es un alta provisional de artículos.
 
 ### HU-02 — B: ubicaciones
 
 GET, POST /locations y GET, PUT /locations/{id}: code, aisle, rack, level, kind, isActive.
 Lectura Inventory.Read; mutación Locations.Manage. Código duplicado se rechaza.
+El lugar físico duplicado devuelve 409 DuplicateLocationPlace; la identificación con
+historial queda bloqueada (LocationIdentityLocked). Con stock/reservas no se desactiva
+ni cambia tipo (LocationNotEmpty); el conteo abierto lo bloquea cuando HU-04 se integre.
+Retirar la última Receiving activa devuelve NoActiveReceivingLeft. Un cambio de estado
+se guarda separado de una corrección de datos. Caracteres válidos: A–Z, 0–9 y guion.
+GET /locations/{id}/stock devuelve el contenido por artículo/lote. Paginación fuera de
+rango se rechaza 422; el total no se limita a la página. El detalle de Location se lee
+en SNAPSHOT y su ETag fuerte cubre representación completa más rowversion (digest SHA-256
+en Base64 entre comillas); PUT exige ese token opaco con If-Match. Los demás recursos
+que solo representan su fila conservan sus tokens de rowversion. Las intenciones de
+ubicaciones comparten el almacén/transporte de maestros, reautorizadas con Locations.Manage.
 GET /articles/{id}/locations devuelve todas sus ubicaciones con cantidades y lote,
 paginadas; filtrar isActive no oculta la historia del artículo.
 
@@ -99,8 +183,20 @@ paginadas; filtrar isActive no oculta la historia del artículo.
 | GET /purchase-orders/{id}/delivery | sendStatus, attempts, lastError resumido, acceptedAt y posibilidad de reintento. |
 
 Purchasing.Manage para alta/edición; Purchasing.Send para enviar o reintentar un fallo.
-Un reintento de envío utiliza la misma intención y MessageId, sin duplicar pedido.
+Un reintento de un error conocido utiliza la misma **entrega** y MessageId, sin duplicar
+pedido, pero es una nueva acción HTTP con otra Idempotency-Key y resultado propio.
+Recuperar una respuesta HTTP incierta conserva su clave/cuerpo/ETag originales.
 Worker cambia a Sent tras aceptación SMTP; las recepciones cambian los estados posteriores.
+
+Concreción de diseño HU-07, 2026-11-20 (revisión A+B pendiente): GET de detalle propio con
+ETag de cabecera que avanza por líneas/estados/acumulados; GET /{id}/context separa datos
+actuales de maestros sin ETag. GET /{id}/send-preview presenta documento/destinatario y
+token de revisión; POST /{id}/send distingue kind initial/retry y revalida esa revisión
+inicial bajo locks. GET /{id}/delivery/document sirve el adjunto conservado con Inventory.Read.
+DTO, códigos, permisos y reglas particulares en el
+[contrato HU-07](../../../../specs/007-gestionar-pedidos-proveedores/contracts/api.md).
+Implementados localmente en HU-07 con evidencia por historia; revisión A+B pendiente antes
+de integrar. No modifican el protocolo idempotente común.
 
 ### HU-01 — A: recepciones
 
@@ -116,6 +212,11 @@ Receiving.Record. Rechaza compra aún no enviada, artículo inactivo, exceso o f
 Devuelve cantidades aceptadas, pendientes, nuevo estado de compra y movimientos confirmados.
 
 ### HU-03 y HU-05 — B: pedidos de cliente, reservas y salidas
+
+Asignación confirmada 2026-11-19: HU-05 implementa POST/GET de customer-orders y los
+recursos de reservations/release; HU-03 implementa shipments y consume ese mismo pedido
+y sus reservas. Se conservan las rutas y permisos siguientes; el traslado no añade
+edición/cancelación de pedidos ni un módulo comercial.
 
 | Método y ruta | Entrada / salida |
 |---------------|-----------------|
@@ -168,19 +269,27 @@ La alerta no crea ni envía una compra; el comprador abre el flujo HU-07.
 ### Transversal: operación incierta, corrección y contingencia
 
 - GET /operations/{operationId}: mismo permiso sobre el recurso original y resultado
-  confirmado. 404 significa «sin resultado observado», no «transacción necesariamente fallida».
+  confirmado. El permiso se conserva en el resultado para autorizar también tras eliminar
+  el recurso. Devuelve operationId, method, resource, status, body, headers y recordedAt;
+  headers solo incluye ETag/Location. 404 significa «sin resultado observado», no
+  «transacción necesariamente fallida».
 - POST /movements/{id}/corrections: Inventory.Adjust; motivo, referencia e impactos
   compensatorios permitidos y correctionId UUID estable, con If-Match del documento origen.
   Responde nuevo movimiento; repetir correctionId no repite el efecto.
 - POST /contingencies/reconcile: Inventory.Adjust más permiso de la operación afectada;
   identificador único de comprobante y datos del comando Receive/Ship/Adjustment existente.
   Usa el mismo núcleo, devuelve operación y referencia conciliada. No admite sobrescribir saldos.
+  Para Receive, HU-01 registra la política compuesta `Receiving.Reconcile`, que exige
+  `Inventory.Adjust` y `Receiving.Record` tanto al ejecutar/repetir como al consultar el
+  resultado. Es un identificador de política, no un permiso concedible; los roles no cambian.
+  Evidencia y revisión A+B del conjunto de cambios HU-01: [integración](../../../../specs/008-registrar-recepcion-mercancia/contracts/integration.md) y [US4](../../../../specs/008-registrar-recepcion-mercancia/validation/us4.md).
 - GET /health: comprobación técnica sin detalles sensibles; 200 listo o 503 no disponible.
 
 La base contenedorizada H0 implementa GET /api/v1/health sin sesión: 200 con
 `{ "status": "healthy", "database": "ready" }` si SQL responde y no quedan migraciones
-pendientes, o 503 con estado genérico. No expone credenciales ni excepciones.
-Las demás rutas descritas son contratos para sus futuras specs. Una ruta /api desconocida
+pendientes y no está habilitado el modo de mantenimiento HU-08, o 503 con estado genérico.
+No expone credenciales ni excepciones.
+Las rutas de negocio descritas son contratos para sus futuras specs. Una ruta /api desconocida
 devuelve 404, nunca el HTML de la SPA.
 
 ## Ejemplo de salida de consulta

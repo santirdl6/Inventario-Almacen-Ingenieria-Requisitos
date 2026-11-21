@@ -1,0 +1,1214 @@
+{
+  "articles": 10000,
+  "sessions": 25,
+  "samples": 200,
+  "failures": 0,
+  "p95Ms": 1676.5705829999933,
+  "within2s": 193,
+  "prepareMs": 48765.57825,
+  "platform": "darwin",
+  "arch": "arm64",
+  "node": "v25.9.0",
+  "measurements": [
+    {
+      "session": 13,
+      "query": 0,
+      "elapsedMs": 608.0112919999956,
+      "success": true
+    },
+    {
+      "session": 1,
+      "query": 0,
+      "elapsedMs": 886.0749999999971,
+      "success": true
+    },
+    {
+      "session": 6,
+      "query": 0,
+      "elapsedMs": 885.2717919999996,
+      "success": true
+    },
+    {
+      "session": 8,
+      "query": 0,
+      "elapsedMs": 897.9615839999897,
+      "success": true
+    },
+    {
+      "session": 17,
+      "query": 0,
+      "elapsedMs": 883.7670000000071,
+      "success": true
+    },
+    {
+      "session": 4,
+      "query": 0,
+      "elapsedMs": 932.7686250000115,
+      "success": true
+    },
+    {
+      "session": 23,
+      "query": 0,
+      "elapsedMs": 903.5259589999914,
+      "success": true
+    },
+    {
+      "session": 24,
+      "query": 0,
+      "elapsedMs": 921.6268750000017,
+      "success": true
+    },
+    {
+      "session": 20,
+      "query": 0,
+      "elapsedMs": 927.6571249999979,
+      "success": true
+    },
+    {
+      "session": 10,
+      "query": 0,
+      "elapsedMs": 1093.4888749999955,
+      "success": true
+    },
+    {
+      "session": 22,
+      "query": 0,
+      "elapsedMs": 1068.6681249999965,
+      "success": true
+    },
+    {
+      "session": 13,
+      "query": 1,
+      "elapsedMs": 510.4547920000041,
+      "success": true
+    },
+    {
+      "session": 3,
+      "query": 0,
+      "elapsedMs": 1189.5190000000002,
+      "success": true
+    },
+    {
+      "session": 9,
+      "query": 0,
+      "elapsedMs": 1199.7986250000104,
+      "success": true
+    },
+    {
+      "session": 15,
+      "query": 0,
+      "elapsedMs": 1267.591207999998,
+      "success": true
+    },
+    {
+      "session": 5,
+      "query": 0,
+      "elapsedMs": 1292.437208000003,
+      "success": true
+    },
+    {
+      "session": 7,
+      "query": 0,
+      "elapsedMs": 1293.6386670000065,
+      "success": true
+    },
+    {
+      "session": 21,
+      "query": 0,
+      "elapsedMs": 1281.917207999999,
+      "success": true
+    },
+    {
+      "session": 14,
+      "query": 0,
+      "elapsedMs": 1405.380124999996,
+      "success": true
+    },
+    {
+      "session": 16,
+      "query": 0,
+      "elapsedMs": 1503.1621250000026,
+      "success": true
+    },
+    {
+      "session": 19,
+      "query": 0,
+      "elapsedMs": 1477.9008329999924,
+      "success": true
+    },
+    {
+      "session": 10,
+      "query": 1,
+      "elapsedMs": 582.4994999999908,
+      "success": true
+    },
+    {
+      "session": 22,
+      "query": 1,
+      "elapsedMs": 742.5686249999999,
+      "success": true
+    },
+    {
+      "session": 6,
+      "query": 1,
+      "elapsedMs": 946.2492910000001,
+      "success": true
+    },
+    {
+      "session": 20,
+      "query": 1,
+      "elapsedMs": 907.3600830000069,
+      "success": true
+    },
+    {
+      "session": 17,
+      "query": 1,
+      "elapsedMs": 939.0594160000037,
+      "success": true
+    },
+    {
+      "session": 8,
+      "query": 1,
+      "elapsedMs": 947.6583749999991,
+      "success": true
+    },
+    {
+      "session": 4,
+      "query": 1,
+      "elapsedMs": 992.289374999993,
+      "success": true
+    },
+    {
+      "session": 1,
+      "query": 1,
+      "elapsedMs": 1055.0983340000093,
+      "success": true
+    },
+    {
+      "session": 24,
+      "query": 1,
+      "elapsedMs": 1008.4953329999989,
+      "success": true
+    },
+    {
+      "session": 10,
+      "query": 2,
+      "elapsedMs": 311.71125000000757,
+      "success": true
+    },
+    {
+      "session": 23,
+      "query": 1,
+      "elapsedMs": 1033.1800829999993,
+      "success": true
+    },
+    {
+      "session": 7,
+      "query": 1,
+      "elapsedMs": 753.7827919999982,
+      "success": true
+    },
+    {
+      "session": 13,
+      "query": 2,
+      "elapsedMs": 956.5137079999986,
+      "success": true
+    },
+    {
+      "session": 12,
+      "query": 0,
+      "elapsedMs": 2098.7240420000016,
+      "success": true
+    },
+    {
+      "session": 11,
+      "query": 0,
+      "elapsedMs": 2136.404500000004,
+      "success": true
+    },
+    {
+      "session": 0,
+      "query": 0,
+      "elapsedMs": 2158.04729100001,
+      "success": true
+    },
+    {
+      "session": 2,
+      "query": 0,
+      "elapsedMs": 2157.817458000005,
+      "success": true
+    },
+    {
+      "session": 18,
+      "query": 0,
+      "elapsedMs": 2135.3031670000055,
+      "success": true
+    },
+    {
+      "session": 22,
+      "query": 2,
+      "elapsedMs": 409.34475000000384,
+      "success": true
+    },
+    {
+      "session": 6,
+      "query": 2,
+      "elapsedMs": 469.6009170000034,
+      "success": true
+    },
+    {
+      "session": 10,
+      "query": 3,
+      "elapsedMs": 329.63474999999744,
+      "success": true
+    },
+    {
+      "session": 22,
+      "query": 3,
+      "elapsedMs": 174.15483400000085,
+      "success": true
+    },
+    {
+      "session": 14,
+      "query": 1,
+      "elapsedMs": 1105.77012500001,
+      "success": true
+    },
+    {
+      "session": 9,
+      "query": 1,
+      "elapsedMs": 1359.4544579999929,
+      "success": true
+    },
+    {
+      "session": 3,
+      "query": 1,
+      "elapsedMs": 1394.6270420000073,
+      "success": true
+    },
+    {
+      "session": 5,
+      "query": 1,
+      "elapsedMs": 1309.4073749999952,
+      "success": true
+    },
+    {
+      "session": 13,
+      "query": 3,
+      "elapsedMs": 459.3955419999984,
+      "success": true
+    },
+    {
+      "session": 21,
+      "query": 1,
+      "elapsedMs": 1316.703708000001,
+      "success": true
+    },
+    {
+      "session": 15,
+      "query": 1,
+      "elapsedMs": 1358.2079999999987,
+      "success": true
+    },
+    {
+      "session": 20,
+      "query": 2,
+      "elapsedMs": 792.3870830000087,
+      "success": true
+    },
+    {
+      "session": 6,
+      "query": 3,
+      "elapsedMs": 411.6258749999979,
+      "success": true
+    },
+    {
+      "session": 23,
+      "query": 2,
+      "elapsedMs": 681.7121659999975,
+      "success": true
+    },
+    {
+      "session": 1,
+      "query": 2,
+      "elapsedMs": 719.1230829999986,
+      "success": true
+    },
+    {
+      "session": 18,
+      "query": 1,
+      "elapsedMs": 633.2886660000077,
+      "success": true
+    },
+    {
+      "session": 7,
+      "query": 2,
+      "elapsedMs": 815.2294159999874,
+      "success": true
+    },
+    {
+      "session": 19,
+      "query": 1,
+      "elapsedMs": 1463.699833999999,
+      "success": true
+    },
+    {
+      "session": 4,
+      "query": 2,
+      "elapsedMs": 939.8867089999985,
+      "success": true
+    },
+    {
+      "session": 16,
+      "query": 1,
+      "elapsedMs": 1495.638374999995,
+      "success": true
+    },
+    {
+      "session": 17,
+      "query": 2,
+      "elapsedMs": 1169.940167000008,
+      "success": true
+    },
+    {
+      "session": 14,
+      "query": 2,
+      "elapsedMs": 606.3362079999933,
+      "success": true
+    },
+    {
+      "session": 10,
+      "query": 4,
+      "elapsedMs": 729.4710829999967,
+      "success": true
+    },
+    {
+      "session": 8,
+      "query": 2,
+      "elapsedMs": 1243.4309579999972,
+      "success": true
+    },
+    {
+      "session": 12,
+      "query": 1,
+      "elapsedMs": 1047.3747500000027,
+      "success": true
+    },
+    {
+      "session": 11,
+      "query": 1,
+      "elapsedMs": 1102.5148330000084,
+      "success": true
+    },
+    {
+      "session": 5,
+      "query": 2,
+      "elapsedMs": 636.591207999998,
+      "success": true
+    },
+    {
+      "session": 7,
+      "query": 3,
+      "elapsedMs": 316.55666600000404,
+      "success": true
+    },
+    {
+      "session": 21,
+      "query": 2,
+      "elapsedMs": 669.7826250000071,
+      "success": true
+    },
+    {
+      "session": 9,
+      "query": 2,
+      "elapsedMs": 800.7271670000046,
+      "success": true
+    },
+    {
+      "session": 4,
+      "query": 3,
+      "elapsedMs": 430.6722919999884,
+      "success": true
+    },
+    {
+      "session": 23,
+      "query": 3,
+      "elapsedMs": 580.2203749999899,
+      "success": true
+    },
+    {
+      "session": 3,
+      "query": 2,
+      "elapsedMs": 875.7037910000072,
+      "success": true
+    },
+    {
+      "session": 14,
+      "query": 3,
+      "elapsedMs": 408.34708300000057,
+      "success": true
+    },
+    {
+      "session": 17,
+      "query": 3,
+      "elapsedMs": 436.0874999999942,
+      "success": true
+    },
+    {
+      "session": 8,
+      "query": 3,
+      "elapsedMs": 383.81420799999614,
+      "success": true
+    },
+    {
+      "session": 20,
+      "query": 3,
+      "elapsedMs": 847.0044589999889,
+      "success": true
+    },
+    {
+      "session": 1,
+      "query": 3,
+      "elapsedMs": 794.1888340000005,
+      "success": true
+    },
+    {
+      "session": 16,
+      "query": 2,
+      "elapsedMs": 631.508290999991,
+      "success": true
+    },
+    {
+      "session": 24,
+      "query": 2,
+      "elapsedMs": 1612.7640000000101,
+      "success": true
+    },
+    {
+      "session": 15,
+      "query": 2,
+      "elapsedMs": 1015.786791999999,
+      "success": true
+    },
+    {
+      "session": 0,
+      "query": 1,
+      "elapsedMs": 1578.0010840000032,
+      "success": true
+    },
+    {
+      "session": 22,
+      "query": 4,
+      "elapsedMs": 1362.9720420000085,
+      "success": true
+    },
+    {
+      "session": 21,
+      "query": 3,
+      "elapsedMs": 303.15716599998996,
+      "success": true
+    },
+    {
+      "session": 3,
+      "query": 3,
+      "elapsedMs": 292.08841699999175,
+      "success": true
+    },
+    {
+      "session": 10,
+      "query": 5,
+      "elapsedMs": 694.5139169999893,
+      "success": true
+    },
+    {
+      "session": 5,
+      "query": 3,
+      "elapsedMs": 577.9719170000026,
+      "success": true
+    },
+    {
+      "session": 18,
+      "query": 2,
+      "elapsedMs": 1058.292207999999,
+      "success": true
+    },
+    {
+      "session": 9,
+      "query": 3,
+      "elapsedMs": 530.5274589999899,
+      "success": true
+    },
+    {
+      "session": 12,
+      "query": 2,
+      "elapsedMs": 825.5163330000069,
+      "success": true
+    },
+    {
+      "session": 13,
+      "query": 4,
+      "elapsedMs": 1582.1550410000054,
+      "success": true
+    },
+    {
+      "session": 16,
+      "query": 3,
+      "elapsedMs": 489.69495799999277,
+      "success": true
+    },
+    {
+      "session": 2,
+      "query": 1,
+      "elapsedMs": 2135.3645419999957,
+      "success": true
+    },
+    {
+      "session": 15,
+      "query": 3,
+      "elapsedMs": 486.53333399999246,
+      "success": true
+    },
+    {
+      "session": 24,
+      "query": 3,
+      "elapsedMs": 545.691708000013,
+      "success": true
+    },
+    {
+      "session": 19,
+      "query": 2,
+      "elapsedMs": 1361.7618329999968,
+      "success": true
+    },
+    {
+      "session": 20,
+      "query": 4,
+      "elapsedMs": 618.2955000000075,
+      "success": true
+    },
+    {
+      "session": 18,
+      "query": 3,
+      "elapsedMs": 414.2375839999877,
+      "success": true
+    },
+    {
+      "session": 11,
+      "query": 2,
+      "elapsedMs": 1062.624416000006,
+      "success": true
+    },
+    {
+      "session": 0,
+      "query": 2,
+      "elapsedMs": 684.6023750000022,
+      "success": true
+    },
+    {
+      "session": 23,
+      "query": 4,
+      "elapsedMs": 915.6100000000006,
+      "success": true
+    },
+    {
+      "session": 4,
+      "query": 4,
+      "elapsedMs": 1054.9049579999992,
+      "success": true
+    },
+    {
+      "session": 14,
+      "query": 4,
+      "elapsedMs": 953.2852500000008,
+      "success": true
+    },
+    {
+      "session": 12,
+      "query": 3,
+      "elapsedMs": 576.4412080000038,
+      "success": true
+    },
+    {
+      "session": 9,
+      "query": 4,
+      "elapsedMs": 596.6673750000045,
+      "success": true
+    },
+    {
+      "session": 17,
+      "query": 4,
+      "elapsedMs": 1039.2581659999996,
+      "success": true
+    },
+    {
+      "session": 11,
+      "query": 3,
+      "elapsedMs": 385.9608339999977,
+      "success": true
+    },
+    {
+      "session": 1,
+      "query": 4,
+      "elapsedMs": 1099.658374999999,
+      "success": true
+    },
+    {
+      "session": 21,
+      "query": 4,
+      "elapsedMs": 1001.8964169999963,
+      "success": true
+    },
+    {
+      "session": 19,
+      "query": 3,
+      "elapsedMs": 494.9091250000056,
+      "success": true
+    },
+    {
+      "session": 22,
+      "query": 5,
+      "elapsedMs": 1056.132541999992,
+      "success": true
+    },
+    {
+      "session": 6,
+      "query": 4,
+      "elapsedMs": 2144.313790999993,
+      "success": true
+    },
+    {
+      "session": 3,
+      "query": 4,
+      "elapsedMs": 1078.5790419999976,
+      "success": true
+    },
+    {
+      "session": 0,
+      "query": 3,
+      "elapsedMs": 520.0252089999994,
+      "success": true
+    },
+    {
+      "session": 24,
+      "query": 4,
+      "elapsedMs": 698.3403749999998,
+      "success": true
+    },
+    {
+      "session": 10,
+      "query": 6,
+      "elapsedMs": 1163.4890000000014,
+      "success": true
+    },
+    {
+      "session": 7,
+      "query": 4,
+      "elapsedMs": 1715.7888329999987,
+      "success": true
+    },
+    {
+      "session": 8,
+      "query": 4,
+      "elapsedMs": 1529.096875000003,
+      "success": true
+    },
+    {
+      "session": 18,
+      "query": 4,
+      "elapsedMs": 844.6840419999935,
+      "success": true
+    },
+    {
+      "session": 4,
+      "query": 5,
+      "elapsedMs": 713.8982909999904,
+      "success": true
+    },
+    {
+      "session": 2,
+      "query": 2,
+      "elapsedMs": 1060.2933329999942,
+      "success": true
+    },
+    {
+      "session": 5,
+      "query": 4,
+      "elapsedMs": 1448.4779580000031,
+      "success": true
+    },
+    {
+      "session": 6,
+      "query": 5,
+      "elapsedMs": 538.1464580000029,
+      "success": true
+    },
+    {
+      "session": 10,
+      "query": 7,
+      "elapsedMs": 452.2446249999921,
+      "success": true
+    },
+    {
+      "session": 4,
+      "query": 6,
+      "elapsedMs": 309.53016700000444,
+      "success": true
+    },
+    {
+      "session": 13,
+      "query": 5,
+      "elapsedMs": 1464.1067909999983,
+      "success": true
+    },
+    {
+      "session": 2,
+      "query": 3,
+      "elapsedMs": 342.68237500000396,
+      "success": true
+    },
+    {
+      "session": 16,
+      "query": 4,
+      "elapsedMs": 1449.132832999996,
+      "success": true
+    },
+    {
+      "session": 11,
+      "query": 4,
+      "elapsedMs": 895.835957999996,
+      "success": true
+    },
+    {
+      "session": 20,
+      "query": 5,
+      "elapsedMs": 1375.2179170000018,
+      "success": true
+    },
+    {
+      "session": 22,
+      "query": 6,
+      "elapsedMs": 882.3975000000064,
+      "success": true
+    },
+    {
+      "session": 17,
+      "query": 5,
+      "elapsedMs": 1179.9422090000007,
+      "success": true
+    },
+    {
+      "session": 24,
+      "query": 5,
+      "elapsedMs": 818.5612079999992,
+      "success": true
+    },
+    {
+      "session": 0,
+      "query": 4,
+      "elapsedMs": 881.538625000001,
+      "success": true
+    },
+    {
+      "session": 14,
+      "query": 5,
+      "elapsedMs": 1304.803792000006,
+      "success": true
+    },
+    {
+      "session": 8,
+      "query": 5,
+      "elapsedMs": 775.4773749999877,
+      "success": true
+    },
+    {
+      "session": 12,
+      "query": 4,
+      "elapsedMs": 1354.0722499999974,
+      "success": true
+    },
+    {
+      "session": 9,
+      "query": 5,
+      "elapsedMs": 1392.3075830000016,
+      "success": true
+    },
+    {
+      "session": 19,
+      "query": 4,
+      "elapsedMs": 1163.1419580000074,
+      "success": true
+    },
+    {
+      "session": 4,
+      "query": 7,
+      "elapsedMs": 490.747166000001,
+      "success": true
+    },
+    {
+      "session": 15,
+      "query": 4,
+      "elapsedMs": 1830.4685420000023,
+      "success": true
+    },
+    {
+      "session": 22,
+      "query": 7,
+      "elapsedMs": 388.22187499998836,
+      "success": true
+    },
+    {
+      "session": 21,
+      "query": 5,
+      "elapsedMs": 1327.5222499999945,
+      "success": true
+    },
+    {
+      "session": 7,
+      "query": 5,
+      "elapsedMs": 1081.539625000005,
+      "success": true
+    },
+    {
+      "session": 24,
+      "query": 6,
+      "elapsedMs": 394.364459000004,
+      "success": true
+    },
+    {
+      "session": 23,
+      "query": 5,
+      "elapsedMs": 1806.9684999999881,
+      "success": true
+    },
+    {
+      "session": 3,
+      "query": 5,
+      "elapsedMs": 1343.1595830000006,
+      "success": true
+    },
+    {
+      "session": 6,
+      "query": 6,
+      "elapsedMs": 832.2060840000049,
+      "success": true
+    },
+    {
+      "session": 20,
+      "query": 6,
+      "elapsedMs": 618.2734169999894,
+      "success": true
+    },
+    {
+      "session": 18,
+      "query": 5,
+      "elapsedMs": 1154.333083000005,
+      "success": true
+    },
+    {
+      "session": 1,
+      "query": 5,
+      "elapsedMs": 1612.3816669999942,
+      "success": true
+    },
+    {
+      "session": 13,
+      "query": 6,
+      "elapsedMs": 829.6864169999899,
+      "success": true
+    },
+    {
+      "session": 2,
+      "query": 4,
+      "elapsedMs": 852.6526250000024,
+      "success": true
+    },
+    {
+      "session": 17,
+      "query": 6,
+      "elapsedMs": 755.8252079999947,
+      "success": true
+    },
+    {
+      "session": 24,
+      "query": 7,
+      "elapsedMs": 313.2059169999993,
+      "success": true
+    },
+    {
+      "session": 16,
+      "query": 5,
+      "elapsedMs": 935.8875000000116,
+      "success": true
+    },
+    {
+      "session": 8,
+      "query": 6,
+      "elapsedMs": 684.5168750000012,
+      "success": true
+    },
+    {
+      "session": 13,
+      "query": 7,
+      "elapsedMs": 241.2755840000027,
+      "success": true
+    },
+    {
+      "session": 20,
+      "query": 7,
+      "elapsedMs": 403.87629200000083,
+      "success": true
+    },
+    {
+      "session": 14,
+      "query": 6,
+      "elapsedMs": 865.3739999999962,
+      "success": true
+    },
+    {
+      "session": 9,
+      "query": 6,
+      "elapsedMs": 748.8199579999928,
+      "success": true
+    },
+    {
+      "session": 6,
+      "query": 7,
+      "elapsedMs": 520.1749580000032,
+      "success": true
+    },
+    {
+      "session": 21,
+      "query": 6,
+      "elapsedMs": 727.7600419999944,
+      "success": true
+    },
+    {
+      "session": 11,
+      "query": 5,
+      "elapsedMs": 1218.6022079999966,
+      "success": true
+    },
+    {
+      "session": 1,
+      "query": 6,
+      "elapsedMs": 498.8662500000064,
+      "success": true
+    },
+    {
+      "session": 17,
+      "query": 7,
+      "elapsedMs": 302.25212499999907,
+      "success": true
+    },
+    {
+      "session": 8,
+      "query": 7,
+      "elapsedMs": 356.127542000002,
+      "success": true
+    },
+    {
+      "session": 5,
+      "query": 5,
+      "elapsedMs": 1676.5705829999933,
+      "success": true
+    },
+    {
+      "session": 0,
+      "query": 5,
+      "elapsedMs": 1144.2311249999912,
+      "success": true
+    },
+    {
+      "session": 3,
+      "query": 6,
+      "elapsedMs": 730.364625000002,
+      "success": true
+    },
+    {
+      "session": 7,
+      "query": 6,
+      "elapsedMs": 875.653083000012,
+      "success": true
+    },
+    {
+      "session": 15,
+      "query": 5,
+      "elapsedMs": 984.1162080000067,
+      "success": true
+    },
+    {
+      "session": 23,
+      "query": 6,
+      "elapsedMs": 801.3615409999911,
+      "success": true
+    },
+    {
+      "session": 19,
+      "query": 5,
+      "elapsedMs": 1077.2835420000047,
+      "success": true
+    },
+    {
+      "session": 16,
+      "query": 6,
+      "elapsedMs": 562.1607090000034,
+      "success": true
+    },
+    {
+      "session": 14,
+      "query": 7,
+      "elapsedMs": 396.93745800000033,
+      "success": true
+    },
+    {
+      "session": 9,
+      "query": 7,
+      "elapsedMs": 366.67566700000316,
+      "success": true
+    },
+    {
+      "session": 18,
+      "query": 6,
+      "elapsedMs": 827.2727910000103,
+      "success": true
+    },
+    {
+      "session": 2,
+      "query": 5,
+      "elapsedMs": 775.7969579999917,
+      "success": true
+    },
+    {
+      "session": 12,
+      "query": 5,
+      "elapsedMs": 1253.7036670000089,
+      "success": true
+    },
+    {
+      "session": 21,
+      "query": 7,
+      "elapsedMs": 377.7035409999953,
+      "success": true
+    },
+    {
+      "session": 1,
+      "query": 7,
+      "elapsedMs": 339.7212500000023,
+      "success": true
+    },
+    {
+      "session": 11,
+      "query": 6,
+      "elapsedMs": 362.67708299998776,
+      "success": true
+    },
+    {
+      "session": 3,
+      "query": 7,
+      "elapsedMs": 315.27579099999275,
+      "success": true
+    },
+    {
+      "session": 7,
+      "query": 7,
+      "elapsedMs": 300.7065419999999,
+      "success": true
+    },
+    {
+      "session": 23,
+      "query": 7,
+      "elapsedMs": 297.6156659999979,
+      "success": true
+    },
+    {
+      "session": 19,
+      "query": 6,
+      "elapsedMs": 301.9705419999955,
+      "success": true
+    },
+    {
+      "session": 0,
+      "query": 6,
+      "elapsedMs": 444.58283400000073,
+      "success": true
+    },
+    {
+      "session": 18,
+      "query": 7,
+      "elapsedMs": 285.6260420000035,
+      "success": true
+    },
+    {
+      "session": 16,
+      "query": 7,
+      "elapsedMs": 324.4200420000125,
+      "success": true
+    },
+    {
+      "session": 5,
+      "query": 6,
+      "elapsedMs": 477.85854200000176,
+      "success": true
+    },
+    {
+      "session": 15,
+      "query": 6,
+      "elapsedMs": 461.2505830000009,
+      "success": true
+    },
+    {
+      "session": 2,
+      "query": 6,
+      "elapsedMs": 286.75408400000015,
+      "success": true
+    },
+    {
+      "session": 11,
+      "query": 7,
+      "elapsedMs": 274.49679200000537,
+      "success": true
+    },
+    {
+      "session": 12,
+      "query": 6,
+      "elapsedMs": 378.3462499999878,
+      "success": true
+    },
+    {
+      "session": 0,
+      "query": 7,
+      "elapsedMs": 151.07624999999825,
+      "success": true
+    },
+    {
+      "session": 5,
+      "query": 7,
+      "elapsedMs": 147.1727499999979,
+      "success": true
+    },
+    {
+      "session": 19,
+      "query": 7,
+      "elapsedMs": 204.7141249999986,
+      "success": true
+    },
+    {
+      "session": 15,
+      "query": 7,
+      "elapsedMs": 155.7732079999987,
+      "success": true
+    },
+    {
+      "session": 2,
+      "query": 7,
+      "elapsedMs": 171.95554199999606,
+      "success": true
+    },
+    {
+      "session": 12,
+      "query": 7,
+      "elapsedMs": 109.76716699999815,
+      "success": true
+    }
+  ]
+}

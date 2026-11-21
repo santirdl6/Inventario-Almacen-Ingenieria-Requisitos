@@ -9,7 +9,9 @@ Modelo de diseño; no contiene migraciones ni afirma que las tablas ya existan.
   NOT NULL; cadenas con longitud limitada y espacios extremos eliminados.
 - Cantidades decimal(18,3), precios decimal(18,2), moneda única configurada en el almacén.
   Cada artículo define unidad base y si admite fracciones; no se permiten conversiones
-  implícitas. Cambiar unidad o modo de seguimiento con historial queda prohibido.
+  implícitas. La unidad base, el seguimiento por lote y la admisión de fracciones solo
+  pueden cambiarse si el artículo no tiene documentos, reservas ni movimientos asociados;
+  la primera referencia, incluso en un documento en borrador, bloquea los tres campos.
 - Fechas datetimeoffset en UTC; distinguir OccurredAt (hecho) y RecordedAt (registro
   del servidor). ActorId se obtiene de Identity; nunca del cuerpo HTTP.
 - rowversion en agregados editables y saldos. Es token opaco de concurrencia, no una fecha.
@@ -37,16 +39,48 @@ No se borra si tiene documentos referenciados; sus cambios no reescriben las ins
 
 ### Article
 
-Id, Sku único, Name, FamilyId, BaseUnit, AllowsFractional, TracksLot, IsActive, Version.
+Id, Sku único, Name, FamilyId, BaseUnit, AllowsFractional, TracksLot, IsActive,
+IsDefinitionLocked, Version.
 Crear el artículo crea su StockPolicy con mínimo cero, para que GET/PUT tenga versión inicial.
 No se elimina con historial de stock; tampoco con documentos o reservas referenciados.
 La desactivación conserva todos los enlaces y se audita. Reglas de operaciones pendientes
 en R-05; el backend comprueba el estado bajo el bloqueo compartido de artículo.
 
+Concreción de diseño HU-08: IsDefinitionLocked parte de false y se fija a true junto con
+la primera referencia documental, reserva o movimiento, incluso en borrador. Es monotónica:
+retirar una línea no restablece false. La edición de unidad/lotes/fracciones exige marca
+false y ausencia de referencias reales; la marca sola no impide el borrado si ya no hay
+referencias ni historial. Todos los escritores de referencias participan bajo el mismo
+bloqueo y transacción. Esta columna se añadió a la misma Article en el corte HU-08 H1
+del 2026-11-17, junto con familia obligatoria y política cero. La integración de los
+escritores documentales/stock futuros sigue pendiente; evidencia en
+[US2](../../../specs/002-gestionar-datos-maestros/validation/us2.md).
+
+**Base técnica H0 A → B (2026-11-12)**: implementados `Article` y tabla `Articles` con
+Id, Sku, Name, BaseUnit, AllowsFractional, TracksLot, IsActive y Version. La migración
+`20261112105657_H0ArticleReference` no crea todavía FamilyId ni StockPolicy; la asociación
+obligatoria a familia y el mínimo inicial cero siguen siendo requisitos de las altas
+de HU-08. No hay endpoint de alta provisional ni seed de artículos de negocio.
+Al añadir la familia, HU-08 deberá asignar explícitamente una familia válida a cualquier
+referencia H0 existente antes de exigir el campo, sin borrar ni sustituir artículos.
+
+En esta base, Id se genera en la aplicación. Sku admite 64 caracteres, Name 200 y BaseUnit
+32; se eliminan espacios extremos y Sku/BaseUnit se convierten a mayúsculas. El índice
+único de Sku usa comparación SQL sin distinguir mayúsculas; campos obligatorios no vacíos
+y rowversion se comprueban también en SQL. B referencia `Articles.Id` desde Lot,
+StockBalance y StockEntry con borrado restringido; no duplica Article ni aplaza sus claves
+foráneas. La revisión cruzada de esta preparación se registra antes de integrar los cambios.
+
 ### MasterDataAudit
 
 Id, EntityType, EntityId, Action, Before, After, ActorId, RecordedAt, OperationId.
 Registro append-only para altas, modificaciones y desactivaciones. No guarda secretos.
+
+HU-08 concreta acciones Create/Update/Deactivate/Reactivate/Delete; Before/After son JSON,
+nulos según la acción. EntityId no tiene FK al maestro, para conservar evidencia de un
+borrado permitido; ActorId y OperationId tienen referencias restrictivas a Identity y al
+resultado común. El rol SQL de ejecución no puede UPDATE/DELETE sobre la auditoría.
+EntityType admite Family, Supplier, Article y Location, con el mismo escritor append-only.
 
 ## Dimensiones y existencias — Persona B / HU-02, HU-05
 
@@ -54,8 +88,22 @@ Registro append-only para altas, modificaciones y desactivaciones. No guarda sec
 
 Id, Code único, Aisle, Rack, Level, Kind (Storage o Receiving), IsActive, Version.
 Pasillo/estantería/nivel obligatorios incluso para una ubicación temporal identificada.
+La combinación Aisle/Rack/Level normalizada es única, incluidas inactivas. Code y partes
+solo admiten A–Z, 0–9 y guion en mayúsculas, con CHECK binario. Code/Aisle/Rack/Level
+quedan bloqueados desde el primer movimiento; Kind solo cambia vacía y sin reservas
+ni conteo abierto. No puede retirarse la última Receiving activa. HU-02 no ofrece DELETE.
 No se desactiva con stock, reservas o un conteo abierto. No se borra con historial.
 Un artículo puede aparecer en cualquier número de ubicaciones.
+
+**Base técnica H0 B (2026-11-18)**: `Domain.Locations.Location` y tabla `Locations` con
+todos los campos anteriores; Code (32) único sin distinguir mayúsculas, partes de 16
+caracteres normalizadas a mayúsculas. Sin endpoints ni reglas de desactivación: HU-02.
+Lot, StockBalance y StockMovement/StockEntry se crean en `20261118194940_H0_StockCore`,
+después de `HU08Suppliers` y sobre la base común de A: no hay otra tabla de resultados.
+`StockMovements.OperationId` tiene FK restrictiva a `OperationResults` y ActorId a
+AspNetUsers. El rol `inventory_runtime` no tiene UPDATE/DELETE sobre StockMovements y
+StockEntries, ni DELETE sobre StockBalances (aprobado por A): un saldo nunca se borra, de
+modo que tener saldo equivale a tener historial.
 
 ### Lot
 
@@ -101,6 +149,16 @@ El comando de envío guarda la instantánea del documento y el outbox atómicame
 SMTP no se ejecuta dentro de la transacción. Correcciones posteriores a una recepción
 deben recalcular estado y pendientes bajo el bloqueo del pedido; no se elimina la recepción.
 
+Concreción de diseño HU-07 (2026-11-20, revisión A+B pendiente): fechas previstas son
+fechas civiles SQL date; instantes de hechos/registro siguen UTC. Currency única se
+captura en el pedido. Las líneas tienen UUID estable independiente de ArticleId y pueden
+repetir artículo. Snapshots solo cambian por reasignación explícita mientras Draft/None.
+Cada cambio de líneas/acumulados/estado representado toca la cabecera para avanzar su
+rowversion; HU-01 debe conservar esa propiedad al confirmar/corregir recepciones.
+PurchaseOrderLine aporta contributor real de uso/primer enlace HU-08. Mappings, auditoría
+de compras y reglas particulares en el
+[modelo HU-07](../../../specs/007-gestionar-pedidos-proveedores/data-model.md).
+
 ### Receipt, ReceiptLine y ReceiptAllocation
 
 Cabecera: Id, PurchaseOrderId, SupplierDocumentReference opcional, State
@@ -126,6 +184,13 @@ State (Open/Fulfilled/Cancelled), Version; líneas con Id, CustomerOrderId, Arti
 OrderedQuantity > 0 y ShippedQuantity entre cero y lo pedido.
 No incluye precios comerciales, facturación ni integración ERP automática.
 Su alta mínima controlada permite vincular y probar las salidas de las historias.
+
+Responsabilidad revisada A+B, 2026-11-19: HU-05 implementa el alta y consulta de este
+pedido junto con reservar/liberar; HU-03 consume las mismas entidades para salidas y
+actualiza ShippedQuantity y el estado derivado en su confirmación atómica. No se crea
+un segundo pedido ni se cambian los estados/identidades por adelantar el soporte a H2.
+Editar/cancelar pedidos no forma parte del alta/consulta mínima de la entrega HU-05;
+Cancelled se conserva en el modelo para evolución posterior.
 
 ### Reservation y ReservationAllocation
 
@@ -186,7 +251,16 @@ Movimiento: Id, Kind (Receipt/Shipment/Adjustment/Reservation/Release/Correction
 SourceDocumentType, SourceDocumentId, OriginalMovementId opcional, Reason,
 ActorId, OccurredAt, RecordedAt, OperationId, SupportReference opcional,
 SupportNotApplicableReason cuando no existe soporte externo, CounterpartyReference
-o explicación de no aplicabilidad.
+o CounterpartyNotApplicableReason cuando no hay contraparte externa.
+
+Concreción de cierre HU-08: CounterpartyNotApplicableReason es nvarchar(500) nullable;
+los comandos normalizan vacíos a null y exigen referencia o motivo para movimientos nuevos.
+La migración aditiva `20261119171332_HU08MovementCounterparty` conserva las filas
+confirmadas sin actualizarlas: la CHECK se añade WITH NOCHECK para no validar retroactivamente
+hechos anteriores sin ese dato, pero queda habilitada para todas las inserciones nuevas.
+La ausencia histórica se presenta como «Contraparte no registrada», nunca como un motivo
+inventado. DENY UPDATE/DELETE sigue vigente. La revisión de esta concreción se registra
+en COORD-01 del backlog de integración antes de integrar/fusionar.
 
 Entrada: Id, MovementId, ArticleId, LocationId, LotId, Quantity > 0,
 BaseUnitSnapshot, Effect, PhysicalDelta, ReservedDelta.
@@ -214,10 +288,17 @@ conserva el histórico reservado reconstruible.
 
 ### OperationResult
 
-OperationId UUID único, ActorId, RequestHash, Method, Resource, ResultStatus,
-ResultBody, SourceDocumentId, RecordedAt. Solo se persiste junto a un commit exitoso.
+OperationId UUID único, ActorId, RequestHash, Method, Resource, RequiredPermission,
+ResultStatus, ResultBody, ResultHeaders, SourceDocumentId, RecordedAt. Solo se persiste junto a un commit exitoso.
 No se purga en la base inicial. La consulta requiere autorización sobre el recurso original.
 La ausencia de fila no prueba por sí sola un fallo: una transacción puede seguir ejecutándose.
+
+OperationId coincide con Idempotency-Key. ResultBody admite null —por ejemplo DELETE 204—;
+ResultHeaders conserva JSON con ETag/Location reproducibles, nunca cookies ni tokens.
+RequiredPermission permite reautorizar la consulta aun cuando el recurso ya se eliminó.
+SourceDocumentId es referencia histórica sin FK que impida ese borrado. Resolver replay
+antes de cargar el recurso o evaluar If-Match, devolviendo el resultado histórico guardado.
+Los resultados confirmados son append-only también para el usuario SQL de ejecución.
 
 ### ContingencyReference
 
@@ -248,6 +329,17 @@ LastError, CreatedAt, SentAt. Unicidad de intención por pedido y versión de en
 Worker reclama con lease para recuperación tras caída; nunca guarda credenciales en Payload.
 Entrega al menos una vez; tras aceptación SMTP puede repetirse si se pierde el acuse local.
 
+Concreción HU-07: una PurchaseOrderDelivery inmutable por pedido en este alcance conserva
+payload/documento/MIME, destinatario/remitente, MessageId y autorización originales;
+OutboxMessage la referencia 1:1 y mantiene autoridad activa, ciclo/contadores, owner,
+generación de lease e incertidumbre. Retry manual crea otra OperationResult pero conserva
+Delivery/MessageId/documento. PurchaseOrderAudit y PurchaseDeliveryEvent son append-only;
+Delivery también deniega UPDATE/DELETE al rol runtime. No modificar OperationResult para
+reflejar progreso. El [modelo local](../../../specs/007-gestionar-pedidos-proveedores/data-model.md)
+detalla FK/constraints y evolución aditiva implementadas localmente mediante
+`20261120111422_HU07PurchasingOutbox`; evidencia de migración en
+[foundation](../../../specs/007-gestionar-pedidos-proveedores/validation/foundation.md), revisión A+B pendiente.
+
 ## Identidad y permisos — común
 
 Tablas de ASP.NET Core Identity con claves Guid; roles Operario, ResponsableAlmacen,
@@ -255,9 +347,29 @@ Comprador, GestorMaestros y Administrador. Políticas por operación, no autoriz
 basada únicamente en esconder botones. Usuarios históricos no se borran si son actores
 referenciados; se deshabilita su acceso. Permisos y errores en [API](contracts/api.md).
 
+H0 implementa `ApplicationUser`, `IdentityRole<Guid>` y las tablas estándar AspNetUsers,
+AspNetRoles, AspNetUserRoles, AspNetUserClaims, AspNetRoleClaims, AspNetUserLogins y
+AspNetUserTokens. La migración `H0Identity` amplía la migración inicial sin modificarla.
+Correo único validado por Identity, contraseñas hasheadas y bloqueo de acceso tras fallos.
+Roles y cuenta administrativa se siembran de forma repetible durante la inicialización.
+Las policies derivan los permisos del catálogo de roles en servidor, sin tabla de permisos
+adicional. No hay altas, borrados o cambios de roles públicos en esta base.
+
+`ICurrentActor` ofrece `Task<Guid> GetRequiredActorIdAsync(CancellationToken)` desde Domain.
+La implementación Identity comprueba sesión autenticada, claim de identidad Guid no vacío
+y usuario existente. Sin contexto HTTP o usuario válido lanza `UnauthenticatedActorException`;
+el transporte HTTP lo convierte en 401 con code `Unauthenticated`. ActorId nunca se toma
+del cuerpo del comando. Los fixtures pueden sustituir la interfaz; si hay claves foráneas
+a usuarios, el actor de pruebas debe existir en Identity.
+
 ## Evolución y conciliación
 
 Una cadena de migraciones compartida, con índices/constraints incluidos. No hay cambios
 de esquema automáticos al arrancar producción. Consultas de conciliación comparan diario,
 saldos, reservas, recibidos y expedidos; una diferencia bloquea la aceptación y se resuelve
 con investigación y corrección trazable, nunca mediante UPDATE manual del saldo.
+
+Las migraciones preparan el rol estable `inventory_runtime`; el bootstrap añade al usuario
+de ejecución después de crearlo. DENY UPDATE/DELETE de tabla sobre diario, auditoría y
+resultados confirmados se aplica al rol, sin embeber el nombre configurable de un login.
+Esta extensión de diseño se integra con B; no afirma que el rol ya exista en H0.
