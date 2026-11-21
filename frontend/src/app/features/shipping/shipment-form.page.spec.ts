@@ -143,6 +143,19 @@ describe('ShipmentFormPage · preparar y editar el borrador', () => {
     expect(httpMock().expectOne(`/api/v1/shipments/${SHIPMENT}`).request.headers.get('If-Match')).toBe('"s2"');
   });
 
+  it('guardar con un 409 CustomerOrderNotOpen muestra el motivo y recarga sin perder lo escrito (Convergence C4)', async () => {
+    const { fixture, root } = await renderExisting();
+    type(root, '[data-testid="shipment-line"] input', '5');
+    click(root, '[data-testid="save"]');
+    await settle(fixture);
+    flushProblem(httpMock().expectOne(`/api/v1/shipments/${SHIPMENT}`), 409, 'CustomerOrderNotOpen',
+      'El pedido PED-0042 no está abierto: no admite nuevas salidas.');
+    await settle(fixture);
+    await flushExisting(fixture, shipment(), '"s2"');
+    expect(text(root.querySelector('[role="alert"]'))).toBe('El pedido PED-0042 no está abierto: no admite nuevas salidas.');
+    expect(root.querySelector<HTMLInputElement>('[data-testid="shipment-line"] input')!.value).toBe('5');
+  });
+
   it('eliminar pide confirmación, envía DELETE con If-Match y vuelve al pedido con el aviso', async () => {
     const { fixture, root } = await renderExisting();
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);

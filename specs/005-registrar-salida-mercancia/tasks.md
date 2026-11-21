@@ -748,6 +748,24 @@ Tareas `C1…`, fuera de la numeración T001–T018 (siguen siendo 18 tareas).
     Tornillo', …(1) ]».
   - Verde: specs de `/salidas` 36/36.
 
+- [X] C4 [G4 de converge-1] Ante los 409 `CustomerOrderNotOpen`, `CountScopeFrozen` y
+  `DocumentAlreadyConfirmed`, mostrar el motivo y recargar salida, contexto y pedido, como en el 412
+  (shipping-ui § Resultados). G3 queda como límite aceptado (converge-1).
+
+  **Hecho (2026-11-21)**:
+  - `ShipmentFormPage.fail()`: esos tres códigos muestran el `detail` y llaman a `load(false)`, que
+    relee salida, contexto y pedido sin perder las cantidades escritas. El foco va al aviso.
+  - Una salida que otra sesión ya confirmó pasa a solo lectura, con su operación.
+  - Vale para guardar, eliminar y confirmar; el 412 y los 409 de `ReservedStockConflict` e
+    `InsufficientStock` no cambian.
+  - Pruebas:
+    - `shipment-confirm.page.spec.ts`: una por código al confirmar (motivo, foco y relectura; con
+      `DocumentAlreadyConfirmed`, solo lectura con la operación).
+    - `shipment-form.page.spec.ts`: guardar con `CustomerOrderNotOpen` conserva lo escrito.
+  - Rojo: las cuatro fallaban porque no se releía, «Expected one matching request for criteria
+    "Match URL: /api/v1/shipments/3000…0003", found none».
+  - Verde: specs de `/salidas` 40/40.
+
 ---
 
 ## Si hay tiempo (fuera de las 18 tareas, en este orden)

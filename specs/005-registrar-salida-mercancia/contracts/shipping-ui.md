@@ -75,7 +75,7 @@ Diálogo accesible (`cdkTrapFocus`, Escape cierra, foco vuelve al botón):
 | 422 | Errores por campo y por línea; foco al primer `aria-invalid`; datos conservados. |
 | 409 `InsufficientStock` | Aviso con el `detail` (físico, disponible, cantidad posible) junto a la línea; foco al aviso. **Construido**: el aviso va arriba de la página (G3, límite aceptado en converge-1). El `detail` da la cantidad posible desde Convergence C2 (G1). |
 | 409 `ReservedStockConflict` | Aviso «Antes de servir desde otro origen hay que liberar {cantidad} reservadas de la línea {SKU}. Pídelo a un responsable del almacén» con enlace al pedido en `/existencias/pedidos/:id`. |
-| 409 `CustomerOrderNotOpen` / `CountScopeFrozen` / `DocumentAlreadyConfirmed` | Aviso con el motivo; recarga del estado actual. **Construido**: aviso con el motivo y foco, sin recargar (converge-1 G4). |
+| 409 `CustomerOrderNotOpen` / `CountScopeFrozen` / `DocumentAlreadyConfirmed` | Aviso con el motivo; recarga del estado actual. **Construido** (Convergence C4, G4): motivo con foco y relectura de salida, contexto y pedido sin perder lo escrito. Con `DocumentAlreadyConfirmed`, la vista pasa a solo lectura. |
 | 412 | «Los datos cambiaron desde que los revisaste»: recarga salida, pedido y revisión sin perder las cantidades escritas del borrador en edición. |
 | Respuesta perdida | Estado 7 de ui.md con `OperationStatusComponent`: «Resultado pendiente de comprobar», «Comprobar», «Repetir la misma intención» y «Abrir salida» (`appRoute`). |
 

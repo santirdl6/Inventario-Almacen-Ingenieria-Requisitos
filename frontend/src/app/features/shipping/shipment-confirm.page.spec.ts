@@ -88,6 +88,30 @@ describe('ShipmentFormPage · revisar, confirmar y recuperar', () => {
       .toBe(`/existencias/pedidos/${ORDER}`);
   });
 
+  // Convergence C4 (G4; shipping-ui § Resultados): los 409 de estado muestran el motivo y vuelven a
+  // leer salida, contexto y pedido, como el 412.
+  for (const [code, detail] of [
+    ['CustomerOrderNotOpen', 'El pedido PED-0042 no está abierto: no admite nuevas salidas.'],
+    ['CountScopeFrozen', 'Una ubicación de origen está en un conteo abierto. Espera a que termine.'],
+    ['DocumentAlreadyConfirmed', 'La salida ya está confirmada.']
+  ] as const) {
+    it(`un 409 ${code} muestra el motivo y recarga la salida y el pedido`, async () => {
+      const { fixture, root } = await render();
+      flushProblem(await openReviewAndConfirm(fixture, root), 409, code, detail);
+      await settle(fixture);
+      const confirmed = code === 'DocumentAlreadyConfirmed';
+      await flushExisting(fixture, confirmed ? shipment('Confirmed', '2.000', 'op-otra') : shipment(), '"s4"',
+        shipmentContext('"s4"', true, confirmed ? [] : undefined));
+      const alert = root.querySelector<HTMLElement>('[role="alert"]')!;
+      expect(text(alert)).toBe(detail);
+      expect(document.activeElement).toBe(alert);
+      if (confirmed) {
+        expect(text(root.querySelector('[data-testid="confirmed-operation"]'))).toBe('Salida confirmada con la operación op-otra');
+        expect(root.querySelector('[data-testid="review"]')).toBeNull();
+      }
+    });
+  }
+
   it('un 412 avisa de que los datos cambiaron y vuelve a leer la revisión', async () => {
     const { fixture, root } = await render();
     flushProblem(await openReviewAndConfirm(fixture, root), 412, 'VersionConflict', 'El pedido cambió.');

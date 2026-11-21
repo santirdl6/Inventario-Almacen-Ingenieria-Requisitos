@@ -115,7 +115,7 @@ de la rama (suite backend, `has-pending-model-changes`, Vitest, `tsc`, Playwrigh
 | H-19 | `ShipmentReliabilityTests` |
 | H-20 | Repartido entre `ShipmentDraftTests.H20_…`, `ShipmentConfirmTests.H20_…` y `CustomerOrderLookupTests` |
 | H-21 | `ShipmentQueryTests` |
-| Vitest de `/salidas` | 33 pruebas en 8 specs, más 7 de los archivos de A (T013) |
+| Vitest de `/salidas` | 33 pruebas en 8 specs, más 7 de los archivos de A (T013); 40 desde Convergence C2–C4 |
 | E2E-02 | `frontend/e2e/shipping.spec.ts` |
 
 **Para T002 (P-08 e INT-HU03-01/02)**:
@@ -142,7 +142,10 @@ Sobre `a6ec4b2`, con el mismo entorno que T018. El detalle está en
 | Vitest | 180/180 en 43 archivos | 180 en T018 |
 | Playwright (`--grep-invert SC-005`), una ejecución | 17/17 | 17/17 en T018 |
 
-**Nota de proceso**: todas las tareas de HU-03 hechas en esta entrega (T003–T018 y C1) se
+**Tras Convergence C2–C4**: backend 291/1/0, `has-pending-model-changes` sin cambios, Vitest
+187/187 y Playwright 17/17 ([converge-1](validation/converge-1.md#tras-convergence-c2c4-2026-11-21)).
+
+**Nota de proceso**: todas las tareas de HU-03 hechas en esta entrega (T003–T018 y C1–C4) se
 ejecutaron con la skill `/speckit-implement` cargada. T001 y T002, de coordinación con A, siguen
-pendientes. Las desviaciones y los incumplimientos sin corregir (G1–G4) están en
+pendientes. Las desviaciones y los incumplimientos (G1, G2 y G4 resueltos en C2–C4; G3 aceptado) están en
 [converge-1](validation/converge-1.md).

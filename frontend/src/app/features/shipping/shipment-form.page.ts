@@ -372,7 +372,7 @@ export class ShipmentFormPage implements OnInit {
     }
   }
 
-  /** Rechazo: incierto, 412 (relee sin perder lo escrito) o errores por campo con foco al primero. */
+  /** Rechazo: incierto, 412 o 409 de estado (relee sin perder lo escrito) o errores por campo con foco al primero. */
   protected async fail(error: unknown, what: string,
     stale = 'Otra persona cambió la salida o el pedido. Se ha vuelto a leer; revisa tus datos y repite.'): Promise<void> {
     if (isUncertain(error)) {
@@ -384,6 +384,10 @@ export class ShipmentFormPage implements OnInit {
       await this.load(false);
     } else if (!(error instanceof HttpErrorResponse)) {
       this.error.set(error instanceof Error ? error.message : 'No se pudo completar la operación.');
+    } else if (error.status === 409 && STATE_CONFLICTS.has(apiProblem(error).code)) {
+      // Convergence C4 (G4): el motivo y el estado actual de salida, contexto y pedido, sin perder lo escrito.
+      this.error.set(apiProblem(error).detail);
+      await this.load(false);
     } else {
       const problem = apiProblem(error);
       this.errors.set(problem.errors);
@@ -406,6 +410,9 @@ export class ShipmentFormPage implements OnInit {
 
   protected value(event: Event): string { return (event.target as HTMLInputElement).value; }
 }
+
+/** 409 que dependen del estado actual del pedido, la ubicación o la salida (shipping-ui § Resultados). */
+const STATE_CONFLICTS = new Set(['CustomerOrderNotOpen', 'CountScopeFrozen', 'DocumentAlreadyConfirmed']);
 
 /** «Ahora» para un input datetime-local (hora local, sin segundos). */
 function localNow(): string { return localInput(new Date().toISOString()); }

@@ -474,19 +474,21 @@ Esta especificación define la aceptación; no declara realizadas pruebas ni rev
 Reconciliado con `/speckit-converge` el 2026-11-21 ([informe](validation/converge-1.md)). Los
 requisitos no cambian.
 
-- **Construido**: T003–T018 y Convergence C1. La evidencia por requisito está en el informe.
+- **Construido**: T003–T018 y Convergence C1–C4. La evidencia por requisito está en el informe.
 - **Fuera de esta entrega, con justificación**:
   - SC-006 (rendimiento) y SC-007 (validación con operarios, principio III): HU-03 se integra, pero
     no se da por aceptada (plan, Complexity Tracking).
   - El rechazo por conteo abierto de FR-010: `IsInOpenCountAsync` devuelve `false` hasta
     INT-HU04-03.
   - La corrección de salidas confirmadas erróneas pasa a HU-04 (clarificación Q3; P-07).
-- **Incumplimientos detectados en la convergencia**, pendientes de decidir con B (informe G1–G4):
-  - el rechazo por existencias no explica la cantidad posible (US2.2, FR-010, FR-024);
-  - las líneas de la salida no identifican el artículo en la vista de solo lectura ni en el
-    borrador (US4.1, FR-018);
-  - el aviso de existencias no va junto a la línea;
-  - los 409 de estado no recargan el estado actual (shipping-ui).
+- **Incumplimientos de la convergencia** (informe G1–G4):
+  - G1, resuelto en C2: el rechazo por existencias explica la cantidad posible (US2.2, FR-010,
+    FR-024).
+  - G2, resuelto en C3: cada línea identifica el artículo y la salida muestra la fecha de registro
+    (US4.1, FR-018).
+  - G4, resuelto en C4: los 409 de estado recargan el estado actual (shipping-ui).
+  - G3, límite aceptado: el aviso de existencias va arriba de la página, con foco, y no junto a la
+    línea.
 
 ## Assumptions
 

@@ -21,7 +21,7 @@ contrario:
 
 ## Nota de proceso
 
-Todas las tareas de HU-03 ejecutadas en esta entrega (T003–T018 y C1) se hicieron con la skill
+Todas las tareas de HU-03 ejecutadas en esta entrega (T003–T018 y C1–C4) se hicieron con la skill
 `/speckit-implement` cargada. También se hicieron con su skill:
 
 - `/speckit-analyze`: `f0ca359` y sus correcciones.
@@ -55,9 +55,9 @@ hicieron `/speckit-specify`, `/speckit-clarify`, el primer `/speckit-plan` y el 
 | ID | Severidad | Fuente | Evidencia | Qué falta |
 |----|-----------|--------|-----------|-----------|
 | G1 | ALTA, **resuelto en Convergence C2** (`c918cb9`) | US2.2 («explicando la cantidad posible (7)»); FR-010 y FR-024 («la cantidad posible actual»); shipping-api § confirm | El `detail` de `InsufficientStock` lo redacta `StockCore.Effects` y dice «físico F, disponible D» (`StockCore.cs:161`), sin la cantidad posible: mín(F, propio + D). La revisión sí la muestra antes de confirmar (`review.possible`). | Explicar la cantidad posible al rechazar. Opción: que `ShipmentCommands` la calcule antes de `ApplyAsync` y la añada al mensaje, sin tocar `StockCore` (archivo de B, H0). |
-| G2 | MEDIA, **resuelto en Convergence C3** | US4.1 («por línea, artículo, unidad, ubicación, lote, cantidad y reserva propia consumida» y «fecha y hora del hecho y del registro»); FR-018 | En `shipment-form.page.ts`, `readonly-line` muestra ubicación, lote, cantidad con unidad y reserva consumida, pero no el SKU ni el nombre del artículo. La cabecera no muestra la fecha de registro. Las filas del borrador (`shipment-line`) tampoco identifican el artículo; en un pedido con varios artículos no se distinguen. | Mostrar «SKU · nombre» por línea y la fecha de registro. |
-| G3 | BAJA | shipping-ui § Resultados («junto a la línea») | El aviso de `InsufficientStock` va arriba de la página (`role="alert"`), con foco. | Ubicar el aviso en la línea afectada, o aceptar la ubicación actual. |
-| G4 | MEDIA | shipping-ui § Resultados (409 de estado: «recarga del estado actual») | `ShipmentFormPage.fail()` solo relee en el 412. En `CustomerOrderNotOpen`, `CountScopeFrozen` y `DocumentAlreadyConfirmed` muestra el motivo, pero no vuelve a leer la salida ni el pedido. | Releer tras esos 409, o aceptar el límite. |
+| G2 | MEDIA, **resuelto en Convergence C3** (`419b866`) | US4.1 («por línea, artículo, unidad, ubicación, lote, cantidad y reserva propia consumida» y «fecha y hora del hecho y del registro»); FR-018 | En `shipment-form.page.ts`, `readonly-line` muestra ubicación, lote, cantidad con unidad y reserva consumida, pero no el SKU ni el nombre del artículo. La cabecera no muestra la fecha de registro. Las filas del borrador (`shipment-line`) tampoco identifican el artículo; en un pedido con varios artículos no se distinguen. | Mostrar «SKU · nombre» por línea y la fecha de registro. |
+| G3 | BAJA, **límite aceptado** por B (2026-11-21) | shipping-ui § Resultados («junto a la línea») | El aviso de `InsufficientStock` va arriba de la página (`role="alert"`), con foco. | Nada. Se acepta el aviso arriba, con el foco en él: el `detail` ya nombra el SKU y la ubicación de cada línea rechazada desde C2, y un aviso único con foco se lee entero con lector de pantalla. Situarlo en la fila obligaría a asociar el rechazo a una línea, y el 409 de `StockCore` no lo hace. |
+| G4 | MEDIA, **resuelto en Convergence C4** | shipping-ui § Resultados (409 de estado: «recarga del estado actual») | `ShipmentFormPage.fail()` solo relee en el 412. En `CustomerOrderNotOpen`, `CountScopeFrozen` y `DocumentAlreadyConfirmed` muestra el motivo, pero no vuelve a leer la salida ni el pedido. | Releer tras esos 409, o aceptar el límite. |
 
 No se ha visto ninguna infracción de los principios MUST de la constitución. El principio III
 (validación con operarios, SC-007) y el rendimiento (SC-006) siguen sin medirse, como dice el plan.
@@ -77,7 +77,7 @@ No se ha visto ninguna infracción de los principios MUST de la constitución. E
 | FR-007 | `ShipmentConfirmTests.H10_…` (V-04), `Rule3_…`; `StockCore` (`ShipReserved`/`ShipAvailable`) | Cumplido |
 | FR-008 | `ShipmentConfirmTests.H08_…`, `H10_…`, `Rule3_…`; `AssertShipmentInvariantsAsync` | Cumplido |
 | FR-009 | `ShipmentConfirmTests.H08_…`, `H09_…` | Cumplido |
-| FR-010 | `ShipmentConfirmTests.H10_…` (409 `InsufficientStock`), `H15_…` (no `Open`) | **Parcial**: G1 (sin cantidad posible); conteo abierto pendiente de INT-HU04-03 |
+| FR-010 | `ShipmentConfirmTests.H10_…` (409 `InsufficientStock`), `H15_…` (no `Open`) | Cumplido salvo el conteo abierto, pendiente de INT-HU04-03. G1 resuelto en C2 (`H10_us22_…`) |
 | FR-011 | `ShipmentConfirmTests.H11_…` | Cumplido |
 | FR-012 | `ShipmentConfirmTests.H12_…`; `ShipmentConcurrencyTests.H17_…` (412 al perdedor) | Cumplido |
 | FR-013 | `Hu03SchemaTests` (triggers, `DENY`, consumo tardío también con la misma operación, C1); `ShipmentConfirmTests.H18_…` | Cumplido |
@@ -85,13 +85,13 @@ No se ha visto ninguna infracción de los principios MUST de la constitución. E
 | FR-015 | `ShipmentConfirmTests.H08_…` (motivo, soporte = referencia, actor, entradas) | Cumplido |
 | FR-016 | `ShipmentConfirmTests.H08_…` (`CounterpartyReference` = cliente, sin motivo de no aplicación) | Cumplido |
 | FR-017 | Diario de solo adición de H0; `AssertShipmentInvariantsAsync` (diario = saldo) | Cumplido |
-| FR-018 | `ShipmentQueryTests` (detalle, lista); `order-shipments.page.spec.ts`; `shipment-confirm.page.spec.ts` | **Parcial**: G2 (falta el artículo por línea en la vista de la salida) |
+| FR-018 | `ShipmentQueryTests` (detalle, lista); `order-shipments.page.spec.ts`; `shipment-confirm.page.spec.ts` | Cumplido. G2 resuelto en C3 (`shipment-form.page.spec.ts`, `shipment-confirm.page.spec.ts`) |
 | FR-019 | `ShipmentDraftTests.H20_…`, `ShipmentConfirmTests.H20_…`, `CustomerOrderLookupTests`, `ShipmentQueryTests`; `shipping.routes.spec.ts` y `shipment-confirm.page.spec.ts` (sin `Shipping.Record`) | Cumplido |
 | FR-020 | `ShipmentReliabilityTests.H19_…` (V-08) | Cumplido |
 | FR-021 | `ShipmentDraftTests` (replay e `IdempotencyConflict`, M1); `ShipmentConfirmTests.H18_…` | Cumplido |
 | FR-022 | `ShipmentConcurrencyTests` (H-16 en 20 rondas; H-17, 14 carreras); `ShipmentDraftTests` (10 carreras) | Cumplido (los conteos llegan con HU-04) |
 | FR-023 | `shipment-confirm.page.spec.ts` (operación tras confirmar y al reabrir; recuperación con «Abrir salida»); `operation-status-hu03.spec.ts`; E2E-02 | Cumplido |
-| FR-024 | `shipment-form.page.spec.ts` (422 con foco), `shipment-confirm.page.spec.ts` (409 con foco al aviso, `ReservedStockConflict` con enlace) | **Parcial**: G1; G3 y G4, de UI |
+| FR-024 | `shipment-form.page.spec.ts` (422 con foco), `shipment-confirm.page.spec.ts` (409 con foco al aviso, `ReservedStockConflict` con enlace) | Cumplido: G1 en C2 y G4 en C4 (409 de estado con relectura). G3 aceptado como límite |
 | FR-025 | Textos en español y unidad junto a cada cantidad (specs de `/salidas`); diálogo con teclado; estados en texto; total con «—» si las unidades difieren; E2E-02 por roles y etiquetas | Cumplido |
 | SC-001 | `ShipmentConfirmTests` (H-08–H-10) y `AssertShipmentInvariantsAsync` | Cumplido |
 | SC-002 | `ShipmentDraftTests.H05_…`, `ShipmentConfirmTests.H10_…`, `H11_…`, `H15_…` | Cumplido |
@@ -117,3 +117,15 @@ Sobre `a6ec4b2`, el último commit de código. Esta iteración solo cambia docum
 | `dotnet ef migrations has-pending-model-changes` | Sin cambios | — |
 | Vitest (`ng test --watch=false`) | 180/180 en 43 archivos | 147 antes de T013 |
 | Playwright (`--grep-invert SC-005`, proyecto `inventario-hu08-e2e`) | 17/17 en 3,7 min | 16/16 antes de T017 |
+
+### Tras Convergence C2–C4 (2026-11-21)
+
+Sobre el árbol de C4 (C2 `c918cb9`, C3 `419b866`).
+
+| Comprobación | Resultado | Línea base |
+|--------------|-----------|------------|
+| Suite backend | 291 aprobadas, 1 omitida (V-14), 0 fallidas | 290/1/0 |
+| `has-pending-model-changes` | Sin cambios | — |
+| `tsc` de app, specs y E2E y `npm run build` | Sin errores | — |
+| Vitest | 187/187 en 43 archivos | 180/180 |
+| Playwright (`--grep-invert SC-005`), una ejecución | 17/17 en 3,4 min | 17/17 |
