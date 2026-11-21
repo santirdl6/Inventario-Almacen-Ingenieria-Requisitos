@@ -38,6 +38,13 @@ public static class CycleCountEndpoints
             .Produces<CycleCountMutation>().ProducesProblem(400).ProducesProblem(403).ProducesProblem(404).ProducesProblem(409)
             .ProducesProblem(412).ProducesProblem(422).ProducesProblem(428);
 
+        // T007 (US1.2, FR-002/FR-003): iniciar congela el alcance y captura el teórico.
+        counts.MapPost("/{id:guid}/start", (Guid id, HttpContext context, CycleCountCommands commands, CancellationToken token) =>
+                commands.StartAsync(LocationEndpoints.Key(context), id, context.Request.Headers.IfMatch.ToString(), token))
+            .RequireAuthorization(CycleCountCommands.RecordPermission)
+            .Produces<CycleCountMutation>().ProducesProblem(400).ProducesProblem(403).ProducesProblem(404).ProducesProblem(409)
+            .ProducesProblem(412).ProducesProblem(422).ProducesProblem(428).ProducesProblem(503);
+
         // Lecturas (D-12): detalle versionado, contexto sin ETag y lista paginada.
         counts.MapGet("", async (string? state, int? page, int? pageSize, CycleCountQueries queries, HttpContext context,
                 CancellationToken token) =>

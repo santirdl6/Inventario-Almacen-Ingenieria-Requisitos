@@ -29,6 +29,24 @@ internal static class CycleCountApiSupport
     public static Task<HttpResponseMessage> PutAsync(MasterDataApi session, Guid id, string? etag, params Guid[] locations) =>
         session.WriteAsync(HttpMethod.Put, $"{Counts}/{id:D}", new { locationIds = locations }, version: etag);
 
+    public static Task<HttpResponseMessage> StartAsync(MasterDataApi session, Guid id, string? etag, Guid? key = null) =>
+        session.WriteAsync(HttpMethod.Post, $"{Counts}/{id:D}/start", new { }, key, etag);
+
+    /// <summary>Crea e inicia un conteo; devuelve su id, el detalle y el ETag tras iniciar.</summary>
+    public static async Task<(Guid Id, JsonElement Detail, string ETag)> StartedAsync(MasterDataApi session, params Guid[] locations)
+    {
+        var (id, etag) = await CreateAsync(session, locations);
+        using var started = await StartAsync(session, id, etag);
+        var text = await started.Content.ReadAsStringAsync();
+        Assert.True(HttpStatusCode.OK == started.StatusCode, text);
+        return (id, JsonDocument.Parse(text).RootElement.GetProperty("count").Clone(), started.Headers.ETag!.ToString());
+    }
+
+    /// <summary>Línea del detalle por artículo y ubicación.</summary>
+    public static JsonElement Line(JsonElement detail, Guid article, Guid location) =>
+        detail.GetProperty("lines").EnumerateArray().Single(line => line.GetProperty("articleId").GetGuid() == article
+            && line.GetProperty("locationId").GetGuid() == location);
+
     /// <summary>GET /cycle-counts/{id}: cuerpo y ETag.</summary>
     public static async Task<(JsonElement Body, string ETag)> DetailAsync(HttpClient client, Guid id)
     {

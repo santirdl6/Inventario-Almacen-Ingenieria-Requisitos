@@ -127,12 +127,16 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     obsoleto respondía 200 porque editar el alcance no renovaba la versión de la cabecera (D-11); se
     marca `State` como modificado, como HU-05/HU-03. DTOs en `CycleCountDtos.cs`. Verde:
     `CycleCountDraftTests` 2/2; suite 304/1 omitida.
-- [ ] T007 [US1] [INT-HU04-01] Iniciar (D-03, D-05): `POST /cycle-counts/{id}/start` bloquea
+- [X] T007 [US1] [INT-HU04-01] Iniciar (D-03, D-05): `POST /cycle-counts/{id}/start` bloquea
   `cycle-count:{id}`, **todas** las ubicaciones y luego los artículos de los saldos con físico > 0;
   comprueba ubicaciones activas y no congeladas por otro conteo (409 `CountScopeFrozen` con el
   `countCode` del otro); fija `IsFrozen = 1`, crea las líneas esperadas con su teórico y marca la
   primera referencia. Pruebas en `CycleCountStartTests.cs` (C-04, C-05, borrador sin congelar de
   US3.5). **Rojo esperado**: 404 en `/start`. Depende de T005 y T006.
+  - **Hecho**: rojo observado: 404 en `/start`. El alcance se lee ya bajo `cycle-count:{id}` y antes de
+    `location:{id}`; los saldos, tras bloquear las ubicaciones. Verde: `CycleCountStartTests` 3/3
+    (C-04 con saldo a 0 sin línea, C-05 nombrando el `countCode`, ubicación desactivada tras el
+    borrador → 422, borrador sin congelar); suite 307/1 omitida.
 - [ ] T008 [US1] [US5] [INT-HU04-01] Contar, hallazgos y enviar: `PUT /cycle-counts/{id}/lines`
   (`counted` y `found`, cero explícito, fracciones según el artículo, hallazgo en el alcance y con lote
   si el artículo lo gestiona, bloqueo `article:{id}` y primera referencia), `DELETE …/lines/{lineId}`

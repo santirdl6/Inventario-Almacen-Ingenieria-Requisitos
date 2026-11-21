@@ -62,6 +62,67 @@ public sealed class CycleCountCommands(InventoryOperationExecutor executor)
         }, cancellation);
     }
 
+    /// <summary>
+    /// POST /cycle-counts/{id}/start (T007; D-03–D-05): bloquea cycle-count:{id}, todas las ubicaciones
+    /// del alcance y, tras leer sus saldos, los artículos con físico &gt; 0. Comprueba ubicaciones activas y
+    /// no congeladas por otro conteo, congela el alcance, crea las líneas esperadas con su teórico y marca
+    /// la primera referencia de sus artículos. Iniciar o un escritor de B serializan en location:{id}: o el
+    /// teórico incluye el movimiento, o el movimiento ve la congelación (FR-017).
+    /// </summary>
+    public Task<OperationResponse> StartAsync(Guid operation, Guid id, string? ifMatch, CancellationToken cancellation)
+    {
+        var request = new OperationRequest(operation, "POST", $"{Resource}/{id:D}/start", RecordPermission, Empty());
+        return executor.ExecuteAsync(request, async (context, token) =>
+        {
+            var db = context.Database;
+            await context.Locks.DocumentsAsync([new DocumentLock(CycleCountDocuments.CycleCount, id)], token);
+            // El alcance solo cambia bajo cycle-count:{id}: leído ya bajo ese bloqueo.
+            var scope = await db.Set<CountLocation>().AsNoTracking().Where(location => location.CountId == id)
+                .Select(location => location.LocationId).ToListAsync(token);
+            await context.Locks.LocationsAsync(scope, token);
+            // El teórico de una ubicación solo cambia bajo su bloqueo, ya tomado (D-03).
+            var balances = await (
+                    from balance in db.Set<StockBalance>().AsNoTracking()
+                    join lot in db.Set<Lot>().AsNoTracking() on balance.LotId equals lot.Id
+                    where scope.Contains(balance.LocationId) && balance.Physical > 0
+                    select new { balance.ArticleId, balance.LocationId, balance.LotId, LotCode = lot.Code, balance.Physical })
+                .ToListAsync(token);
+            var articleIds = balances.Select(balance => balance.ArticleId).Distinct().ToList();
+            await context.Locks.ArticlesAsync(articleIds, token);
+
+            var count = await LoadAsync(db, id, ifMatch, token, CycleCountState.Draft);
+            var locations = count.Locations.Select(location => location.LocationId).ToList();
+            await RequireActiveLocationsAsync(db, locations, token);
+            await RequireNotFrozenAsync(db, count, token);
+
+            await context.Services.GetRequiredService<ArticleReferenceTracker>().MarkAsync(context, articleIds, token);
+            count.Start(balances.Select(balance => new CountExpectedLine(balance.ArticleId, balance.LocationId, balance.LotId,
+                balance.LotCode, balance.Physical)).ToList(), context.ActorId, DateTimeOffset.UtcNow);
+            await db.SaveChangesAsync(token);
+            return Mutation(200, context, count, withLocation: false);
+        }, cancellation);
+    }
+
+    /// <summary>409 CountScopeFrozen si una ubicación del alcance está congelada por otro conteo, nombrándolo.</summary>
+    private static async Task RequireNotFrozenAsync(InventoryDbContext db, CycleCount count, CancellationToken token)
+    {
+        var scope = count.Locations.Select(location => location.LocationId).ToList();
+        var frozen = await (
+                from location in db.Set<CountLocation>().AsNoTracking()
+                join other in db.Set<CycleCount>().AsNoTracking() on location.CountId equals other.Id
+                join place in db.Set<Location>().AsNoTracking() on location.LocationId equals place.Id
+                where scope.Contains(location.LocationId) && location.IsFrozen && location.CountId != count.Id
+                orderby place.Code
+                select new { location.LocationId, place.Code, other.CountCode })
+            .ToListAsync(token);
+        if (frozen.Count == 0) return;
+        var errors = frozen.ToDictionary(row => $"locationIds[{scope.IndexOf(row.LocationId)}]",
+            row => new[] { $"La ubicación {row.Code} está en el conteo abierto {row.CountCode}." });
+        throw new InventoryProblemException(409, "CountScopeFrozen",
+            "Alguna ubicación ya está en otro conteo abierto: "
+            + string.Join("; ", frozen.Select(row => $"{row.Code} en {row.CountCode}")) + ". Espera a que termine.", errors);
+    }
+
     /// <summary>Forma del alcance: 1–50 identificadores válidos y sin repetir; todos los errores juntos.</summary>
     internal static List<Guid> ValidateScope(CycleCountWrite write)
     {
