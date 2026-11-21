@@ -14,6 +14,7 @@ public static class MasterDataTestData
     public const string E2EDatabase = "InventoryHu08E2E";
     public const string PurchasingE2EDatabase = "InventoryHu07E2E";
     private static readonly string[] E2ERoles = ["GestorMaestros", "Operario", "Administrador"];
+    private const string E2EOptionalRole = "ResponsableAlmacen";
 
     public static ServiceProvider BootstrapServices(IConfiguration configuration, string connection, string keysDirectory,
         Action<IServiceCollection>? configure = null)
@@ -84,7 +85,9 @@ public static class MasterDataTestData
         if (profile is not ("hu08" or "hu07")
             || database != (purchasing ? PurchasingE2EDatabase : E2EDatabase) || host != "sqlserver")
             throw new ArgumentException("El provisionamiento requiere una base dedicada que corresponda al perfil HU-08/HU-07 y el servicio sqlserver.");
-        var roles = purchasing ? E2ERoles.Concat(["Comprador", "ResponsableAlmacen"]).ToArray() : E2ERoles;
+        // HU-05 (E2E-01): en el perfil HU-08 una cuarta cuenta ResponsableAlmacen es opcional; HU-07 fija las suyas.
+        string[] roles = purchasing ? E2ERoles.Concat(["Comprador", "ResponsableAlmacen"]).ToArray()
+            : accounts.Count == 4 ? [.. E2ERoles, E2EOptionalRole] : E2ERoles;
         if (accounts.Count != roles.Length || !accounts.Select(account => account.Role).Order(StringComparer.Ordinal)
             .SequenceEqual(roles.Order(StringComparer.Ordinal)))
             throw new ArgumentException("Las cuentas deben coincidir exactamente con los roles del perfil E2E solicitado.");

@@ -37,8 +37,8 @@ public sealed class StockMovement
         Guid operationId, string? supportReference, string? supportNotApplicableReason,
         string? counterpartyReference, string? counterpartyNotApplicableReason)
     {
-        if (string.IsNullOrWhiteSpace(counterpartyReference) && string.IsNullOrWhiteSpace(counterpartyNotApplicableReason))
-            throw new ArgumentException("Indica la contraparte o el motivo por el que no aplica.");
+        if (!HasValidCounterpartyEvidence(counterpartyReference, counterpartyNotApplicableReason))
+            throw new ArgumentException("Indica la contraparte o el motivo por el que no aplica. Usa solo uno de los dos campos.");
         Kind = kind;
         SourceDocumentType = sourceDocumentType;
         SourceDocumentId = sourceDocumentId;
@@ -68,6 +68,10 @@ public sealed class StockMovement
     public string? CounterpartyReference { get; private set; }
     public string? CounterpartyNotApplicableReason { get; private set; }
     public IReadOnlyList<StockEntry> Entries => entries;
+
+    internal static bool HasValidCounterpartyEvidence(string? reference, string? reason) =>
+        (reason is null && !string.IsNullOrWhiteSpace(reference))
+        || (reference is null && !string.IsNullOrWhiteSpace(reason));
 
     internal void AddEntry(StockEntry entry) => entries.Add(entry);
     internal void LinkOriginal(Guid originalMovementId) => OriginalMovementId = originalMovementId;

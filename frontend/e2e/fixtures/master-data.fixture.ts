@@ -37,6 +37,8 @@ function configuration(): { baseURL: string; env: NodeJS.ProcessEnv } {
       APP_BIND_ADDRESS: '127.0.0.1',
       APP_PORT: url.port,
       MAILPIT_PORT: purchasingProfile ? '8027' : '8026',
+      // HU-05 (D-17): la siembra de existencias solo se activa en este proyecto E2E.
+      TESTING_ENABLE_STOCK_SEEDING: 'true',
       ...(purchasingProfile ? { SMTP_HOST: 'smtp', SMTP_PORT: '1025', SMTP_USERNAME: '', SMTP_PASSWORD: '', SMTP_SECURITY: 'None', SMTP_FROM: 'inventario@hu07.e2e.test',
         PURCHASING_CURRENCY: 'EUR', PURCHASE_DELIVERY_ENABLED: 'true', PURCHASE_DELIVERY_MAX_ATTEMPTS: '1',
         PURCHASE_DELIVERY_POLL_SECONDS: '1', PURCHASE_DELIVERY_TIMEOUT_SECONDS: '5', PURCHASE_DELIVERY_LEASE_SECONDS: '40' } : {})
@@ -136,7 +138,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       password: `Test_${randomUUID()}!aA9`, role
     });
     const accounts: Environment['accounts'] = {
-      gestor: account('GestorMaestros'), lector: account('Operario'), administrador: account('Administrador')
+      gestor: account('GestorMaestros'), lector: account('Operario'), administrador: account('Administrador'),
+      // HU-05 (E2E-01): reservar y liberar exigen Reservations.Manage.
+      responsable: account('ResponsableAlmacen')
     };
     if (purchasingProfile) {
       accounts.comprador = account('Comprador');

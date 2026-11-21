@@ -17,8 +17,10 @@ public sealed class MasterDataFirstReferenceTests(IdentityFixture fixture) : ICl
         using var factory = fixture.Factory(); using var scope = factory.Services.CreateScope();
         scope.ServiceProvider.GetRequiredService<ArticleDefinitionReadiness>().EnsureReady();
         var db = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-        Assert.Equal(["Lot", "PurchaseOrderLine", "StockAlert", "StockBalance", "StockEntry"],
-            ArticleUsageCoverageValidator.RequiredTypes(db.Model).Select(type => type.Name).Order(StringComparer.Ordinal));
+        // Los consumidores de stock y los de HU-07/HU-06 siguen cubiertos; HU-05/03/04 añaden los suyos y
+        // fijan su conjunto exacto en sus propias pruebas. EnsureReady() falla con 503 si alguno no declara su enlace.
+        Assert.Subset(ArticleUsageCoverageValidator.RequiredTypes(db.Model).Select(type => type.Name).ToHashSet(),
+            new HashSet<string> { "Lot", "PurchaseOrderLine", "StockAlert", "StockBalance", "StockEntry" });
     }
 
     [Fact]

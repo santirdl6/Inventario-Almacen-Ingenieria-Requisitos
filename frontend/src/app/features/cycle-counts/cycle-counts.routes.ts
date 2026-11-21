@@ -1,14 +1,27 @@
 import { Routes } from '@angular/router';
+import { permissionGuard } from '../../core/session/permission.guard';
 
-/** HU-04 · Persona B. Sustituir el placeholder por las pantallas reales en su spec. */
+/**
+ * HU-04 · Persona B. Pantallas de specs/006-realizar-inventarios-ciclicos/contracts/cycle-counts-ui.md
+ * (D-15); sustituye el placeholder de H0. El área exige su permiso en operation-areas.ts; crear un
+ * conteo exige además Counts.Record. El servidor sigue decidiendo cada permiso.
+ */
 export const CYCLE_COUNTS_ROUTES: Routes = [
   {
     path: '',
-    loadComponent: () => import('../../shared/placeholder-page.component').then(module => module.PlaceholderPageComponent),
-    data: {
-      title: 'Inventarios cíclicos',
-      story: 'HU-04 · Realizar inventarios cíclicos y ajustar diferencias',
-      description: 'Conteo de una parte del almacén, diferencias y ajuste autorizado.'
-    }
+    title: 'Inventarios cíclicos',
+    loadComponent: () => import('./count-list.page').then(module => module.CountListPage)
+  },
+  {
+    path: 'nuevo',
+    title: 'Nuevo conteo',
+    canActivate: [permissionGuard],
+    data: { permission: 'Counts.Record' },
+    loadComponent: () => import('./count-new.page').then(module => module.CountNewPage)
+  },
+  {
+    path: ':id',
+    title: 'Conteo',
+    loadComponent: () => import('./count-detail.page').then(module => module.CountDetailPage)
   }
 ];

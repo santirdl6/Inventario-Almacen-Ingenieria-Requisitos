@@ -139,8 +139,8 @@ HU-02 no se da por aceptada hasta aportar:
 
 ## Pendiente por dependencias
 
-- Conteo abierto (FR-012, US3.3, US4.3, SC-004) con HU-04 (T034, bloqueada; `inOpenCount`
-  es `false` y la regla de conteo abierto no se ha demostrado).
+- ~~Conteo abierto (FR-012, US3.3, US4.3, SC-004) con HU-04~~: resuelto con HU-04 (T034 cerrada el
+  2026-11-21): `inOpenCount` real y 409 `CountScopeFrozen`, probados en `CycleCounts/CountScopeFrozenTests.cs`.
 - Revisión técnica de A (T001) y actualización de contratos comunes (T068) resueltas;
   correcciones y ejecución final en [revisión de PR #6](validation/pr-review-2026-11-19.md).
 - Reservas reales de pedidos con HU-03/HU-05; mientras, reservas con el núcleo.

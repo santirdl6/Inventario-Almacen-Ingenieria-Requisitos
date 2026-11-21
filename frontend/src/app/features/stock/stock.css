@@ -1,0 +1,19 @@
+/* HU-05 · Estilos de /existencias. Los estados se dicen con texto; el color solo acompaña. */
+:host { display: block; }
+form, .filters { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 1rem; }
+.options { list-style: none; padding: 0; }
+.options button { background: none; border: none; color: inherit; text-decoration: underline; cursor: pointer; padding: 0.25rem 0; }
+.totals { border: 1px solid #c8c8c8; border-radius: 4px; padding: 0.5rem 1rem; margin: 0.5rem 0; }
+.totals h3 { font-size: 1rem; margin: 0 0 0.25rem; }
+.meta { color: #555; font-size: 0.9rem; }
+td .meta { display: block; }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid #e0e0e0; }
+.error-text { color: #b00020; }
+.field-error { color: #b00020; display: block; }
+.badge-inactive { font-weight: 600; }
+.pager { display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem; }
+dialog, .dialog { border: 1px solid #c8c8c8; border-radius: 4px; padding: 1rem; margin: 1rem 0; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.order-line { border-top: 1px solid #e0e0e0; padding-top: 0.5rem; }
+.reservation { margin-left: 1rem; }

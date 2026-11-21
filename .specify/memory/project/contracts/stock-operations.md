@@ -96,6 +96,25 @@ no adquirir familia/proveedor después de bloquear un artículo.
   nuevo lote. El lock de ubicación impide iniciar un conteo mientras cambia su stock.
 - Un comando de modificación del pedido de cliente declara primero las reservas que va
   a liberar y sus ubicaciones, conservando la jerarquía documento → ubicación → artículo.
+- Tipos de documento de HU-05: customer-order-reference (UUID v5 de la referencia
+  normalizada), customer-order, reservation-release y reservation; orden ordinal
+  customer-order-reference < customer-order < reservation-release < reservation, pedidos
+  en una sola llamada. Todo escritor de reservas o servido de un pedido (HU-05, HU-03)
+  bloquea customer-order:{id}.
+- Reservar usa reservation/{reservationId} como documento; cada liberación usa
+  reservation-release/{releaseId}, con SupportReference reservation:{reservationId}.
+- Tipo de documento de HU-03 (P-05): shipment. Orden ordinal completo
+  customer-order-reference < customer-order < reservation-release < reservation < shipment.
+  Confirmar una salida bloquea en una sola llamada customer-order:{pedido}, reservation:{id} de
+  cada reserva cuyo consumo vaya a cambiar y shipment:{id}; después ubicaciones y artículos.
+  Las reservas a bloquear se leen antes de los bloqueos y el orderVersion revisado se revalida
+  bajo bloqueo: si cambió, 412 antes de decidir nada. Crear, editar y eliminar un borrador
+  bloquean shipment:{id} y los artículos de sus líneas, sin customer-order.
+- El hecho de una salida usa motivo «Salida del pedido {referencia externa}», SupportReference la
+  referencia externa del pedido y CounterpartyReference el cliente del pedido (nunca el motivo de
+  no aplicación).
+- Cuando el StockCommand depende de lecturas bajo bloqueo, la OperationRequest lleva el
+  DTO HTTP normalizado y el StockCommand se prepara dentro de change (HU-05 D-05).
 
 ## Implementación H0 (B, 2026-11-18)
 
@@ -112,13 +131,14 @@ bloqueo de operación. El consumidor (HU-01/03/04/05):
    `StockCore.Response(outcome)`.
 
 `StockCommandContext` acepta CounterpartyReference o CounterpartyNotApplicableReason
-(máximo 500 caracteres para el motivo). Los valores se normalizan con Trim; un hecho
-nuevo sin ambos se rechaza 422 desde ApplyAsync, después del replay del ejecutor y antes
-de cualquier efecto. Esto permite recuperar una intención histórica confirmada aunque
-su petición anterior careciera de ese dato. El campo nuevo solo se incorpora a NormalizedBody
-cuando tiene valor: las huellas de peticiones antiguas sin él no cambian. Con otro motivo,
-la misma clave produce IdempotencyConflict. El diario y el lector conservan el motivo;
-los hechos históricos sin evidencia continúan siendo distinguibles y no se reescriben.
+(máximo 500 caracteres para el motivo). Los valores se normalizan con Trim y los vacíos
+pasan a null. Para confirmar un hecho nuevo, ApplyAsync exige exactamente un valor y
+devuelve 422 si faltan ambos o se envían los dos. La validación ocurre después del replay
+del ejecutor y antes de cualquier efecto, conservando el resultado de los hechos ya
+confirmados. NormalizedBody solo incluye el motivo cuando tiene valor, lo que conserva
+las huellas de las peticiones antiguas que lo omitían. Con otro motivo, la misma clave
+produce IdempotencyConflict. El diario y el lector conservan el motivo y distinguen los
+hechos históricos sin evidencia. La migración conserva esos hechos.
 
 ### Ejemplo de integración: bloqueos del consumidor en la recepción (HU-01)
 
@@ -220,6 +240,17 @@ Además se respeta el pendiente de la línea del pedido. Repetir la confirmació
 Si las reservas remanentes del propio pedido en otros buckets excedieran su nuevo pendiente,
 se rechaza con ReservedStockConflict: liberar/reasignar explícitamente antes de servir desde
 un origen alternativo. No se dejan reservas sin pedido pendiente ni se liberan sin auditoría.
+
+El consumo de cada reserva se registra por asignación
+([ShipmentReservationConsumption](../data-model.md#shipmentreservationconsumption)) con los totales
+declarados en la cabecera de la salida. **Límite (HU-03 D-06)**: SQL impone el máximo (ningún
+consumo por encima de lo declarado, tampoco con la misma operación); que la confirmación por API
+inserte exactamente lo declarado lo comprueba la prueba H-14 de HU-03, no la base de datos.
+
+La corrección de una salida confirmada errónea mediante el conteo de HU-04 corrige solo el físico:
+con una salida de 6 cuando salieron 4, el ajuste devuelve 2 al saldo, pero el pedido sigue con 6
+servidas. Corregir el pedido exigiría corregir su acumulado servido y su estado en el mismo commit,
+como dice «Correcciones y contingencia»; queda fuera de HU-03 y HU-04.
 
 ## Recepción y compra
 

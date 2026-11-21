@@ -182,6 +182,9 @@ Una recepción confirmada no se edita ni se confirma de nuevo.
 Referencia mínima local del pedido: Id, ExternalReference única, CustomerReference,
 State (Open/Fulfilled/Cancelled), Version; líneas con Id, CustomerOrderId, ArticleId,
 OrderedQuantity > 0 y ShippedQuantity entre cero y lo pedido.
+Una línea por artículo: (CustomerOrderId, ArticleId) es único (HU-05, clarificación 1).
+ExternalReference se compara sin distinguir mayúsculas ni espacios extremos.
+Cada cambio de reservas o servido toca la cabecera para renovar su rowversion (ETag).
 No incluye precios comerciales, facturación ni integración ERP automática.
 Su alta mínima controlada permite vincular y probar las salidas de las historias.
 
@@ -197,6 +200,10 @@ Cancelled se conserva en el modelo para evolución posterior.
 Cabecera: Id, CustomerOrderLineId, State (Active/Consumed/Released), Version.
 Asignación: Id, ReservationId, ArticleId, LocationId, LotId, AllocatedQuantity,
 ConsumedQuantity, ReleasedQuantity. Remaining = Allocated − Consumed − Released ≥ 0.
+Una asignación por bucket y reserva: (ReservationId, ArticleId, LocationId, LotId) único;
+LotId con FK compuesta (ArticleId, LotId) como StockBalance. Remaining es columna calculada.
+Pedidos, líneas, reservas y asignaciones no se borran (DENY DELETE a inventory_runtime).
+Cada liberación toca la cabecera de la reserva (ETag) y la del pedido.
 
 Las asignaciones remanentes suman Reserved por bucket; nunca exceden lo pendiente del
 pedido descontando otras reservas activas. Reservar aumenta Reserved, no Physical.
@@ -216,6 +223,35 @@ en Available. No se consumen reservas de otro pedido ni se descuenta dos veces l
 Después de servir, el remanente de reservas de la línea no puede superar su nuevo pendiente;
 si el origen elegido deja reservas sobrantes en otra ubicación, se requiere liberarlas
 o cambiar la asignación antes de confirmar, sin liberación silenciosa.
+
+Concreción de HU-03 (P-01, aprobada por A el 2026-11-21;
+[modelo de HU-03](../../../specs/005-registrar-salida-mercancia/data-model.md)):
+
+- Un borrador puede eliminarse completo: no deja movimientos, porque nunca los tuvo, y retira sus
+  referencias al artículo. Una salida confirmada es inmutable (triggers `TR_Shipments_ConfirmedImmutable`
+  y `TR_ShipmentLines_ConfirmedImmutable`, solo `THROW`, en lugar de `DENY DELETE`) y no se revierte:
+  las diferencias se corrigen con el ajuste de HU-04, que corrige el físico pero no lo servido ni el
+  estado del pedido.
+- `OperationId` es obligatorio solo en `Confirmed` (único filtrado).
+- Único `(ShipmentId, CustomerOrderLineId, LocationId, LotId)`: un bucket por línea de pedido en cada
+  salida.
+- `OwnReservationConsumed` no se almacena: es Σ de `ShipmentReservationConsumption` de la línea.
+
+### ShipmentReservationConsumption
+
+P-02 de HU-03, aprobada por A el 2026-11-21 con el detalle por asignación.
+Id, ShipmentLineId, ReservationAllocationId, Quantity > 0, OperationId. Único
+`(ShipmentLineId, ReservationAllocationId)`. Append-only (`DENY UPDATE, DELETE`); solo se inserta al
+confirmar, con el `OperationId` de la operación que confirma la salida.
+
+La cabecera declara al confirmar, en la misma sentencia que la pasa a `Confirmed`,
+`DeclaredConsumptionCount` y `DeclaredConsumedQuantity` (inmutables). Los triggers rechazan un
+consumo de otra operación y cualquier consumo que supere lo declarado, también con el mismo
+`OperationId`, en cualquier orden de sentencias dentro de la confirmación.
+
+**Límite (HU-03 D-06)**: sin restricciones diferidas, SQL impone solo el **máximo**: ningún consumo
+supera lo declarado. Que la confirmación por API inserte **exactamente** lo declarado lo comprueba la
+prueba H-14 de HU-03 (invariante 8) en cada confirmación, no la base de datos.
 
 ## Conteos — Persona B / HU-04
 
@@ -253,14 +289,18 @@ ActorId, OccurredAt, RecordedAt, OperationId, SupportReference opcional,
 SupportNotApplicableReason cuando no existe soporte externo, CounterpartyReference
 o CounterpartyNotApplicableReason cuando no hay contraparte externa.
 
-Concreción de cierre HU-08: CounterpartyNotApplicableReason es nvarchar(500) nullable;
-los comandos normalizan vacíos a null y exigen referencia o motivo para movimientos nuevos.
-La migración aditiva `20261119171332_HU08MovementCounterparty` conserva las filas
-confirmadas sin actualizarlas: la CHECK se añade WITH NOCHECK para no validar retroactivamente
-hechos anteriores sin ese dato, pero queda habilitada para todas las inserciones nuevas.
-La ausencia histórica se presenta como «Contraparte no registrada», nunca como un motivo
-inventado. DENY UPDATE/DELETE sigue vigente. La revisión de esta concreción se registra
-en COORD-01 del backlog de integración antes de integrar/fusionar.
+CounterpartyNotApplicableReason es nvarchar(500) nullable. Los comandos normalizan
+vacíos a null. Para movimientos nuevos se exige exactamente un valor: la referencia
+cuando existe contraparte o el motivo cuando no aplica.
+`20261119171332_HU08MovementCounterparty` añadió el motivo. La migración posterior
+`20261120102651_HU08ExclusiveMovementCounterparty` sustituye la CHECK por la versión
+exclusiva y conserva todas las filas confirmadas, incluidas las que guardaron ambos campos.
+
+`WITH NOCHECK` mantiene habilitada la restricción para las inserciones nuevas y deja
+`is_not_trusted = 1` en SQL Server. Revalidar con `WITH CHECK CHECK CONSTRAINT` requiere
+comprobar previamente la compatibilidad de todo el historial y respetar su inmutabilidad.
+La ausencia histórica se presenta como «Contraparte no registrada».
+DENY UPDATE/DELETE sigue vigente.
 
 Entrada: Id, MovementId, ArticleId, LocationId, LotId, Quantity > 0,
 BaseUnitSnapshot, Effect, PhysicalDelta, ReservedDelta.

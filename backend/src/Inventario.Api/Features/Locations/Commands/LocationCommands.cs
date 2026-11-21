@@ -89,14 +89,15 @@ public sealed class LocationCommands(InventoryOperationExecutor executor)
             }
             if (kindChanges || stateChanges && !activate)
             {
+                // La congelación va antes que LocationNotEmpty (HU-04 D-04, H2 de analyze-1; US3.4): una
+                // ubicación en conteo responde CountScopeFrozen esté vacía u ocupada.
+                if (await usage.FindOpenCountAsync(id, token) is { } frozen)
+                    throw frozen.Problem();
                 var totals = await usage.GetTotalsAsync(id, token);
                 if (!totals.IsEmpty)
                     throw new InventoryProblemException(409, "LocationNotEmpty",
                         $"La ubicación no está vacía: tiene {LocationText.Quantity(totals.Physical)} unidades físicas y "
                         + $"{LocationText.Quantity(totals.Reserved)} reservadas. Revisa su contenido; no se ha movido nada.");
-                if (await usage.IsInOpenCountAsync(id, token))
-                    throw new InventoryProblemException(409, "CountScopeFrozen",
-                        "La ubicación está incluida en un conteo abierto. Espera a que termine el conteo.");
             }
             if (retiresReceiving && await db.Set<Location>().AsNoTracking().CountAsync(value =>
                     value.Kind == LocationKind.Receiving && value.IsActive && value.Id != id, token) == 0)

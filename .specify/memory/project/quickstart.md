@@ -320,3 +320,93 @@ E2E usa `HU08_E2E_PROJECT=inventario-pr6-e2e`, puerto 8083 y base aislada, con r
 de cuentas y parada de contenedores al terminar. La evidencia y comandos particulares
 están en [la revisión HU-02](../../../specs/003-gestionar-ubicaciones/validation/pr-review-2026-11-19.md).
 Conteos de HU-04 y las desviaciones operativas SC-005/SC-006 mantienen su alcance declarado.
+
+## 10. HU-05 — Evidencia de integración del 2026-11-21
+
+Consulta de existencias, pedido de cliente mínimo, reservas y liberaciones (HU-05, PR #9, aprobado
+por A el 2026-11-21 con la Convergence C1–C4). Ejecutado sobre `363de56`:
+
+- **Backend**: 207 pruebas SQL aprobadas, 1 omitida (V-14) y 0 fallidas, con `git archive` y
+  `mcr.microsoft.com/dotnet/sdk:10.0` sobre la red de Compose. EF sin cambios de modelo.
+- **Escenarios comunes cubiertos**:
+  - V-05 (20 rondas);
+  - V-04 en su parte de reserva, la de salida queda para HU-03;
+  - V-08 (`FailAfterSaveInterceptor`);
+  - el contrato de escritores de INT-HU05-01/02, con carreras con `LockBarrier` en ambos órdenes
+    y la conciliación de asignaciones, diario y saldo.
+- **Frontend**:
+  - Vitest 147/147;
+  - `tsc` de app, specs y E2E sin errores;
+  - build correcto;
+  - Playwright 16/16 con `--grep-invert SC-005`, en el proyecto `inventario-hu08-e2e` y con
+    E2E-01 incluido.
+- **Pendiente**:
+  - `CountScopeFrozen` al reservar (INT-HU04-03);
+  - la búsqueda de pedidos por prefijo (P-04 de HU-05, S1);
+  - SC-006 y SC-007, que impiden dar HU-05 por aceptada.
+
+Detalle por caso en el [quickstart de HU-05](../../../specs/004-consultar-existencias/quickstart.md#evidencia).
+
+## 11. HU-03 — Evidencia de integración del 2026-11-21
+
+Registro y confirmación de salidas contra pedidos de cliente (HU-03, PR #10), con la luz verde de A
+del 2026-11-21 a T001/T002. Ejecutado sobre el árbol de Convergence C4 (`f65fefe`):
+
+- **Backend**: 291 pruebas SQL aprobadas, 1 omitida (V-14) y 0 fallidas, con la misma receta que
+  § 10. EF sin cambios de modelo.
+- **Escenarios comunes cubiertos**:
+  - V-04 completo: reserva propia consumida y ajena intacta al servir (H-10);
+  - V-05 extendido: salidas simultáneas, reserva y salida solapadas y salidas del mismo pedido (H-16,
+    H-17, 20 rondas);
+  - V-07 (replay, `IdempotencyConflict`, 412) y V-08 (`FailAfterSaveInterceptor`, H-19);
+  - el contrato de escritores de INT-HU03-01/02, con carreras con `LockBarrier` en ambos órdenes.
+- **Frontend**: Vitest 187/187; `tsc` de app, specs y E2E sin errores; build correcto; Playwright
+  17/17 con `--grep-invert SC-005`, con E2E-02.
+- **Límite registrado**: SQL impone el máximo de consumos declarados; que la confirmación inserte
+  exactamente lo declarado lo comprueba H-14 (HU-03 D-06).
+- **Pendiente**:
+  - `CountScopeFrozen` al confirmar salidas (INT-HU04-03);
+  - la corrección de salidas erróneas (INT-HU04-04), que solo corregirá el físico, no el pedido;
+  - SC-006 y SC-007, que impiden dar HU-03 por aceptada.
+
+Detalle por caso en el [quickstart de HU-03](../../../specs/005-registrar-salida-mercancia/quickstart.md#evidencia)
+y en su [convergencia](../../../specs/005-registrar-salida-mercancia/validation/converge-1.md).
+
+## 12. HU-04 — Evidencia de integración del 2026-11-21
+
+Conteos cíclicos, congelación del alcance y ajustes (HU-04, rama `b/hu-04-realizar-inventarios-ciclicos`;
+visto bueno de A a P-01…P-08 sobre `3e2ad7e`). Matriz C del
+[quickstart de HU-04](../../../specs/006-realizar-inventarios-ciclicos/quickstart.md#evidencia):
+
+- **Backend**: 347 pruebas SQL aprobadas, 1 omitida (V-14) y 0 fallidas sobre `2215155` (T012), con
+  `git archive` y `mcr.microsoft.com/dotnet/sdk:10.0` sobre la red de Compose. EF sin cambios de modelo.
+  Matriz C-01…C-20 en verde.
+- **Escenarios comunes cubiertos**:
+  - V-07: C-17, replay de las nueve escrituras, `IdempotencyConflict` y 412/428
+    (`CycleCountReliabilityTests.C17_…`);
+  - V-08: C-18, `FailAfterSaveInterceptor` en la confirmación y `GET /operations/{id}`
+    (`CycleCountReliabilityTests.C18_…`);
+  - V-09 en su parte de conteo, salida y ajuste: C-04, C-06, C-08 y C-12 (salida y reserva sobre el
+    alcance congelado → 409 `CountScopeFrozen`; ajuste −2 trazable; alcance liberado);
+  - V-10: C-07, C-09 y C-11 (hallazgo con ubicación y lote, no confirmar bajo el reservado hasta liberar,
+    cancelar sin ajuste);
+  - V-12: C-16, ajuste de un artículo inactivo con motivo y autorización
+    (`CycleCountConfirmTests.An_inactive_article_…`, `StockCoreAdjustTests`).
+- **Pendiente de HU-01 (A)**: la parte de recepción de V-09. La prueba que falta es la de HU-01: confirmar
+  una recepción con alguna ubicación de destino congelada → 409 `CountScopeFrozen`, comprobado bajo los
+  bloqueos de todas las ubicaciones de destino antes de `Receive` (P-05 de HU-04, FR-008 de HU-01).
+  HU-04 la deja anotada como S5; no hay escritor de recepciones todavía.
+- **Frontend**:
+  - Vitest 223/223 (36 de `/inventarios`, sobre `a084bfa`);
+  - `tsc` de app, specs y E2E sin errores; build correcto;
+  - Playwright 18/18 con `--grep-invert SC-005`, en el proyecto `inventario-hu08-e2e` y con E2E-03
+    incluido (`ef9b596`).
+- **Fuera**: SC-006 y SC-007, que impiden dar HU-04 por aceptada.
+
+- **Tras la Convergence C1–C8 de HU-04** ([converge-2](../../../specs/006-realizar-inventarios-ciclicos/validation/converge-2.md)):
+  - backend 347/1/0 (`32d51d5`);
+  - Vitest 230/230, `tsc` y build sin errores (`7608a84`);
+  - Playwright 18/18 con `--grep-invert SC-005` (árbol de `9c8974a`);
+  - `CountScopeFrozen` nombra la ubicación y el conteo en salidas, reservas y ubicaciones (V-09);
+  - `GET /cycle-counts?correctsShipmentId=` (solo lectura, `Inventory.Read`) alimenta en `/salidas/{id}` el
+    aviso de que una salida corregida por un conteo no corrige el pedido (P-07).

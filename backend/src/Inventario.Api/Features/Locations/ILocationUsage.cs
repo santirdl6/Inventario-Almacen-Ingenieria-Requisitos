@@ -1,4 +1,6 @@
+using Inventario.Api.Domain.Locations;
 using Inventario.Api.Domain.Stock;
+using Inventario.Api.Infrastructure.Http;
 using Inventario.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,8 +16,21 @@ public interface ILocationUsage
 
     Task<LocationStockTotals> GetTotalsAsync(Guid locationId, CancellationToken cancellationToken);
 
-    // Conteo abierto sobre la ubicación. Devuelve false hasta que HU-04 aporte CountLocation (T034).
+    // Conteo abierto sobre la ubicación: alguna fila de CountLocations con IsFrozen = 1 (HU-04 D-04,
+    // INT-HU04-03). Se consulta tras location:{id}, en el DbContext y la transacción del comando.
     Task<bool> IsInOpenCountAsync(Guid locationId, CancellationToken cancellationToken);
+
+    // La misma comprobación, con el código de la ubicación y el del conteo que la ocupa, para que el 409
+    // CountScopeFrozen los nombre (HU-04 US3.1, Convergence C1). null si no está en un conteo abierto.
+    Task<OpenCountScope?> FindOpenCountAsync(Guid locationId, CancellationToken cancellationToken);
+}
+
+/// <summary>Ubicación congelada y conteo abierto que la ocupa.</summary>
+public sealed record OpenCountScope(string LocationCode, string CountCode)
+{
+    /// <summary>409 CountScopeFrozen común a salidas, reservas y ubicaciones (US3.1).</summary>
+    public InventoryProblemException Problem() => new(409, "CountScopeFrozen",
+        $"La ubicación {LocationCode} está en el conteo abierto {CountCode}. Espera a que termine.");
 }
 
 public sealed record LocationStockTotals(decimal Physical, decimal Reserved)
@@ -39,7 +54,16 @@ internal sealed class StockBalanceLocationUsage(InventoryDbContext database) : I
     }
 
     public Task<bool> IsInOpenCountAsync(Guid locationId, CancellationToken cancellationToken) =>
-        Task.FromResult(false);
+        database.Set<CountLocation>().AsNoTracking()
+            .AnyAsync(location => location.LocationId == locationId && location.IsFrozen, cancellationToken);
+
+    public Task<OpenCountScope?> FindOpenCountAsync(Guid locationId, CancellationToken cancellationToken) =>
+        (from frozen in database.Set<CountLocation>().AsNoTracking()
+         join count in database.Set<CycleCount>().AsNoTracking() on frozen.CountId equals count.Id
+         join location in database.Set<Location>().AsNoTracking() on frozen.LocationId equals location.Id
+         where frozen.LocationId == locationId && frozen.IsFrozen
+         select new OpenCountScope(location.Code, count.CountCode))
+        .SingleOrDefaultAsync(cancellationToken);
 
     private IQueryable<StockBalance> Balances(Guid locationId) =>
         database.Set<StockBalance>().AsNoTracking().Where(balance => balance.LocationId == locationId);

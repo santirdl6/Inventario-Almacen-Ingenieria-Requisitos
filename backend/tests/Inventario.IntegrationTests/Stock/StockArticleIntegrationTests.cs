@@ -50,8 +50,10 @@ public sealed class StockArticleIntegrationTests(IdentityFixture fixture) : ICla
         using var factory = fixture.Factory();
         using var scope = factory.Services.CreateScope();
         var database = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-        Assert.Equal(new HashSet<Type> { typeof(Lot), typeof(StockBalance), typeof(StockEntry), typeof(StockAlert), typeof(PurchaseOrderLine) },
-            ArticleUsageCoverageValidator.RequiredTypes(database.Model));
+        // Los tipos de stock y los de HU-07/HU-06 con FK a Article deben estar siempre cubiertos. Otros
+        // consumidores (HU-05/03/04) fijan su conjunto en sus propias pruebas.
+        Assert.Subset(ArticleUsageCoverageValidator.RequiredTypes(database.Model),
+            new HashSet<Type> { typeof(Lot), typeof(StockBalance), typeof(StockEntry), typeof(StockAlert), typeof(PurchaseOrderLine) });
         Assert.Equal(new HashSet<Type> { typeof(Lot), typeof(StockBalance), typeof(StockEntry) },
             scope.ServiceProvider.GetServices<IArticleUsageContributor>().OfType<StockArticleUsageContributor>()
                 .Single().ReferencingEntityTypes.ToHashSet());
@@ -227,7 +229,12 @@ public sealed class StockArticleIntegrationTests(IdentityFixture fixture) : ICla
         var url = path + "/movements";
 
         var receipt = await stock.RunAsync(principal, StockCore.Prepare(StockOperation.Receive,
-            StockTestHarness.Context("receipt") with { SupportReference = "ALB-123", CounterpartyReference = "Proveedor" },
+            StockTestHarness.Context("receipt") with
+            {
+                SupportReference = "ALB-123",
+                CounterpartyReference = "Proveedor",
+                CounterpartyNotApplicableReason = null
+            },
             [new(article.Id, firstLocation.Id, "lote-1", 2.125m), new(article.Id, secondLocation, "lote-2", 3m)]));
         var shipment = await stock.RunAsync(principal, StockCore.PrepareShipment(StockTestHarness.Context("shipment"),
             [new(article.Id, firstLocation.Id, "lote-1", 1m, 0m)]));

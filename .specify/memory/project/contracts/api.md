@@ -30,8 +30,8 @@ deberán ajustarse a él. Cambios compartidos requieren revisión A+B.
 - No hay DELETE/PUT/PATCH de saldos ni de movimientos confirmados.
 - Datos comunes de confirmación: `occurredAt`, `reason`, referencia de soporte o explicación
   de no aplicabilidad. Actor y recordedAt siempre los asigna el servidor.
-  La contraparte se indica con `counterpartyReference` o `counterpartyNotApplicableReason`;
-  el núcleo exige evidencia para cada hecho nuevo. La consulta del diario conserva el motivo
+  Cada movimiento nuevo exige que se indique `counterpartyReference` o
+  `counterpartyNotApplicableReason`, de forma excluyente. La consulta del diario conserva el motivo
   y distingue información histórica no registrada; protocolo de replay en stock-operations.
 
 ## Sesión, permisos y errores
@@ -77,7 +77,7 @@ code, traceId, operationId cuando aplique y errors por campo. No contienen traza
 | 400 | JSON o identificador inválido; antiforgery rechazado. |
 | 401 / 403 | Sin sesión / permiso insuficiente. |
 | 404 | Recurso inexistente o resultado de operación aún no observado. |
-| 409 | InsufficientStock, ReservedStockConflict, CountScopeFrozen, DocumentAlreadyConfirmed, OverReceipt, ArticleInactive, HistoryPreventsDeletion, IdempotencyConflict, DuplicateLocationPlace, LocationIdentityLocked, LocationNotEmpty, NoActiveReceivingLeft. |
+| 409 | InsufficientStock, ReservedStockConflict, CountScopeFrozen, DocumentAlreadyConfirmed, OverReceipt, ArticleInactive, HistoryPreventsDeletion, IdempotencyConflict, DuplicateLocationPlace, LocationIdentityLocked, LocationNotEmpty, NoActiveReceivingLeft, CustomerOrderNotOpen. |
 | 412 / 428 | Versión obsoleta / falta If-Match. |
 | 422 | Campos de negocio inválidos, cantidades/unidades o suma de asignaciones incorrectas. |
 | 503 | LockTimeout o indisponibilidad tras reintentos; Retry-After. Comprobar operationId antes de repetir. |
@@ -221,12 +221,18 @@ edición/cancelación de pedidos ni un módulo comercial.
 | Método y ruta | Entrada / salida |
 |---------------|-----------------|
 | POST /customer-orders | externalReference, customerReference, lines con articleId y quantity. Alta mínima con Shipping.Record; no módulo comercial. |
-| GET /customer-orders/{id} | Líneas, pedido/servido/pendiente y reservas; Inventory.Read. |
-| POST /reservations | customerOrderLineId, allocations con locationId, lotId y quantity; Reservations.Manage. |
-| GET /reservations/{id} | Asignado, consumido, liberado y remanente por bucket. |
-| POST /reservations/{id}/release | allocations con id y quantity; motivo; Reservations.Manage. No libera más del remanente. |
-| POST /shipments; GET, PUT /shipments/{id} | customerOrderId, occurredAt y lines con customerOrderLineId, locationId, lotId y quantity; edición solo de borrador con If-Match. |
-| POST /shipments/{id}/confirm | Shipping.Record; efecto atómico sobre físico, reserva propia y servido del pedido. |
+| GET /customer-orders/{id} | Solo datos propios: líneas con articleId, pedido/servido/pendiente/reservado remanente y reservas con asignaciones por ids; ETag de la cabecera, renovada por cada reserva, liberación o salida; Inventory.Read. |
+| GET /customer-orders/{id}/context | Sin ETag, como GET /articles/{id}/context: orderVersion, datos actuales de los artículos (sku, nombre, unidad, estado), ubicaciones (código, estado) y lotes del pedido y sus reservas, y creationOperationId (operación del alta, leída de su OperationResult); Inventory.Read. |
+| POST /reservations | customerOrderLineId, allocations con locationId, lotId y quantity; If-Match del pedido; Reservations.Manage. 201 sin ETag. |
+| GET /reservations/{id} | Solo datos propios: asignado, consumido, liberado y remanente por bucket (ids); ETag de la reserva; Inventory.Read. |
+| POST /reservations/{id}/release | releaseId, reason (texto libre obligatorio), allocations con allocationId y quantity; If-Match de la reserva; Reservations.Manage. No libera más del remanente. 200 sin ETag. |
+| GET /customer-orders/lookup?externalReference= | Búsqueda exacta sin distinguir mayúsculas ni espacios extremos; devuelve como mucho un pedido (`id`, `externalReference`, `state`) o 404; sin lista ni búsqueda parcial; Inventory.Read (HU-03 P-04). |
+| POST /shipments; PUT /shipments/{id} | customerOrderId, occurredAt y lines con customerOrderLineId, locationId, lotId y quantity; edición solo de borrador con If-Match; Shipping.Record. |
+| DELETE /shipments/{id} | Elimina un borrador completo con If-Match; 409 DocumentAlreadyConfirmed si está confirmada; 204; Shipping.Record (HU-03 P-03). |
+| GET /shipments/{id} | Solo datos propios y líneas ordenadas por Id, con ETag de la salida; Inventory.Read. |
+| GET /shipments/{id}/context | Sin ETag, con shipmentVersion y orderVersion: datos actuales de pedido, artículos, ubicaciones y lotes; Inventory.Read. |
+| GET /shipments?customerOrderId= | Lista paginada de las salidas del pedido, sin ETag; Inventory.Read. |
+| POST /shipments/{id}/confirm | Shipping.Record; If-Match de la salida y cuerpo `{ orderVersion }` (versión del pedido revisado, 412 si cambió); respuesta sin ETag. Efecto atómico sobre físico, reserva propia y servido del pedido. |
 
 Cada liberación incluye releaseId UUID estable; su reintento lo conserva, pero otra
 liberación parcial legítima utiliza otro releaseId. Reservar y liberar son comandos que
@@ -237,9 +243,11 @@ deben pertenecer al artículo de la línea. Solo confirma una salida lo que perm
 
 ### HU-05 — B: consultas
 
-GET /stock?articleId=...&locationId=...&lotId=...&page=1&pageSize=25: exige articleId;
+GET /stock?articleId=...&locationId=...&lotId=...&includeEmpty=false&page=1&pageSize=25: exige articleId;
 los demás filtros son opcionales. Inventory.Read. Cada fila identifica artículo, ubicación
 y lote y muestra physical, reserved, available. Totales consistentes del filtro completo.
+Por defecto solo filas con physical > 0; includeEmpty=true muestra también las de cero.
+GET /articles/{id}/locations (HU-02) usa el mismo agregado.
 GET /stock/reservations?articleId=... devuelve compromisos por pedido y bucket.
 Los resultados incluyen movimientos y ajustes ya confirmados; no borradores.
 

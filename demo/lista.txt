@@ -1,0 +1,9 @@
+video/demo-completa.mp4
+video/01-hu02-ubicaciones.mp4
+video/01-hu02-ubicaciones.jpg
+video/02-hu05-existencias-reservas.mp4
+video/02-hu05-existencias-reservas.jpg
+video/03-hu03-salidas.mp4
+video/03-hu03-salidas.jpg
+video/04-hu04-inventarios-ciclicos.mp4
+video/04-hu04-inventarios-ciclicos.jpg

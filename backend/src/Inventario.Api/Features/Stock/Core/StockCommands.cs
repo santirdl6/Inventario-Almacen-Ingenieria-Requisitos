@@ -5,7 +5,9 @@ public enum StockOperation
     Receive,
     Reserve,
     Release,
-    Ship
+    Ship,
+    // HU-04 (D-13): ajuste por conteo; cada línea lleva la diferencia con signo.
+    Adjust
 }
 
 // Documento origen de un hecho de stock. Cada hecho (confirmación, reserva, liberación)
@@ -31,6 +33,9 @@ public sealed record StockAllocation(Guid ArticleId, Guid LocationId, string? Lo
 // que se consume primero (Consumir = min(Q, Rpropia), calculado por HU-03 a partir de sus reservas).
 public sealed record ShipmentAllocation(Guid ArticleId, Guid LocationId, string? LotCode,
     decimal Quantity, decimal OwnReservedToConsume);
+
+// HU-04 (D-13): diferencia con signo de un bucket (contado − teórico); nunca cero.
+public sealed record AdjustmentAllocation(Guid ArticleId, Guid LocationId, string? LotCode, decimal Difference);
 
 public sealed record StockOperationOutcome(
     Guid OperationId,

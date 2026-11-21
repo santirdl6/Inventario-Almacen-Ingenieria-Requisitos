@@ -52,6 +52,20 @@ public static class StockCoreRegistration
         services.AddScoped<StockArticleUsageContributor>();
         services.AddScoped<IArticleUsageContributor>(provider => provider.GetRequiredService<StockArticleUsageContributor>());
         services.AddScoped<IArticleFirstReferenceContributor>(provider => provider.GetRequiredService<StockArticleUsageContributor>());
+        // HU-05 (T004): líneas de pedido y asignaciones de reserva también referencian Article. Se
+        // registra aquí, con el modelo que las incluye, para que la cobertura no dependa de AddStock().
+        services.AddScoped<CustomerOrders.CustomerOrderArticleUsageContributor>();
+        services.AddScoped<IArticleUsageContributor>(provider => provider.GetRequiredService<CustomerOrders.CustomerOrderArticleUsageContributor>());
+        services.AddScoped<IArticleFirstReferenceContributor>(provider => provider.GetRequiredService<CustomerOrders.CustomerOrderArticleUsageContributor>());
+        // HU-03 (T004, D-09): las líneas de salida también referencian Article. Aquí y no en
+        // AddShipping(), para que la cobertura de HU-08 no dependa del registro de la feature.
+        services.AddScoped<Shipping.ShipmentArticleUsageContributor>();
+        services.AddScoped<IArticleUsageContributor>(provider => provider.GetRequiredService<Shipping.ShipmentArticleUsageContributor>());
+        services.AddScoped<IArticleFirstReferenceContributor>(provider => provider.GetRequiredService<Shipping.ShipmentArticleUsageContributor>());
+        // HU-04 (T003, D-08): las líneas de conteo también referencian Article; mismo motivo que HU-03.
+        services.AddScoped<CycleCounts.CycleCountArticleUsageContributor>();
+        services.AddScoped<IArticleUsageContributor>(provider => provider.GetRequiredService<CycleCounts.CycleCountArticleUsageContributor>());
+        services.AddScoped<IArticleFirstReferenceContributor>(provider => provider.GetRequiredService<CycleCounts.CycleCountArticleUsageContributor>());
         services.AddScoped<IArticleUsageContributor, StockAlertArticleUsage>();
         services.AddScoped<IArticleMovementReader, StockArticleMovementReader>();
         return services;

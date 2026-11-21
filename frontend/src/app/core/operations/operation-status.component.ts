@@ -14,6 +14,7 @@ import { apiProblem } from '../http/api-problem';
         <section aria-label="Operación pendiente">
           <p role="status">Resultado pendiente de comprobar: {{ operation.operationId }}</p>
           @if (summaryOnly()) { <a [routerLink]="route(operation)">Revisar esta operación pendiente</a> } @else {
+          @if (operation.appRoute) { <a [routerLink]="operation.appRoute">{{ openLabel(operation.appRoute) }}</a> }
           @if (!hasOriginal(operation)) { <p>La petición original se retiró al cerrar sesión. Solo puedes comprobar el resultado; no se reconstruirá ni se reenviará.</p> }
           @else if (!checked().includes(operation.operationId)) { <p>Comprueba primero el resultado antes de repetir la petición original.</p> }
           <button type="button" [disabled]="busy()" (click)="check(operation)">Comprobar resultado</button>
@@ -31,9 +32,15 @@ export class OperationStatusComponent {
   readonly busy = signal(false); readonly message = signal('');
   readonly checked = signal<string[]>([]);
   hasOriginal(operation: PendingOperation): boolean { return 'payload' in operation; }
+  /** HU-03: «Abrir salida» para /salidas/{id}; HU-04: «Abrir conteo» para /inventarios/…; «Abrir pedido» para las rutas de pedido (HU-05 y alta de salida). */
+  openLabel(appRoute: string): string {
+    if (appRoute.startsWith('/inventarios/')) return 'Abrir conteo';
+    return appRoute.startsWith('/salidas/') && !appRoute.startsWith('/salidas/pedidos/') ? 'Abrir salida' : 'Abrir pedido';
+  }
   readonly sameGroup = (one: string, two: string) => operationGroup(one) === operationGroup(two);
   canRetry(operation: PendingOperation): boolean { const permission = mutationPermission(operation.resource, operation.method); return this.hasOriginal(operation) && !!permission && hasMutationPermission(this.session, permission) && this.checked().includes(operation.operationId); }
   route(operation: PendingOperation): string {
+    if (operation.appRoute) return operation.appRoute; // HU-05: pedido de la reserva o liberación.
     const parts = operation.resource.split('/');
     if (parts[3] === 'receipts') return parts[4] ? `/recepciones/${parts[4]}` : '/recepciones/nueva';
     if (parts[3] === 'movements') return '/recepciones';
