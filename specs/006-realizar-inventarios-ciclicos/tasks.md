@@ -259,10 +259,17 @@ real en salidas, reservas y ubicaciones.
     `begin(…, appRoute)` + `send()`; modelos y `differenceText` en `data/cycle-counts.models.ts`; datos de
     prueba en `testing/cycle-counts-testing.ts`. `operation-areas.spec.ts` (H0, B) cuenta `/inventarios`
     como área desarrollada. La ruta `:id` llega con el detalle (T015). Verde: Vitest 204/204, build correcto.
-- [ ] T015 [US1] [US5] Detalle en borrador y en conteo: `count-detail.page.ts` (alcance, iniciar con
+- [X] T015 [US1] [US5] Detalle en borrador y en conteo: `count-detail.page.ts` (alcance, iniciar con
   aviso de congelación, contar con cero explícito, diferencias en texto, hallazgos, enviar; 412 con
   relectura sin perder lo escrito; 409 con relectura). Vitest. **Rojo esperado**: la spec no encuentra
   «Contado» ni «Enviar a aprobación». Depende de T014.
+  - **Hecho**: rojo: la spec no compilaba sin la página; mutación temporal sin commit (renombrar
+    «Enviar a aprobación»): falla la prueba de envío; restaurado. Ruta `:id`. Borrador: alcance editable
+    (`PUT` con `If-Match`) y aviso de congelación antes de «Iniciar conteo». En conteo: «Contado» vacío,
+    diferencia en texto («Faltan 2 UD», «Sin diferencia»), validación local (negativo, fracción no admitida),
+    guardar solo lo escrito, hallazgos (búsqueda de artículo, lote en mayúsculas si lo gestiona) y retirada con
+    `DELETE`; enviar guarda antes lo pendiente y marca la fila de `lines[i]`. Sin motivo al contar (H6). 412
+    relee y conserva lo escrito; 409 de estado relee. Verde: Vitest 214/214, build correcto.
 - [ ] T016 [US2] [US4] Revisión, confirmación y cancelación: `count-review-dialog.ts`,
   `shipment-link-dialog.ts` (candidatas con todas las páginas, aviso «No cambia lo servido del pedido ni
   las reservas consumidas») y estado cerrado en solo lectura con la operación visible al recuperar

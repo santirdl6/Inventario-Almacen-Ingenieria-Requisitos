@@ -18,5 +18,10 @@ export const CYCLE_COUNTS_ROUTES: Routes = [
     canActivate: [permissionGuard],
     data: { permission: 'Counts.Record' },
     loadComponent: () => import('./count-new.page').then(module => module.CountNewPage)
+  },
+  {
+    path: ':id',
+    title: 'Conteo',
+    loadComponent: () => import('./count-detail.page').then(module => module.CountDetailPage)
   }
 ];
