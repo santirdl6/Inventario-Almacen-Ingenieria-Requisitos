@@ -346,3 +346,34 @@ por A el 2026-11-21 con la Convergence C1–C4). Ejecutado sobre `363de56`:
   - SC-006 y SC-007, que impiden dar HU-05 por aceptada.
 
 Detalle por caso en el [quickstart de HU-05](../../../specs/004-consultar-existencias/quickstart.md#evidencia).
+
+## 11. HU-04 — Evidencia de integración del 2026-11-21
+
+Conteos cíclicos, congelación del alcance y ajustes (HU-04, rama `b/hu-04-realizar-inventarios-ciclicos`;
+visto bueno de A a P-01…P-08 sobre `3e2ad7e`). Matriz C del
+[quickstart de HU-04](../../../specs/006-realizar-inventarios-ciclicos/quickstart.md#evidencia):
+
+- **Backend**: 347 pruebas SQL aprobadas, 1 omitida (V-14) y 0 fallidas sobre `2215155` (T012), con
+  `git archive` y `mcr.microsoft.com/dotnet/sdk:10.0` sobre la red de Compose. EF sin cambios de modelo.
+  Matriz C-01…C-20 en verde.
+- **Escenarios comunes cubiertos**:
+  - V-07: C-17, replay de las nueve escrituras, `IdempotencyConflict` y 412/428
+    (`CycleCountReliabilityTests.C17_…`);
+  - V-08: C-18, `FailAfterSaveInterceptor` en la confirmación y `GET /operations/{id}`
+    (`CycleCountReliabilityTests.C18_…`);
+  - V-09 en su parte de conteo, salida y ajuste: C-04, C-06, C-08 y C-12 (salida y reserva sobre el
+    alcance congelado → 409 `CountScopeFrozen`; ajuste −2 trazable; alcance liberado);
+  - V-10: C-07, C-09 y C-11 (hallazgo con ubicación y lote, no confirmar bajo el reservado hasta liberar,
+    cancelar sin ajuste);
+  - V-12: C-16, ajuste de un artículo inactivo con motivo y autorización
+    (`CycleCountConfirmTests.An_inactive_article_…`, `StockCoreAdjustTests`).
+- **Pendiente de HU-01 (A)**: la parte de recepción de V-09. La prueba que falta es la de HU-01: confirmar
+  una recepción con alguna ubicación de destino congelada → 409 `CountScopeFrozen`, comprobado bajo los
+  bloqueos de todas las ubicaciones de destino antes de `Receive` (P-05 de HU-04, FR-008 de HU-01).
+  HU-04 la deja anotada como S5; no hay escritor de recepciones todavía.
+- **Frontend**:
+  - Vitest 223/223 (36 de `/inventarios`, sobre `a084bfa`);
+  - `tsc` de app, specs y E2E sin errores; build correcto;
+  - Playwright 18/18 con `--grep-invert SC-005`, en el proyecto `inventario-hu08-e2e` y con E2E-03
+    incluido (`ef9b596`).
+- **Fuera**: SC-006 y SC-007, que impiden dar HU-04 por aceptada.
