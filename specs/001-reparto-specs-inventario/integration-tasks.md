@@ -35,6 +35,7 @@ Un escritor no se habilita sin esa cobertura; HU-08 no necesita reabrirse para a
 
 - [ ] INT-HU01-01 Integrar Receipt/Line/Allocation con el contrato de aceptación de escritores desde el borrador; probar las referencias directas o indirectas reales, la retirada y las carreras con edición/borrado. Generar cantidades exclusivamente por el núcleo común con soporte y contraparte o sus motivos explícitos. Origen HU-08 T035/T064/T066/T075/T076/T100/T101; FR-009/010/019.
 - [ ] INT-HU01-02 Rechazar recepción nueva de artículo inactivo y probar confirmación/desactivación en ambos órdenes; conservar compra, recepción, instantáneas y trazabilidad previas. No acreditar este flujo solo por llamar Receive sin su documento. Origen HU-08 T078/T103; US4.6, FR-013/019, Q-09/V-12.
+- Nota de HU-04 (P-05), confirmada expresamente por A el 2026-11-21: el escritor de recepciones comprueba `IsInOpenCountAsync` bajo los bloqueos de todas las ubicaciones de destino, antes de `Receive`, y devuelve 409 `CountScopeFrozen` (FR-008 de HU-01). Liberar reservas sigue permitido sobre un alcance congelado (FR-015 de HU-04).
 
 ## HU-03 — Salidas — Persona B
 
@@ -66,6 +67,7 @@ Un escritor no se habilita sin esa cobertura; HU-08 no necesita reabrirse para a
 - [ ] INT-HU04-01 Integrar CountLine y hallazgos con el contrato de aceptación de escritores desde su primera referencia, antes del ajuste; comprobar retirada permitida de borradores y carreras de definición/borrado sin crear dimensiones técnicas que impidan eliminar artículos nunca usados. Origen HU-08 T064/T066/T070/T075/T100/T101; FR-009/010/011/019.
 - [ ] INT-HU04-02 Verificar ajustes de artículos inactivos solo con autorización/motivo persistidos, respetando reservas y congelación, sin borrar ni reescribir diario y conservando ubicaciones/unidades históricas. Origen HU-08 T078/T103; FR-013, Q-09/V-12 y Constitution IV/V.
 - [ ] INT-HU04-03 Al integrar CountLocation, conectar ILocationUsage.IsInOpenCountAsync de HU-02 y los controles de congelación de los escritores de stock/reservas; probar 409 CountScopeFrozen al desactivar/cambiar tipo de una ubicación en conteo y mostrar inOpenCount real en sus consultas. No habilitar conteos dejando el lector constante false. Origen HU-02 T034 y revisión PR #6; FR-008/012 y US3.3/US4.3 de HU-02.
+- Tarea receptora de la corrección de salidas confirmadas (P-07 de HU-03): asignada a HU-04 US4 (FR-018–FR-020) e implementada en su T012. Confirmado expresamente por A el 2026-11-21: el conteo vinculado a una salida es un ajuste del físico y la limitación P-07 queda visible (no corrige lo servido ni el estado del pedido); los ajustes de conteo usan solo `CounterpartyNotApplicableReason`. INT-HU04-01/02/03 se marcan en T018 de HU-04 con su evidencia.
 
 ## HU-06 — Mínimos y alertas — Persona A
 

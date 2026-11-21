@@ -55,10 +55,18 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   incluido el aviso al escritor de recepciones de HU-01), P-06 (archivos de A de T013), P-07 y P-08.
   Se envía con el PR; la implementación sigue sin esperar. Hecho cuando A responde y la respuesta queda
   anotada aquí.
-- [ ] T002 ⚑ Registrar en `specs/001-reparto-specs-inventario/integration-tasks.md` (coordinación A+B)
+  - **Respuesta de A (2026-11-21), parcial**: confirma expresamente (a) que la recepción de HU-01 comprueba
+    `IsInOpenCountAsync` bajo los bloqueos de todas las ubicaciones de destino, antes de `Receive`, con 409
+    `CountScopeFrozen` (FR-008 de HU-01), y que liberar reservas sigue permitido (FR-015); (b) que los ajustes
+    de conteo usan solo `CounterpartyNotApplicableReason`; (c) que el conteo vinculado a una salida es un
+    ajuste del físico y la limitación P-07 queda visible. El resto de P-01…P-08 no tiene aprobación de A
+    registrada: la tarea sigue abierta.
+- [X] T002 ⚑ Registrar en `specs/001-reparto-specs-inventario/integration-tasks.md` (coordinación A+B)
   la parte inicial de P-07: la tarea receptora de la corrección de salidas (P-07 de HU-03) queda
   asignada a HU-04 US4 (FR-018–FR-020), y la nota de P-05 para HU-01. Sin marcar INT-HU04-01/02/03
   (se marcan en T018 con evidencia). Sin prueba: solo documento.
+  - **Hecho**: registradas en `integration-tasks.md` la tarea receptora de P-07 (HU-04 US4, T012) con lo
+    confirmado por A el 2026-11-21 y la nota P-05 en HU-01. INT-HU04-01/02/03 sin marcar.
 
 ## Phase 2: Fundamentos (bloquean las historias)
 
