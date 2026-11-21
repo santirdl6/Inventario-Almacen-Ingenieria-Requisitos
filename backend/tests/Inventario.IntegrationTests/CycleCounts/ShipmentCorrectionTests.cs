@@ -72,6 +72,21 @@ public sealed class ShipmentCorrectionTests(IdentityFixture fixture) : IClassFix
         await AssertConfirmedInvariantsAsync(fixture, support, id);
         var (closed, _) = await DetailAsync(operario.Client, id);
         Assert.Equal(shipment, Line(closed, seed.Article, seed.Location).GetProperty("correctsShipmentId").GetGuid());
+
+        // FR-023 (Convergence C2): la lista muestra los responsables y el alcance con sus códigos.
+        var names = (await ContextAsync(operario.Client, id)).GetProperty("users").EnumerateArray()
+            .ToDictionary(user => user.GetProperty("id").GetGuid(), user => user.GetProperty("name").GetString());
+        var list = await operario.Client.GetFromJsonAsync<JsonElement>("/api/v1/cycle-counts?state=Confirmed&pageSize=100");
+        var row = list.GetProperty("items").EnumerateArray().Single(item => item.GetProperty("id").GetGuid() == id);
+        Assert.Equal(names[closed.GetProperty("createdBy").GetGuid()], row.GetProperty("createdByName").GetString());
+        Assert.Equal(names[closed.GetProperty("startedBy").GetGuid()], row.GetProperty("startedByName").GetString());
+        Assert.Equal(closed.GetProperty("approvedBy").GetGuid(), row.GetProperty("closedBy").GetGuid());
+        Assert.Equal(names[closed.GetProperty("approvedBy").GetGuid()], row.GetProperty("closedByName").GetString());
+        Assert.NotEqual(row.GetProperty("createdByName").GetString(), row.GetProperty("closedByName").GetString());
+        await using (var database = fixture.ApplicationDatabase())
+            Assert.Equal(new[] { await database.Set<Inventario.Api.Domain.Locations.Location>().Where(value => value.Id == seed.Location)
+                    .Select(value => value.Code).SingleAsync() },
+                row.GetProperty("locationCodes").EnumerateArray().Select(code => code.GetString()!).ToArray());
     }
 
     [Fact]

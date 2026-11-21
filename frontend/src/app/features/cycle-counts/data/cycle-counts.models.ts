@@ -8,8 +8,10 @@ export const COUNT_STATE_LABELS: Record<string, string> = {
 };
 
 export interface CountSummary {
-  id: string; countCode: string; state: CountState; locationIds: string[]; createdBy: string;
-  createdAt: string; startedAt: string | null; closedAt: string | null;
+  id: string; countCode: string; state: CountState; locationIds: string[]; locationCodes: string[];
+  createdBy: string; createdByName: string; createdAt: string;
+  startedBy: string | null; startedByName: string | null; startedAt: string | null;
+  closedBy: string | null; closedByName: string | null; closedAt: string | null;
 }
 
 export interface CountPage { items: CountSummary[]; page: number; pageSize: number; totalCount: number }

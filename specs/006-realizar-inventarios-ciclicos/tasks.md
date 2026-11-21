@@ -391,9 +391,17 @@ queda como estaba (la skill solo añade).
     `Problem()` da el mismo 409 a los tres escritores: «La ubicación U está en el conteo abierto CC-…».
     `IsInOpenCountAsync` y el orden de D-04 no cambian. Verde: la prueba comprueba ubicación y conteo en
     salida, reserva, desactivar y cambiar el tipo (vacía y ocupada). Suite 347/1/0.
-- [ ] C2 Mostrar en `/inventarios` los responsables (creó; aprobó o canceló) y los códigos del alcance,
+- [X] C2 Mostrar en `/inventarios` los responsables (creó; aprobó o canceló) y los códigos del alcance,
   ampliando `CycleCountSummary` y el contrato de la lista, o reformular FR-023 con `/speckit-clarify`,
   según FR-023 (partial, G2).
+  - **Hecho**: rojo backend en `ShipmentCorrectionTests.C19_…` (entrada: conteo creado e iniciado por el
+    operario y confirmado por el responsable; `GET /cycle-counts?state=Confirmed`). Esperado: la fila con
+    `createdByName`, `startedByName`, `closedBy`/`closedByName` y `locationCodes`. Observado:
+    `KeyNotFoundException` (la fila no los trae). Rojo Vitest en `count-list.page.spec.ts`: esperado
+    «P01-E01-N01, P01-E01-N02», «Creó…», «Inició…», «Cerró…»; observado «CC-400000000000En conteo2
+    ubicaciones…». `GET /cycle-counts` no tenía prueba backend; ahora la tiene. La lista muestra, por fila,
+    los códigos del alcance y quién creó, inició y cerró (aprobó o canceló). Contratos API y UI
+    actualizados. Verde: suite 347/1/0, Vitest 224/224, `tsc` de app, specs y E2E y build.
 - [ ] C3 Indicar en el detalle del pedido de cliente o de la salida corregida que un conteo vinculado
   corrigió el físico sin cambiar lo servido, o acotar US4.3 al detalle del conteo con
   `/speckit-clarify`, según US4.3 y FR-019 (partial, G3).

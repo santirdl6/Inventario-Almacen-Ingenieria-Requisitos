@@ -11,7 +11,7 @@ comprobar resultados.
 
 | Ruta | Respuesta |
 |------|-----------|
-| `GET /cycle-counts?state=&page=&pageSize=` | `{ items, page, pageSize, totalCount }`; cada item: `id`, `countCode`, `state`, `locationIds`, `createdBy`, `createdAt`, `startedAt`, `closedAt`. Orden: `createdAt` descendente, luego `id`. |
+| `GET /cycle-counts?state=&page=&pageSize=` | `{ items, page, pageSize, totalCount }`; cada item: `id`, `countCode`, `state`, `locationIds`, `locationCodes`, `createdBy`, `createdByName`, `createdAt`, `startedBy`, `startedByName`, `startedAt`, `closedBy`, `closedByName` (aprobó o canceló), `closedAt` (FR-023, Convergence C2). Orden: `createdAt` descendente, luego `id`. |
 | `GET /cycle-counts/{id}` | `ETag` fuerte. Solo datos propios (D-12): cabecera, `locations: [{ locationId, isFrozen }]` por `locationId`, `lines` por `id` con `articleId`, `locationId`, `lotCode`, `isFound`, `theoreticalPhysical`, `countedPhysical`, `difference`, `countedBy`, `countedAt`, `reason`, `reasonBy`, `correctsShipmentId` y, si está vinculada, `shipmentCorrectionNotice` (aviso P-07: no cambia lo servido ni el estado del pedido). 404 si no existe. |
 | `GET /cycle-counts/{id}/context` | Sin `ETag`. `countVersion`; `articles` (sku, nombre, unidad, `allowsFractions`, `tracksLot`, `isActive`); `locations` (código, activa); `reservedByBucket`; `shipments` vinculadas (`externalReference` del pedido); `users` (nombre visible). |
 | `GET /cycle-counts/{id}/lines/{lineId}/shipment-candidates?page=` | Salidas `Confirmed` con alguna línea en el bucket de la línea: `shipmentId`, `customerOrderId`, `externalReference`, `confirmedAt`, `quantity` en el bucket, `linkedCountLineIds`. Más reciente primero. |

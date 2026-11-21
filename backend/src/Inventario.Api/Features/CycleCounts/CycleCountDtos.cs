@@ -265,9 +265,10 @@ public sealed record ShipmentCorrection(Guid LineId, Guid ShipmentId, Guid Custo
 /// <summary>Respuesta de las escrituras que devuelven el conteo con su nuevo ETag.</summary>
 public sealed record CycleCountMutation(Guid OperationId, CycleCountView Count);
 
-/// <summary>Fila de GET /cycle-counts.</summary>
-public sealed record CycleCountSummary(Guid Id, string CountCode, string State, IReadOnlyList<Guid> LocationIds, Guid CreatedBy,
-    DateTimeOffset CreatedAt, DateTimeOffset? StartedAt, DateTimeOffset? ClosedAt);
+/// <summary>Fila de GET /cycle-counts, con responsables y códigos del alcance (FR-023, Convergence C2).</summary>
+public sealed record CycleCountSummary(Guid Id, string CountCode, string State, IReadOnlyList<Guid> LocationIds,
+    IReadOnlyList<string> LocationCodes, Guid CreatedBy, string CreatedByName, DateTimeOffset CreatedAt, Guid? StartedBy,
+    string? StartedByName, DateTimeOffset? StartedAt, Guid? ClosedBy, string? ClosedByName, DateTimeOffset? ClosedAt);
 
 /// <summary>GET /cycle-counts/{id}/context: datos actuales sin ETag, con countVersion (D-12).</summary>
 public sealed record CycleCountContext(string CountVersion, IReadOnlyList<CountArticleContext> Articles,

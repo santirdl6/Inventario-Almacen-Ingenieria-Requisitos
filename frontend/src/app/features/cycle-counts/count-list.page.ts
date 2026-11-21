@@ -8,7 +8,7 @@ import { COUNT_STATE_LABELS, CountPage, NEW_COUNT_ROUTE, countRoute } from './da
 
 /**
  * HU-04 T014 · /inventarios (contracts/cycle-counts-ui.md § Rutas). Conteos con código, estado en texto,
- * número de ubicaciones y fechas, del más reciente al más antiguo; filtro por estado. «Nuevo conteo»
+ * ubicaciones con sus códigos, fechas y responsables (FR-023, Convergence C2), del más reciente al más antiguo; filtro por estado. «Nuevo conteo»
  * solo con Counts.Record. El servidor sigue decidiendo cada permiso.
  */
 @Component({
@@ -37,10 +37,11 @@ import { COUNT_STATE_LABELS, CountPage, NEW_COUNT_ROUTE, countRoute } from './da
               <tr>
                 <td>{{ item.countCode }}</td>
                 <td>{{ stateLabel(item.state) }}</td>
-                <td>{{ item.locationIds.length }} {{ item.locationIds.length === 1 ? 'ubicación' : 'ubicaciones' }}</td>
-                <td>{{ item.createdAt | date: 'dd/MM/yyyy HH:mm' }}</td>
-                <td>@if (item.startedAt) { {{ item.startedAt | date: 'dd/MM/yyyy HH:mm' }} } @else { — }</td>
-                <td>@if (item.closedAt) { {{ item.closedAt | date: 'dd/MM/yyyy HH:mm' }} } @else { — }</td>
+                <td>{{ item.locationIds.length }} {{ item.locationIds.length === 1 ? 'ubicación' : 'ubicaciones' }}:
+                  {{ item.locationCodes.join(', ') }}</td>
+                <td>{{ item.createdAt | date: 'dd/MM/yyyy HH:mm' }} · Creó {{ item.createdByName }}</td>
+                <td>@if (item.startedAt) { {{ item.startedAt | date: 'dd/MM/yyyy HH:mm' }} · Inició {{ item.startedByName }} } @else { — }</td>
+                <td>@if (item.closedAt) { {{ item.closedAt | date: 'dd/MM/yyyy HH:mm' }} · Cerró {{ item.closedByName }} } @else { — }</td>
                 <td><a [routerLink]="route(item.id)">Abrir</a></td>
               </tr>
             }

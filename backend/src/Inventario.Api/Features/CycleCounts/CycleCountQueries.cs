@@ -94,13 +94,23 @@ public sealed class CycleCountQueries(InventoryDbContext database)
                 .Skip(paging.Skip).Take(paging.PageSize)
                 .Select(count => new
                 {
-                    count.Id, count.CountCode, count.State, count.CreatedBy, count.CreatedAt, count.StartedAt,
-                    ClosedAt = count.ApprovedAt ?? count.CancelledAt,
+                    count.Id, count.CountCode, count.State, count.CreatedBy, count.CreatedAt, count.StartedBy, count.StartedAt,
+                    ClosedBy = count.ApprovedBy ?? count.CancelledBy, ClosedAt = count.ApprovedAt ?? count.CancelledAt,
                     Locations = count.Locations.OrderBy(location => location.LocationId).Select(location => location.LocationId).ToList()
                 })
                 .ToListAsync(cancellation);
+            // FR-023 (Convergence C2): responsables con su nombre visible y alcance con sus códigos.
+            var userIds = rows.SelectMany(row => new[] { row.CreatedBy, row.StartedBy, row.ClosedBy }).OfType<Guid>().Distinct().ToList();
+            var users = await database.Users.AsNoTracking().Where(user => userIds.Contains(user.Id))
+                .ToDictionaryAsync(user => user.Id, user => user.UserName ?? "", cancellation);
+            var locationIds = rows.SelectMany(row => row.Locations).Distinct().ToList();
+            var codes = await database.Set<Location>().AsNoTracking().Where(location => locationIds.Contains(location.Id))
+                .ToDictionaryAsync(location => location.Id, location => location.Code, cancellation);
+            string? Name(Guid? id) => id is { } value ? users.GetValueOrDefault(value) is { Length: > 0 } name ? name : value.ToString("D") : null;
             return new PageResult<CycleCountSummary>(rows.Select(row => new CycleCountSummary(row.Id, row.CountCode, row.State.ToString(),
-                row.Locations, row.CreatedBy, row.CreatedAt, row.StartedAt, row.ClosedAt)).ToList(), paging.Page, paging.PageSize, total);
+                row.Locations, row.Locations.Select(location => codes[location]).OrderBy(code => code, StringComparer.Ordinal).ToList(),
+                row.CreatedBy, Name(row.CreatedBy)!, row.CreatedAt, row.StartedBy, Name(row.StartedBy), row.StartedAt,
+                row.ClosedBy, Name(row.ClosedBy), row.ClosedAt)).ToList(), paging.Page, paging.PageSize, total);
         }, cancellation);
     }
 

@@ -7,7 +7,7 @@ estados de operación e información que no debe ocultarse). Decisiones en [rese
 
 | Ruta | Pantalla | Visible para |
 |------|----------|--------------|
-| `/inventarios` | Lista de conteos con estado, código, ubicaciones y fechas; filtro por estado; «Nuevo conteo». | Inventory.Read; botón con Counts.Record |
+| `/inventarios` | Lista de conteos con estado, código, ubicaciones con sus códigos, fechas y responsables (creó, inició, cerró; FR-023); filtro por estado; «Nuevo conteo». | Inventory.Read; botón con Counts.Record |
 | `/inventarios/nuevo` | Elegir ubicaciones activas (todas las páginas) y guardar el borrador. | Counts.Record |
 | `/inventarios/{id}` | Detalle por estado: alcance (Draft), contar (Counting), revisar y confirmar (AwaitingApproval), solo lectura (cerrado). | Inventory.Read; acciones según permiso |
 

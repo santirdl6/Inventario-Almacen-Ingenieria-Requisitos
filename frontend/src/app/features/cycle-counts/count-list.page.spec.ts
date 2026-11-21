@@ -7,8 +7,12 @@ import { COUNT, RECORD, U1, U2, settle } from './testing/cycle-counts-testing';
 // fechas; filtro por estado; «Nuevo conteo» solo con Counts.Record.
 const PAGE = {
   items: [
-    { id: COUNT, countCode: 'CC-400000000000', state: 'Counting', locationIds: [U1, U2], createdBy: 'u',
-      createdAt: '2026-11-21T08:00:00Z', startedAt: '2026-11-21T08:10:00Z', closedAt: null }
+    { id: COUNT, countCode: 'CC-400000000000', state: 'Counting', locationIds: [U1, U2], locationCodes: ['P01-E01-N01', 'P01-E01-N02'],
+      createdBy: 'u', createdByName: 'ana.operaria', createdAt: '2026-11-21T08:00:00Z', startedBy: 'u', startedByName: 'ana.operaria',
+      startedAt: '2026-11-21T08:10:00Z', closedBy: null, closedByName: null, closedAt: null },
+    { id: 'c2', countCode: 'CC-500000000000', state: 'Confirmed', locationIds: [U1], locationCodes: ['P01-E01-N01'],
+      createdBy: 'u', createdByName: 'ana.operaria', createdAt: '2026-11-20T08:00:00Z', startedBy: 'u', startedByName: 'ana.operaria',
+      startedAt: '2026-11-20T08:10:00Z', closedBy: 'r', closedByName: 'rosa.responsable', closedAt: '2026-11-20T09:00:00Z' }
   ],
   page: 1, pageSize: 25, totalCount: 30
 };
@@ -51,6 +55,15 @@ describe('CountListPage', () => {
       && r.params.get('page') === '2').flush({ ...PAGE, page: 2 });
     await settle(fixture);
     expect(text(root)).toContain('Página 2 de 2');
+  });
+
+  it('muestra los responsables y los códigos del alcance (FR-023)', async () => {
+    const { root } = await render(RECORD);
+    const [open, closed] = Array.from(root.querySelectorAll('table[aria-label="Conteos"] tbody tr'));
+    expect(text(open)).toContain('P01-E01-N01, P01-E01-N02');
+    expect(text(open)).toContain('Creó ana.operaria');
+    expect(text(open)).toContain('Inició ana.operaria');
+    expect(text(closed)).toContain('Cerró rosa.responsable');
   });
 
   it('sin Counts.Record no ofrece «Nuevo conteo»', async () => {
