@@ -12,6 +12,17 @@ description: "Lista de tareas de HU-03 — Registrar la salida de mercancía"
 **Presupuesto**: como máximo 20 tareas. Hay **18** (T001–T018), más la fase «Convergence», vacía
 hasta `/speckit-analyze` y `/speckit-converge`, y «Si hay tiempo», fuera de la numeración.
 
+**Iteración del 2026-11-21** (tras la revisión de tasks.md y la iteración del plan `786abc9`), sin
+tareas nuevas:
+
+- T004 incluye los consumos ligados a la operación que confirma y su caso de H-02.
+- T011 añade la carrera de confirmar frente a `PUT` de definición.
+- Se corrigen las marcas [P] y las dependencias de T010, T011 y T012.
+- Se marca ⚠ PR #9 en T003, T006 y T018.
+- T017 permite los tres archivos de fixtures de A con commit mínimo; cualquier otro archivo de A,
+  preguntar.
+- T014 y T016 añaden las pruebas de permisos de `/salidas`.
+
 **Pruebas (TDD)**: cada tarea de código indica primero la prueba que debe fallar y **por qué**
 («rojo esperado»), que se anota en la tarea al hacerla, como en HU-05. Integración en SQL Server real
 con la receta Docker de la [guía de HU-05](../004-consultar-existencias/quickstart.md#pruebas-automatizadas-backend)
@@ -40,6 +51,8 @@ comando de confirmación, así que T009–T010 llevan ambas etiquetas. US3 (inac
 - **[INT-HU03-01] / [INT-HU03-02]**: tarea receptora del
   [backlog de integración](../001-reparto-specs-inventario/integration-tasks.md#hu-03--salidas--persona-b).
 - **🔀 PR #9**: depende de la base de HU-05 tal como se fusione (ver «Dependencias externas»).
+- **⚠ PR #9**: edita archivos de HU-05 (de B) que pueden cambiar en la revisión del PR #9 o en su
+  fusión. Riesgo de conflicto al rebasar; antes de empezar, comprobar si han cambiado.
 
 ## Path Conventions
 
@@ -58,7 +71,9 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     P-02 (tabla de consumos), P-03 y P-04 (`api.md`), P-05 (`stock-operations.md`), P-07 (tarea
     receptora de HU-04 en `integration-tasks.md`) y P-08 (evidencia en el quickstart común);
   - (b) los cambios en archivos de A de T013 (P-06) y, si llegara a hacer falta, los de T017;
-  - (c) los triggers de D-06 como sustituto del `DENY DELETE` en `Shipments`/`ShipmentLines`.
+  - (c) los triggers de D-06 como sustituto del `DENY DELETE` en `Shipments`/`ShipmentLines`, y
+    los consumos ligados a la operación que confirma, que impiden insertarlos tras confirmar
+    (iteración del plan del 2026-11-21, pedida por A al revisar P-01 y P-02).
 
   Registrar decisión, fecha y revisor en `plan.md` (nuevo apartado «Estado de la revisión de A»).
   Si A rechaza algo, ajustar solo las tareas afectadas: si rechaza P-02, T004 y T009 pasan a la
@@ -78,7 +93,8 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
 **Objetivo**: dominio, tablas, triggers y registro de la feature sobre la cadena única de migraciones.
 
-- [ ] T003 Línea base y dominio. Depende de nada.
+- [ ] T003 ⚠ PR #9 Línea base y dominio. Depende de nada. Riesgo: `Reservation.cs` y
+  `CustomerOrder.cs` de HU-05.
   - Primero, ejecutar la suite backend con la receta Docker y anotar el número de pruebas en verde
     (última conocida en HU-05: 206/1/0) y Vitest (143/143).
   - **Rojo esperado**: crear `backend/tests/Inventario.IntegrationTests/Shipping/Hu03DomainTests.cs`
@@ -106,6 +122,15 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - **Rojo esperado**: crear `Shipping/Hu03SchemaTests.cs` (H-02) y ampliar el conjunto exacto de
     `Stock/Hu05SchemaTests.cs` con `ShipmentLine`. Fallan porque las tablas, los triggers y el
     `DENY` no existen y el conjunto de tipos con FK a `Article` no incluye `ShipmentLine`.
+  - **Consumo tardío** (H-02, iteración del plan del 2026-11-21), con `inventory_runtime`:
+    - tras confirmar S con la operación X, un `INSERT` de consumo con otra operación Y falla en la
+      base de datos y el número de consumos no cambia;
+    - confirmar con X un borrador que ya tiene un consumo con Y se rechaza;
+    - en una transacción manual, confirmar con X en los dos órdenes (`UPDATE` y luego `INSERT`, e
+      `INSERT` y luego `UPDATE`) se admite.
+    - **Rojo previo**: escribir primero la prueba con la tabla de consumos y su `OperationId` pero
+      sin el trigger nuevo: el `INSERT` con Y se admite. Anotarlo antes de añadir el trigger en el
+      mismo commit. Lo que confirma por la API lo cubre T010 (H-08).
   - Configuraciones en `Infrastructure/Persistence/Configurations/` (`ShipmentConfiguration.cs`,
     `ShipmentLineConfiguration.cs`, `ShipmentReservationConsumptionConfiguration.cs`) según
     [data-model](data-model.md):
@@ -116,9 +141,13 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
       (Restrict); FK compuesta `(ArticleId, LotId) → Lots (ArticleId, Id)`; «CHECK Quantity > 0»;
       `UX_ShipmentLines_Shipment_Bucket`. Sin columna `OwnReservationConsumed` (D-06, D-08).
     - `ShipmentReservationConsumptions`: FK `ShipmentLines` y `ReservationAllocations` (Restrict);
-      «CHECK Quantity > 0»; único `(ShipmentLineId, ReservationAllocationId)`.
-    - `HasTrigger("TR_Shipments_ConfirmedImmutable")` y `HasTrigger("TR_ShipmentLines_ConfirmedImmutable")`
-      en sus tablas (EF no puede usar `OUTPUT` sin `INTO` con triggers; plan, riesgos).
+      «CHECK Quantity > 0»; único `(ShipmentLineId, ReservationAllocationId)`; `OperationId`
+      obligatorio, sin FK, que la confirmación rellena con `context.OperationId` (research D-06,
+      iteración). La cabecera **no** necesita columna nueva: `Shipments.OperationId` ya es la
+      operación que confirma.
+    - `HasTrigger("TR_Shipments_ConfirmedImmutable")`, `HasTrigger("TR_ShipmentLines_ConfirmedImmutable")`
+      y `HasTrigger("TR_ShipmentReservationConsumptions_ConfirmingOperation")` en sus tablas (EF no
+      puede usar `OUTPUT` sin `INTO` con triggers; plan, riesgos).
   - `Features/Shipping/ShippingDocuments.cs`: tipo canónico `shipment` (D-03).
   - `Features/Shipping/ShipmentArticleUsage.cs`: `ShipmentArticleUsageContributor`
     (`IArticleUsageContributor` e `IArticleFirstReferenceContributor` para `ShipmentLine`; «sin uso»
@@ -127,17 +156,22 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     `Features/Stock/Core/StockArticleUsage.cs`, `AddStockCore` (archivo de B, H0), no en
     `AddShipping` (lección 4: si no, HU-08 responde 503 `DependencyUnavailable`).
   - `dotnet ef migrations add HU03_Shipments` sobre `20261120113458_HU05_CustomerOrdersReservations`
-    (D-10). A mano, en `Up`: los dos triggers de D-06 (`AFTER UPDATE, DELETE` en `Shipments`;
-    `AFTER INSERT, UPDATE, DELETE` en `ShipmentLines`; `ROLLBACK` + `THROW` si la cabecera estaba
-    `Confirmed`) y `DENY UPDATE, DELETE ON OBJECT::dbo.ShipmentReservationConsumptions TO
-    inventory_runtime`. `Down` en orden inverso.
+    (D-10). A mano, en `Up`, los tres triggers de D-06 y el `DENY`:
+    - `AFTER UPDATE, DELETE` en `Shipments`: `ROLLBACK` + `THROW` si la fila estaba `Confirmed`.
+      Además, en la transición `Draft → Confirmed`, si ya hay consumos de sus líneas con otro
+      `OperationId`.
+    - `AFTER INSERT, UPDATE, DELETE` en `ShipmentLines`: igual si la cabecera está `Confirmed`.
+    - `AFTER INSERT` en `ShipmentReservationConsumptions`: si la cabecera de la línea está
+      `Confirmed` y su `OperationId` es distinto del de la fila.
+    - `DENY UPDATE, DELETE ON OBJECT::dbo.ShipmentReservationConsumptions TO inventory_runtime`.
+    - `Down` en orden inverso.
   - `Features/Shipping/ShipmentEndpoints.cs` con `AddShipping()` y `MapShippingEndpoints()` vacíos.
   - Verificar: `has-pending-model-changes` sin cambios, cadena desde cero, revertir y reaplicar;
     suite completa en verde y sin `DependencyUnavailable` en HU-08.
   - **Si la revisión del PR #9 cambia la migración de HU-05, o A fusiona otra antes**, regenerar
     `HU03_Shipments` sobre la última (plan global §5).
 
-  (D-06, D-08–D-10; FR-004, FR-013, FR-017.)
+  (D-06 con su iteración, D-08–D-10; data-model, invariante 7; FR-004, FR-013, FR-017.)
 - [ ] T005 ⚑ commit aparte (archivo común). En `backend/src/Inventario.Api/Program.cs`, añadir el
   `using Inventario.Api.Features.Shipping;`, `builder.Services.AddShipping();` y
   `api.MapShippingEndpoints();` junto a los de Stock, sin otro cambio. Depende de T004. Sin rojo
@@ -153,8 +187,10 @@ sin rutas.
 **Objetivo**: localizar el pedido, preparar el borrador y confirmar la salida con consumo de
 reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
 
-- [ ] T006 [P] [US1] ⚑ commit aparte (archivos de B de HU-05). Búsqueda exacta del pedido (D-11,
-  FR-001a). Depende de T005.
+- [ ] T006 [P] [US1] ⚑ commit aparte (archivos de B de HU-05) ⚠ PR #9. Búsqueda exacta del pedido
+  (D-11, FR-001a). Depende de T005. Riesgo: `CustomerOrderQueries.cs`, `CustomerOrderDtos.cs` y
+  `StockEndpoints.cs`. La revisión del PR #9 ya cambió el contexto del pedido (C3,
+  `creationOperationId`).
   - **Rojo esperado**: `Shipping/CustomerOrderLookupTests.cs` (H-03): « ped-0042 » → 200 con id y
     estado; inexistente → 404; vacía o > 64 → 422; sin sesión → 401; Administrador → 403;
     GestorMaestros → 200. Falla con 404 en todas porque la ruta no existe (cae en `/{id:guid}`).
@@ -218,13 +254,15 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
        `Reason = "Salida del pedido {ExternalReference}"`, `SupportReference = ExternalReference`,
        `CounterpartyReference = CustomerReference`) y `ApplyAsync`.
     6. `Consume` + `DeriveState()` + `Touch` por reserva afectada; `Ship` por línea de pedido;
-       `DeriveFulfilment()` y `Touch` del pedido **siempre**; filas de consumo; `Confirm` de la
-       salida. Sin `SaveChanges` dentro de `change`; 200 sin `ETag` (HU-05 D-08).
+       `DeriveFulfilment()` y `Touch` del pedido **siempre**; filas de consumo con
+       `OperationId = context.OperationId`; `Confirm` de la salida con el mismo id (el orden de EF
+       entre ambos no importa, D-06). Sin `SaveChanges` dentro de `change`; 200 sin `ETag` (HU-05 D-08).
   - Pruebas en T010 y T011.
 
   (US1.3–US1.5, US2.1–US2.7, US3.1; FR-007–FR-012, FR-014–FR-016, FR-020.)
 - [ ] T010 [P] [US1] [US2] [US3] [US5] [INT-HU03-02] `Shipping/ShipmentConfirmTests.cs`. Depende de
-  T009 y T006 (pedido de H-03). **Rojo esperado**: escribirlas con `/confirm` respondiendo 501 y
+  T009, de T008 (`ShippingApiSupport.cs`) y de T006 (pedido de H-03). [P] solo frente a T011:
+  archivos de prueba distintos y las mismas dependencias. **Rojo esperado**: escribirlas con `/confirm` respondiendo 501 y
   anotarlo.
   - **Habitual**: H-08 (movimiento con soporte `PED-A`, contraparte = cliente y
     `CounterpartyNotApplicableReason` null), H-09 (parcial y dos orígenes, `Fulfilled` al final).
@@ -236,8 +274,8 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
     412.
   - **S-18 completo** (H-13): `ICustomerOrderReader` antes y después de servir, comparado con
     `GET /customer-orders/{id}`.
-  - **Conciliación** (H-14): las seis invariantes de data-model, incluida **Σ consumos =
-    `ConsumedQuantity`** por asignación, Σ consumos = `ShipReserved` por línea y
+  - **Conciliación** (H-14): las siete invariantes de data-model, incluidas **Σ consumos =
+    `ConsumedQuantity`** por asignación y que todo consumo lleve el `OperationId` de su cabecera, Σ consumos = `ShipReserved` por línea y
     `AssertJournalMatchesBalanceAsync`.
   - **INT-HU03-02** (H-15): servir con el artículo desactivado → 200 con los mismos límites; alta
     de pedido nuevo → 409 `ArticleInactive`. La indicación «inactivo» del contexto se prueba en T012.
@@ -245,7 +283,8 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
 
   (US1.3–US1.5, US2, US3, US5.2; FR-007–FR-016, FR-021; SC-001, SC-002, SC-005.)
 - [ ] T011 [P] [US2] [US3] [US5] [INT-HU03-01] [INT-HU03-02] `Shipping/ShipmentConcurrencyTests.cs` y
-  `Shipping/ShipmentReliabilityTests.cs`. Depende de T009.
+  `Shipping/ShipmentReliabilityTests.cs`. Depende de T009 y de T008 (`ShippingApiSupport.cs`). [P]
+  solo frente a T010.
   - **V-05 extendido** (H-16): 20 repeticiones, dos salidas de 8 sobre físico 10 de pedidos
     distintos → una 200 y otra 409; físico 2.
   - **Carreras con `LockBarrier`, ambos órdenes** (H-17):
@@ -255,7 +294,11 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
       412 o confirma después; nunca reservado > físico ni consumido + liberado > asignado);
     - salida / desactivación del artículo (INT-HU03-02: ambas terminan; historial y saldos
       coherentes);
-    - salida / `DELETE` del artículo (rechazado por referencias).
+    - salida / `DELETE` del artículo (rechazado por referencias);
+    - salida / `PUT` de definición del artículo (unidad, lote o fracciones), con conexiones
+      independientes y en los dos órdenes con `LockBarrier`. En ambos órdenes, el `PUT` que cambia
+      la definición se rechaza (409 por definición bloqueada o 412), la salida confirma con 200, la
+      definición no cambia y no hay efectos parciales (INT-HU03-01).
   - **V-08** (H-19): `FailAfterSaveInterceptor` en crear, editar, eliminar y confirmar; ningún efecto
     ni `OperationResult`; el reintento con la misma clave aplica un solo efecto.
   - **Rojo esperado**: ninguno natural si T009 es correcto. Comprobar con una mutación temporal sin
@@ -271,7 +314,9 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
 
 ## Phase 4: User Story 4 — Consultar las salidas de un pedido (P2)
 
-- [ ] T012 [P] [US4] [US1] Contexto con revisión y lista del pedido (D-12). Depende de T007.
+- [ ] T012 [US4] [US1] Contexto con revisión y lista del pedido (D-12). Depende de T007, de T008
+  (`ShippingApiSupport.cs`) y de T009. **No es paralela a T009**: las dos editan
+  `ShipmentEndpoints.cs`, así que va después.
   - **Rojo esperado**: `Shipping/ShipmentQueryTests.cs` (H-21) falla con 404 en
     `/shipments/{id}/context` y `GET /shipments?customerOrderId=`.
   - `ShipmentQueries.ContextAsync`: `SNAPSHOT`, sin `ETag`, `no-store`; `shipmentVersion`,
@@ -323,6 +368,10 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
   - **Rojo esperado** en `order-lookup.page.spec.ts` y `order-shipments.page.spec.ts` con esqueletos
     vacíos: encontrado navega; inexistente avisa, conserva el texto y enfoca el campo; servido sin
     «Nueva salida»; sin permiso, sin acciones.
+  - **Rojo esperado** en `shipping.routes.spec.ts`: el `permissionGuard('Shipping.Record')` de
+    `pedidos/:orderId/nueva` bloquea a una sesión con solo `Inventory.Read` y deja pasar con
+    `Shipping.Record`. `''`, `pedidos/:orderId` y `:id` siguen abiertos con el área (D-14). Falla con
+    el placeholder, que no tiene esas rutas.
 
   (US1.11, US4.1, US4.3; FR-001a, FR-018, FR-025.)
 - [ ] T015 [US1] Preparar y editar el borrador. Depende de T014.
@@ -346,8 +395,12 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
     `detail`; 409 `ReservedStockConflict` con enlace a `/existencias/pedidos/:id`; 412 → recarga de la
     revisión; respuesta perdida → `OperationStatusComponent` con «Abrir salida».
   - Salida confirmada en `:id`: solo lectura, sin «Guardar», «Eliminar» ni «Revisar».
+  - Borrador en `:id` sin `Shipping.Record` (área con `Inventory.Read`, D-14): también en solo
+    lectura, sin «Guardar», «Eliminar» ni «Revisar». Las acciones dependen de
+    `SessionService.has('Shipping.Record')` y no solo del estado.
   - **Rojo esperado** en `shipment-review-dialog.spec.ts` y ampliación de `shipment-form.page.spec.ts`:
-    cada resultado; foco al aviso en 409 sin campo; `orderVersion` enviado; tras recargar con una
+    cada resultado; foco al aviso en 409 sin campo; `orderVersion` enviado; un borrador abierto con
+    solo `Inventory.Read` no muestra «Guardar», «Eliminar» ni «Revisar», y con `Shipping.Record` sí; tras recargar con una
     confirmación pendiente, el panel ofrece «Abrir salida» con `href` `/salidas/{id}` y «Comprobar»
     hace un único `GET /operations/{id}`.
   - Vitest completo, `tsc` de app y specs y `npm run build` en verde.
@@ -369,11 +422,14 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
   4. Ve «Salida registrada» y el pedido servido; en `/existencias`, físico 4 y reservado 0.
   - **Rojo esperado**: falla en el paso 3 si se ejecuta antes de T014–T016 (placeholder de
     `/salidas`); anotarlo.
-  - **Si hiciera falta** otra cuenta o activación en `docker-compose.yml`, `master-data.fixture.ts`
-    o `MasterDataTestData.cs` (A), parar y avisar a B antes; cada cambio, en su commit mínimo con
-    prueba. Cualquier otro archivo de A: anotar y preguntar.
+  - **Si hiciera falta** otra cuenta o activación, se permite tocar `docker-compose.yml`,
+    `frontend/e2e/fixtures/master-data.fixture.ts` y
+    `backend/tests/Inventario.IntegrationTests/Fixtures/MasterDataTestData.cs` (A). Cada cambio va
+    en su commit mínimo ⚑, con la prueba que lo cubre, y se incluye en la revisión de A (T001 b).
+    **Cualquier otro archivo de A: preguntar antes de tocarlo.**
   - Playwright completo sin SC-005, sin intermitencias.
-- [ ] T018 Evidencia y verificación de la rama. Depende de T004–T017.
+- [ ] T018 ⚠ PR #9 Evidencia y verificación de la rama. Depende de T004–T017. Riesgo:
+  `specs/004-consultar-existencias/contracts/hu03-integration.md`.
   - Suite backend completa **tres veces**, `has-pending-model-changes`, cadena desde cero, Vitest,
     `tsc` de app, specs y E2E, `npm run build` y Playwright.
   - Registrar fecha, entorno, commit y resultado por caso H en `quickstart.md` § «Evidencia».
@@ -399,7 +455,9 @@ numeración T001–T018.
   integración).
 - **X3** Paginación de la lista de salidas del pedido en la UI más allá de la primera página (la API
   la ofrece en T012).
-- **X4** Selector de buckets paginado: como G3 de HU-05, solo usa la primera página de `GET /stock`.
+- **X4** Selector de buckets con todas las páginas de `GET /stock`. HU-05 ya cerró su G3 con
+  `StockApiService.allRows` (C4, `363de56`), así que basta con reutilizarlo cuando la rama incluya
+  ese commit.
 
 ---
 
@@ -407,16 +465,19 @@ numeración T001–T018.
 
 ```text
 T001 ⏸ ─▶ T002 ⏸   (coordinación; T002 espera también a la fusión del PR #9 y a T018)
-T003 ─▶ T004 🔀 ─▶ T005 ─┬─▶ T006 ──────────────────────────────┐
-                         ├─▶ T007 ─┬─▶ T008                      │
-                         │         ├─▶ T009 ─┬─▶ T010 (y T006)   │
-                         │         │         └─▶ T011            │
-                         │         └─▶ T012 ─────────────────────┤
-T013 (independiente) ────────────────────────────────────────────┴─▶ T014 ─▶ T015 ─▶ T016 ─▶ T017 ─▶ T018
+T003 ⚠ ─▶ T004 🔀 ─▶ T005 ─┬─▶ T006 ⚠ ───────────────────────────────────┐
+                           └─▶ T007 ─┬─▶ T008 ─┐                          │
+                                     └─▶ T009 ─┴─┬─▶ T010 (y T006)        │
+                                                 ├─▶ T011                 │
+                                                 └─▶ T012 ────────────────┤
+T013 (independiente) ─────────────────────────────────────────────────────┴─▶ T014 ─▶ T015 ─▶ T016 ─▶ T017 ─▶ T018 ⚠
 ```
 
+T010, T011 y T012 esperan a T008 (`ShippingApiSupport.cs`) y a T009. T012 va después de T009 porque
+las dos editan `ShipmentEndpoints.cs`.
+
 - **Historias**: US1/US2 (T006–T011) forman el MVP backend. US3 está dentro de T010 y T011. US4
-  (T012) solo necesita el borrador. US5 está repartida en T008, T010 y T011.
+  (T012) necesita el borrador y, por los archivos compartidos, va tras T008 y T009. US5 está repartida en T008, T010 y T011.
 - **Dentro de cada tarea**: prueba en rojo → implementación → verde → commit.
 
 ### Dependencias externas
@@ -424,15 +485,25 @@ T013 (independiente) ───────────────────�
 - **PR #9 (HU-05)**: toda la rama se apoya en su código. Solo **T004** depende de cómo se fusione:
   si la revisión cambia la migración de HU-05, se regenera `HU03_Shipments`. **T002** espera además
   a la fusión para aplicar los documentos comunes sobre los de HU-05. El resto no espera.
+- **Riesgo de conflicto ⚠ con la revisión y la fusión del PR #9**: T003 (`Reservation.cs`,
+  `CustomerOrder.cs`), T006 (`CustomerOrderQueries.cs`, `CustomerOrderDtos.cs`,
+  `StockEndpoints.cs`) y T018 (`hu03-integration.md`) editan archivos de HU-05. No esperan a la
+  fusión. Antes de empezar cada una, comprobar si esos archivos cambiaron en `b/hu-05-consultar-existencias`
+  y rebasar primero. La revisión de A ya añadió C3 y C4 (`8009807`, `363de56`) y T001/T002
+  (`2894dad`).
 - **A**: **T001/T002** (aprobación de P-01…P-08) y **T013** (archivos de A: se implementa ya, pero la
-  fusión espera a su revisión). **T017** solo si hiciera falta tocar fixtures de A, que hoy no se
-  prevé.
+  fusión espera a su revisión). **T017** solo si hiciera falta tocar `docker-compose.yml`,
+  `master-data.fixture.ts` o `MasterDataTestData.cs`, que hoy no se prevé; cualquier otro archivo de
+  A, preguntar antes.
 - **HU-04**: `CountScopeFrozen` al confirmar, sin prueba hasta INT-HU04-03.
 
 ### Parallel Opportunities
 
 - T006 en paralelo con T007 (archivos distintos).
-- T008, T010, T011 y T012 en paralelo entre sí una vez listas sus dependencias.
+- T008 en paralelo con T009: pruebas del borrador frente a comandos de confirmación, en archivos
+  distintos.
+- T010 y T011 en paralelo entre sí, cuando T008 y T009 estén listas.
+- **No paralelas**: T012 con T009 (`ShipmentEndpoints.cs`), ni T010/T011/T012 antes de T008.
 - T013 en cualquier momento, en paralelo con todo el backend.
 
 ## Implementation Strategy
