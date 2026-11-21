@@ -194,11 +194,18 @@ real en salidas, reservas y ubicaciones.
     `CountScopeFrozen` / `ArticleDefinitionLocked` / `HistoryPreventsDeletion`. Tras retirar el hallazgo
     se admite el borrado; la definición sigue bloqueada por la regla común de A («la primera referencia
     bloquea la definición aunque después se retire»). Suite 333/1 omitida.
-- [ ] T011 [P] [US6] Fiabilidad y permisos en `CycleCountReliabilityTests.cs`: replay de las nueve
+- [X] T011 [P] [US6] Fiabilidad y permisos en `CycleCountReliabilityTests.cs`: replay de las nueve
   escrituras, `IdempotencyConflict`, 412/428 (C-17), `FailAfterSaveInterceptor` en la confirmación con
   `GET /operations/{id}` (C-18) y matriz 401/403/400 por ruta (Operario sin `Inventory.Adjust`).
   **Rojo esperado**: el que salga de la matriz; si todo pasa, mutación temporal (quitar la comprobación de
   permiso del ejecutor en `/confirm`) anotada. Paralela a T010: otro archivo, misma dependencia (T009).
+  - **Hecho**: sin rojo natural. Mutación temporal sin commit: `/confirm` con `Counts.Record` en la ruta y en
+    el ejecutor (el permiso se comprueba en ambos; quitar solo uno no es observable por HTTP): fallan la
+    fila `/confirm` de la matriz y C-08 (Operario confirma); restaurado. `CycleCountReliabilityTests`
+    12/12: replay de las nueve escrituras con 428/412 e `IdempotencyConflict` (C-17), fallo tras guardar en
+    la confirmación con `GET /operations/{id}` 404 → 200 y un solo ajuste (C-18), matriz 401/400/403 por
+    ruta (antiforgery, `Idempotency-Key`, 403 antes de 422) y lecturas 401/403 (Administrador sin
+    `Inventory.Read`); ResponsableAlmacen crea e inicia. Suite 345/1 omitida.
 
 ## Phase 6: User Story 4 — Corregir una salida confirmada errónea (P2)
 
