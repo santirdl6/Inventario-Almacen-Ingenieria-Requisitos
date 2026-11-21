@@ -117,12 +117,16 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 **Objetivo**: crear, iniciar y contar, con diferencias visibles y sin cambiar existencias.
 **Prueba independiente**: spec US1 (A 10→8, B 5→5, diferencias −2 y 0, saldos intactos).
 
-- [ ] T006 ⚑ [US1] Borrador y lecturas: `Features/CycleCounts/CycleCountCommands.cs` (crear y editar,
+- [X] T006 ⚑ [US1] Borrador y lecturas: `Features/CycleCounts/CycleCountCommands.cs` (crear y editar,
   `Counts.Record`, `Idempotency-Key`, `If-Match` al editar, 1–50 ubicaciones activas sin repetir),
   `CycleCountQueries.cs` (lista paginada, detalle con `ETag` y líneas por Id, contexto sin `ETag` con
   `countVersion`, D-12), `CycleCountEndpoints.cs` y registro en `Program.cs` (común, ⚑). Pruebas en
   `CycleCountDraftTests.cs` (C-03) y `CycleCountApiSupport.cs`. **Rojo esperado**: 404 en
   `POST /api/v1/cycle-counts` porque la ruta no existe. Depende de T003.
+  - **Hecho**: rojo observado: 404 en `POST /api/v1/cycle-counts`. Segundo rojo: un `PUT` con ETag
+    obsoleto respondía 200 porque editar el alcance no renovaba la versión de la cabecera (D-11); se
+    marca `State` como modificado, como HU-05/HU-03. DTOs en `CycleCountDtos.cs`. Verde:
+    `CycleCountDraftTests` 2/2; suite 304/1 omitida.
 - [ ] T007 [US1] [INT-HU04-01] Iniciar (D-03, D-05): `POST /cycle-counts/{id}/start` bloquea
   `cycle-count:{id}`, **todas** las ubicaciones y luego los artículos de los saldos con físico > 0;
   comprueba ubicaciones activas y no congeladas por otro conteo (409 `CountScopeFrozen` con el
