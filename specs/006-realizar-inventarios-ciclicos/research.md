@@ -88,11 +88,12 @@ y a 0 al confirmar o cancelar, en la misma transacción que el estado del conteo
 
 `StockBalanceLocationUsage.IsInOpenCountAsync` (HU-02, archivo de B) deja de devolver `false` y
 consulta `CountLocations` con `IsFrozen = 1`, en el `DbContext` y la transacción del comando. Con eso,
-sin tocar sus comandos:
+sin tocar sus comandos salvo el orden de comprobaciones de `LocationCommands`:
 
 - salidas (HU-03) y reservas (HU-05) devuelven `409 CountScopeFrozen` sobre el alcance;
-- desactivar o cambiar el tipo de una ubicación vacía en conteo da `409 CountScopeFrozen` (una no
-  vacía ya da antes `LocationNotEmpty`);
+- desactivar o cambiar el tipo de una ubicación en conteo da `409 CountScopeFrozen`, esté vacía u
+  ocupada. Para eso `LocationCommands` (HU-02, archivo de B) comprueba la congelación **antes** que
+  `LocationNotEmpty` (decisión de B, `/speckit-analyze` H2; US3.4);
 - `inOpenCount` de las consultas de ubicaciones es real.
 
 La liberación de reservas (`ReservationCommands.ReleaseAsync`) **no** consulta la congelación y así

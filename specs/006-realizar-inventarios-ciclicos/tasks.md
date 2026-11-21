@@ -89,10 +89,12 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   no compila / `ArgumentOutOfRangeException` porque `Adjust` no existe. Paralela a T003: solo usa las
   tablas de H0.
 - [ ] T005 ⚑ 🔀 PR #10 [US3] [INT-HU04-03] Lector de congelación real (D-04):
-  `Features/Locations/ILocationUsage.cs` (HU-02) consulta `CountLocations` con `IsFrozen = 1`. Pruebas
+  `Features/Locations/ILocationUsage.cs` (HU-02) consulta `CountLocations` con `IsFrozen = 1`, y
+  `Features/Locations/Commands/LocationCommands.cs` (HU-02) comprueba la congelación antes que
+  `LocationNotEmpty` al desactivar o cambiar el tipo (H2 de analyze-1). Pruebas
   en `CycleCounts/CountScopeFrozenTests.cs` (C-12, primera mitad; la segunda la cierra T009) con una
   fila congelada sembrada directamente: confirmar una
-  salida, reservar, desactivar una ubicación vacía y cambiar su tipo → 409 `CountScopeFrozen` sin
+  salida, reservar, desactivar la ubicación y cambiar su tipo, vacía y ocupada → 409 `CountScopeFrozen` sin
   cambios; liberar una reserva sigue admitido (Q1); `inOpenCount = true` en `GET /locations` y su
   detalle. **Rojo esperado**: las cuatro operaciones responden 2xx porque el lector devuelve `false`.
   Depende de T003.
@@ -187,7 +189,8 @@ real en salidas, reservas y ubicaciones.
 - [ ] T016 [US2] [US4] Revisión, confirmación y cancelación: `count-review-dialog.ts`,
   `shipment-link-dialog.ts` (candidatas con todas las páginas, aviso «No cambia lo servido del pedido ni
   las reservas consumidas») y estado cerrado en solo lectura con la operación visible al recuperar
-  (`OperationStatusComponent`). Vitest. **Rojo esperado**: la spec no encuentra «Confirmar ajuste».
+  (`OperationStatusComponent`) y, en cada línea vinculada, la salida corregida (FR-022, US4.2). Vitest,
+  con una prueba de un conteo cerrado con una línea vinculada. **Rojo esperado**: la spec no encuentra «Confirmar ajuste».
   Depende de T015 y, para el vínculo, de T012.
 - [ ] T017 [US1] [US2] E2E-03 en `frontend/e2e/hu04-cycle-counts.spec.ts`: operario crea, inicia y cuenta
   con una diferencia; responsable revisa con motivo y confirma; existencias ajustadas y ubicación fuera de

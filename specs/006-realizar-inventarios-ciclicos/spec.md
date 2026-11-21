@@ -38,8 +38,8 @@ y resultados de negocio. Las decisiones de implementación corresponden al futur
 
 ### Session 2026-11-21
 
-- Q: ¿Se bloquea liberar reservas sobre una ubicación en conteo, o sigue permitido? → A: Sigue permitido, con permiso de gestión de reservas y motivo, como fija el modelo común: es la vía para resolver un contado inferior al reservado (US2.4, V-10). Se bloquean reservar, confirmar salidas, recibir, desactivar y cambiar el tipo. Bloquear también la liberación sería un cambio compartido (AGENTS.md) y dejaría la cancelación como única salida de ese caso (US3.3, FR-015). Decisión por recomendación, pendiente de confirmar por B.
-- Q: ¿La corrección de una salida confirmada errónea se hace contando las ubicaciones afectadas o con un ajuste directo sin conteo? → A: Contando: se crea un conteo sobre las ubicaciones de origen afectadas y, antes de confirmarlo, cada línea con diferencia puede vincularse a la salida confirmada que corrige. El ajuste es el del conteo; no hay un segundo escritor de ajustes ni una corrección directa (US4.1, FR-018). Decisión por recomendación, pendiente de confirmar por B.
+- Q: ¿Se bloquea liberar reservas sobre una ubicación en conteo, o sigue permitido? → A: Sigue permitido, con permiso de gestión de reservas y motivo, como fija el modelo común: es la vía para resolver un contado inferior al reservado (US2.4, V-10). Se bloquean reservar, confirmar salidas, recibir, desactivar y cambiar el tipo. Bloquear también la liberación sería un cambio compartido (AGENTS.md) y dejaría la cancelación como única salida de ese caso (US3.3, FR-015). Decisión por recomendación, confirmada por B el 2026-11-21 (`/speckit-analyze`, H5).
+- Q: ¿La corrección de una salida confirmada errónea se hace contando las ubicaciones afectadas o con un ajuste directo sin conteo? → A: Contando: se crea un conteo sobre las ubicaciones de origen afectadas y, antes de confirmarlo, cada línea con diferencia puede vincularse a la salida confirmada que corrige. El ajuste es el del conteo; no hay un segundo escritor de ajustes ni una corrección directa (US4.1, FR-018). Decisión por recomendación, confirmada por B el 2026-11-21 (`/speckit-analyze`, H5).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -178,7 +178,8 @@ salida, y la salida, lo servido del pedido (6) y el consumo de reservas no cambi
    y confirma el conteo, **Then** el ajuste de esas líneas queda vinculado a la salida; no existe otra
    vía de corrección sin conteo.
 2. **Given** una corrección registrada, **When** se consulta el historial, **Then** el ajuste
-   muestra su motivo, quién lo autorizó, cuándo y la referencia a la salida original; la salida
+   muestra su motivo, quién lo autorizó, cuándo y el código del conteo como soporte; el detalle del
+   conteo cerrado muestra, en cada línea vinculada, la referencia a la salida original; la salida
    original y su movimiento siguen intactos.
 3. **Given** una corrección registrada, **When** se consulta el pedido de cliente, **Then** lo
    servido, el pendiente, el estado del pedido y el consumo de las reservas son los mismos que antes
@@ -353,8 +354,9 @@ recargar; un usuario sin permiso de registro de conteos no puede crear ni inicia
   motivo (el de cada diferencia se conserva en su línea del conteo, inmutable tras cerrar), el
   conteo como documento de soporte y, si la hay, la salida corregida vinculada, y como contraparte el
   motivo expreso de no aplicación, ya que un ajuste no tiene contraparte externa.
-- **FR-022**: El historial de existencias DEBE mostrar los ajustes con sus datos y permitir llegar
-  al conteo o a la salida que los originó.
+- **FR-022**: El historial de existencias DEBE mostrar los ajustes con sus datos y el código del
+  conteo como documento de soporte; el detalle del conteo cerrado DEBE mostrar, por línea, la salida
+  corregida vinculada, si la hay.
 - **FR-023**: Los usuarios con permiso de consulta DEBEN poder ver la lista de conteos con su estado,
   alcance y responsables, y el detalle de cada uno.
 

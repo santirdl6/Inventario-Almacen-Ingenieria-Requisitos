@@ -52,7 +52,7 @@ ubicación en un solo conteo abierto. Índice `IX_CountLocations_Location` para 
 | Difference | columna calculada persistida | `CountedPhysical − TheoreticalPhysical`. |
 | CountedBy / CountedAt | nullable | Último registro del contado. |
 | Reason | nvarchar(500) nullable | Obligatorio para confirmar si `Difference ≠ 0`. |
-| ReasonBy | nullable | Quien fijó el motivo. |
+| ReasonBy | nullable | Quien fijó el motivo en la revisión (`Inventory.Adjust`); el contado no lleva motivo. |
 | CorrectsShipmentId | FK `Shipments` nullable (`Restrict`) | Salida confirmada que corrige (D-09). |
 
 Único `UX_CountLines_Bucket` `(CountId, ArticleId, LocationId, LotCode)`. CHECK de cantidades, de

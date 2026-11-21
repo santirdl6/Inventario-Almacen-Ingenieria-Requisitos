@@ -213,6 +213,8 @@ Ningún documento ni archivo común o de A se edita en esta rama sin aviso y rev
 - `Features/Stock/Core/StockCore.cs` y `StockCommands.cs` (H0): operación `Adjust` (D-13).
 - `Features/Stock/Core/StockArticleUsage.cs` (H0): registro del contributor de HU-04 en `AddStockCore` (D-08).
 - `Features/Locations/ILocationUsage.cs` (HU-02): `IsInOpenCountAsync` real (D-04).
+- `Features/Locations/Commands/LocationCommands.cs` (HU-02): congelación antes que `LocationNotEmpty`
+  (D-04; H2 de [analyze-1](validation/analyze-1.md)).
 - `backend/tests/.../Stock/Hu05SchemaTests.cs` (HU-05): conjunto exacto de tipos con FK a `Article`.
 - `frontend/src/app/features/cycle-counts/cycle-counts.routes.ts` (H0): sustituye el placeholder.
 - `Program.cs` (común): `AddCycleCounts()` y `MapCycleCountEndpoints()`, como HU-05 y HU-03.

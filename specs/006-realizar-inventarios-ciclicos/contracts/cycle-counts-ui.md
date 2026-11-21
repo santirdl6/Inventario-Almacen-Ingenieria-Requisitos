@@ -18,7 +18,8 @@ estados de operación e información que no debe ocultarse). Decisiones en [rese
 - **Borrador**: ubicaciones del alcance con código; añadir o quitar; «Iniciar conteo» con aviso de que
   congela esas ubicaciones hasta confirmar o cancelar.
 - **En conteo**: por ubicación, filas con artículo (SKU · nombre), lote, unidad, teórico, campo
-  «Contado» vacío por defecto (el cero se escribe), diferencia en texto y motivo opcional. «Añadir
+  «Contado» vacío por defecto (el cero se escribe) y diferencia en texto; el motivo no se pide aquí,
+  sino en la revisión. «Añadir
   hallazgo» (artículo, lote, cantidad). «Guardar» y «Enviar a aprobación»; las filas sin contar se
   señalan al enviar.
 - **Pendiente de aprobación**: tabla de revisión con teórico, contado, diferencia, reservado actual,
@@ -26,7 +27,8 @@ estados de operación e información que no debe ocultarse). Decisiones en [rese
   «Vincular a salida» abre la lista de salidas candidatas del bucket; el aviso dice: «El ajuste
   corrige solo las existencias. No cambia lo servido del pedido ni las reservas consumidas».
   «Confirmar ajuste» abre un diálogo de revisión final; «Cancelar conteo» pide motivo.
-- **Cerrado**: solo lectura, con aprobación o cancelación, motivo, operación y enlace al movimiento.
+- **Cerrado**: solo lectura, con aprobación o cancelación, motivo, operación y enlace al movimiento;
+  en cada línea vinculada, la salida corregida con la referencia externa de su pedido (FR-022, US4.2).
 
 ## Resultados y errores
 

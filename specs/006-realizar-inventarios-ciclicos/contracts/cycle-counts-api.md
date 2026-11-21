@@ -23,7 +23,7 @@ comprobar resultados.
 | `POST /cycle-counts` | Counts.Record | — | `{ locationIds: uuid[] }` (1–50, sin repetir, activas) | 201, `Location`, `ETag`, `operationId` |
 | `PUT /cycle-counts/{id}` | Counts.Record | Draft | `{ locationIds }` | 200, `ETag` |
 | `POST /cycle-counts/{id}/start` | Counts.Record | Draft | — | 200, `ETag`; líneas esperadas creadas |
-| `PUT /cycle-counts/{id}/lines` | Counts.Record | Counting | `{ counted: [{ lineId, countedPhysical, reason? }], found: [{ articleId, locationId, lotCode?, countedPhysical, reason? }] }` | 200, `ETag` |
+| `PUT /cycle-counts/{id}/lines` | Counts.Record | Counting | `{ counted: [{ lineId, countedPhysical }], found: [{ articleId, locationId, lotCode?, countedPhysical }] }` (los motivos solo en `review`) | 200, `ETag` |
 | `DELETE /cycle-counts/{id}/lines/{lineId}` | Counts.Record | Counting | — (solo hallazgos) | 204, `ETag` |
 | `POST /cycle-counts/{id}/submit` | Counts.Record | Counting | — | 200, `ETag` |
 | `PUT /cycle-counts/{id}/review` | Inventory.Adjust | AwaitingApproval | `{ lines: [{ lineId, reason, correctsShipmentId? }] }` | 200, `ETag` |
