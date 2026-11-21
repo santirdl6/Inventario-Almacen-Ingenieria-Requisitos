@@ -148,4 +148,17 @@ cómo se muestra o quién lo fija.
 
 ## Resolución
 
-Pendiente: se completa tras las correcciones.
+Aplicada el 2026-11-21 en commits aparte, solo en documentación y tareas. H1 y H4 no exigían decidir
+nada. H2, H3, H5 y H6 se consultaron con B, que eligió la opción recomendada en las cuatro. Siguen
+siendo 18 tareas, con Convergence vacía y «Si hay tiempo», y los enlaces relativos están verificados.
+
+| Hallazgo | Estado | Commit | Cambio |
+|----------|--------|--------|--------|
+| H1 | Resuelto | `695ede9` | T005 cita la primera mitad de C-12. T009 añade la segunda: tras confirmar y tras cancelar se admiten las operaciones (US3.7, SC-002). |
+| H4 | Resuelto | `695ede9` | T010, C-15 y D-16: retirar el hallazgo frente a `PUT` de definición y `DELETE` del artículo, en ambos órdenes. |
+| H2 | Resuelto (decisión de B: invertir el orden) | `2ee4b0d` | D-04, T005, C-12 y plan: `LocationCommands` (HU-02, B) comprueba la congelación antes que `LocationNotEmpty`, con prueba sobre una ubicación vacía y otra ocupada. |
+| H3 | Resuelto (decisión de B: acotar la spec) | ídem | FR-022 y US4.2: el historial muestra el `CountCode` como soporte, y el detalle del conteo cerrado muestra la salida corregida por línea (cycle-counts-ui y T016, con Vitest). No se tocan archivos de A. |
+| H5 | Resuelto (decisión de B: confirmar ambas) | ídem | Q1 y Q2 de la spec quedan confirmadas por B. |
+| H6 | Resuelto (decisión de B: solo en la revisión) | ídem | Se retira `reason` de `PUT …/lines` y de la pantalla de contar. `ReasonBy` es quien fija el motivo en la revisión. |
+
+**Sin cambiar**: M1–M7 y L1–L3, medios y bajos fuera del alcance de esta fase.
