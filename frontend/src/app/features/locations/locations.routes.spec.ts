@@ -44,7 +44,10 @@ describe('Rutas de ubicaciones', () => {
     expect(TestBed.inject(Router).url).toBe('/ubicaciones/articulo');
     expect(harness.routeNativeElement!.querySelector('h1')!.textContent).toBe('Localizar un artículo');
     expect(harness.routeNativeElement!.querySelector('#article-query')).not.toBeNull();
-  });
+    // Primera resolución de los dos loadComponent con PrimeNG: el arranque frío supera 5 s
+    // en la suite completa. Mismo margen local que operation-areas.spec.ts y la corrección
+    // publicada por B en cdb8674; se conservan todas las aserciones de navegación real.
+  }, 20_000);
 
   it('la ruta de búsqueda no se confunde con el detalle de una ubicación (:id)', async () => {
     const harness = await RouterTestingHarness.create();

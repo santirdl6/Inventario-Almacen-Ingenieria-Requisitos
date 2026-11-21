@@ -12,6 +12,7 @@ namespace Inventario.IntegrationTests.Fixtures;
 public static class MasterDataTestData
 {
     public const string E2EDatabase = "InventoryHu08E2E";
+    public const string PurchasingE2EDatabase = "InventoryHu07E2E";
     private static readonly string[] E2ERoles = ["GestorMaestros", "Operario", "Administrador"];
 
     public static ServiceProvider BootstrapServices(IConfiguration configuration, string connection, string keysDirectory,
@@ -77,33 +78,36 @@ public static class MasterDataTestData
         });
     }
 
-    public static void ValidateE2ERequest(string database, string host, IReadOnlyList<E2EAccount> accounts)
+    public static void ValidateE2ERequest(string database, string host, IReadOnlyList<E2EAccount> accounts, string profile = "hu08")
     {
-        if (database != E2EDatabase || host != "sqlserver")
-            throw new ArgumentException("El provisionamiento solo admite InventoryHu08E2E en el servicio sqlserver dedicado.");
-        if (accounts.Count != 3 || !accounts.Select(account => account.Role).Order(StringComparer.Ordinal)
-            .SequenceEqual(E2ERoles.Order(StringComparer.Ordinal)))
-            throw new ArgumentException("Se requieren exactamente las cuentas gestora, lectora y administradora de E2E.");
+        var purchasing = profile == "hu07";
+        if (profile is not ("hu08" or "hu07")
+            || database != (purchasing ? PurchasingE2EDatabase : E2EDatabase) || host != "sqlserver")
+            throw new ArgumentException("El provisionamiento requiere una base dedicada que corresponda al perfil HU-08/HU-07 y el servicio sqlserver.");
+        var roles = purchasing ? E2ERoles.Append("Comprador").ToArray() : E2ERoles;
+        if (accounts.Count != roles.Length || !accounts.Select(account => account.Role).Order(StringComparer.Ordinal)
+            .SequenceEqual(roles.Order(StringComparer.Ordinal)))
+            throw new ArgumentException("Las cuentas deben coincidir exactamente con los roles del perfil E2E solicitado.");
 
         var runs = new HashSet<string>(StringComparer.Ordinal);
         foreach (var account in accounts)
         {
             var parts = account.Email.Split('@');
             var local = parts[0].Split('.');
-            if (parts.Length != 2 || parts[1] != "hu08.e2e.test" || local.Length != 2
+            if (parts.Length != 2 || parts[1] != (purchasing ? "hu07.e2e.test" : "hu08.e2e.test") || local.Length != 2
                 || !Guid.TryParseExact(local[0], "N", out _) || local[1] != account.Role.ToLowerInvariant()
                 || string.IsNullOrWhiteSpace(account.Password))
                 throw new ArgumentException("Las cuentas E2E deben pertenecer al identificador de ejecución y dominio de pruebas.");
             runs.Add(local[0]);
         }
         if (runs.Count != 1)
-            throw new ArgumentException("Las tres cuentas deben pertenecer a la misma ejecución E2E.");
+            throw new ArgumentException("Las cuentas deben pertenecer a la misma ejecución E2E.");
     }
 
     public static async Task PrepareE2EAsync(string database, string host, string adminPassword,
-        IReadOnlyList<E2EAccount> accounts, bool retire)
+        IReadOnlyList<E2EAccount> accounts, bool retire, string profile = "hu08")
     {
-        ValidateE2ERequest(database, host, accounts);
+        ValidateE2ERequest(database, host, accounts, profile);
         ArgumentException.ThrowIfNullOrWhiteSpace(adminPassword);
         var connection = new SqlConnectionStringBuilder
         {

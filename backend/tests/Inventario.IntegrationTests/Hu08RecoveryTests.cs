@@ -5,14 +5,19 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Inventario.Api.Domain.Locations;
 using Inventario.Api.Domain.MasterData;
+using Inventario.Api.Domain.Purchasing;
 using Inventario.Api.Domain.Stock;
 using Inventario.Api.Features.Stock.Core;
+using Inventario.Api.Infrastructure.Messaging;
 using Inventario.Api.Infrastructure.Persistence;
 using Inventario.IntegrationTests.Fixtures;
+using Inventario.IntegrationTests.Purchasing;
 using Inventario.IntegrationTests.Stock;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -29,6 +34,7 @@ public sealed class Hu08RecoveryTests(IdentityFixture fixture, ITestOutputHelper
         var sourceHost = fixture.Settings["Database:Host"];
         Assert.Equal("sqlserver", sourceHost);
         var restoredSettings = new Dictionary<string, string?>(fixture.Settings) { ["Database:Host"] = "sqlrestore" };
+        restoredSettings["PurchaseDelivery:Enabled"] = "false";
         var restoredConfiguration = new ConfigurationBuilder().AddInMemoryCollection(restoredSettings).Build();
         await using var source = new SqlConnection(DatabaseConfiguration.AdministratorConnection(configuration));
         await using var target = new SqlConnection(DatabaseConfiguration.AdministratorConnection(restoredConfiguration));
@@ -36,7 +42,13 @@ public sealed class Hu08RecoveryTests(IdentityFixture fixture, ITestOutputHelper
         await target.OpenAsync();
         Assert.NotEqual(await ScalarAsync(source, "SELECT @@SERVERNAME"), await ScalarAsync(target, "SELECT @@SERVERNAME"));
 
-        using var factory = fixture.Factory();
+        var mail = new PurchaseDeliveryWorkerTests.ScriptedTransport();
+        using var support = new PurchasingTestSupport(fixture, configure: services =>
+        {
+            services.RemoveAll<IPurchaseMailTransport>();
+            services.AddSingleton<IPurchaseMailTransport>(mail);
+        });
+        var factory = support.Factory;
         using var api = await MasterDataApi.LoginAsync(fixture, factory);
         var stock = new StockTestHarness(fixture, factory.Services);
         var (actorId, actor) = await stock.ActorAsync();
@@ -45,7 +57,7 @@ public sealed class Hu08RecoveryTests(IdentityFixture fixture, ITestOutputHelper
             MasterDataArticleTests.Body(family, "V14-ARTICLE", lot: false));
         Assert.Equal(HttpStatusCode.Created, articleCreated.StatusCode);
         var article = await ReadIdAsync(articleCreated);
-        using var supplierCreated = await api.WriteAsync(HttpMethod.Post, "/api/v1/suppliers", new { code = "V14-SUPPLIER", name = "Proveedor anterior" });
+        using var supplierCreated = await api.WriteAsync(HttpMethod.Post, "/api/v1/suppliers", new { code = "V14-SUPPLIER", name = "Proveedor anterior", email = "v14@proveedor.test" });
         Assert.Equal(HttpStatusCode.Created, supplierCreated.StatusCode);
         var supplier = await ReadIdAsync(supplierCreated);
         var location = new Location("V14-LOCATION", "A1", "E1", "N1", LocationKind.Storage);
@@ -66,6 +78,11 @@ public sealed class Hu08RecoveryTests(IdentityFixture fixture, ITestOutputHelper
         await stock.RunAsync(actor, Receipt(10m, "V14-INITIAL"));
         await stock.RunAsync(actor, StockCore.Prepare(StockOperation.Reserve,
             StockTestHarness.Context("reservation"), [new(article, location.Id, null, 3m)]));
+        using var buyer = await support.SessionAsync();
+        var purchase = await PurchaseDeliveryWorkerTests.PrepareAsync(support, buyer, (supplier, article));
+        PurchaseOrderDelivery frozen;
+        await using (var before = fixture.ApplicationDatabase())
+            frozen = await before.Set<PurchaseOrderDelivery>().SingleAsync(value => value.Id == purchase.DeliveryId);
         await ExecuteAsync(source, $"BACKUP DATABASE [{database}] TO DISK = N'{full}' WITH INIT, CHECKSUM");
 
         var later = await stock.RunAsync(actor, Receipt(2m, "V14-LOG-1"));
@@ -78,6 +95,11 @@ public sealed class Hu08RecoveryTests(IdentityFixture fixture, ITestOutputHelper
 
         var checkpoint = (DateTimeOffset)(await ScalarAsync(source, "SELECT SYSDATETIMEOFFSET()"))!;
         await Task.Delay(TimeSpan.FromSeconds(2));
+        Assert.True(await factory.Services.GetRequiredService<PurchaseDeliveryWorker>().RunOnceAsync(CancellationToken.None));
+        Assert.Equal(frozen.MimeBytes, Assert.Single(mail.Control.Messages));
+        await using (var afterSend = fixture.ApplicationDatabase())
+            Assert.Equal(PurchaseSendStatus.Accepted, (await afterSend.Set<PurchaseOrder>()
+                .SingleAsync(value => value.Id == purchase.OrderId)).SendStatus);
         var contingencyKey = Guid.NewGuid();
         var contingency = Receipt(4m, "COMPROBANTE-V14-001");
         await stock.RunAsync(actor, contingencyKey, contingency);
@@ -115,9 +137,23 @@ public sealed class Hu08RecoveryTests(IdentityFixture fixture, ITestOutputHelper
                 var denied = await Assert.ThrowsAsync<SqlException>(() => restored.Database.ExecuteSqlInterpolatedAsync(
                     $"DELETE FROM StockMovements WHERE Id = {later.MovementId}"));
                 Assert.Equal(229, denied.Number);
+                var recoveredOrder = await restored.Set<PurchaseOrder>().SingleAsync(value => value.Id == purchase.OrderId);
+                Assert.Equal(PurchaseSendStatus.Pending, recoveredOrder.SendStatus);
+                Assert.False(recoveredOrder.IsEditable);
+                var recoveredMessage = await restored.Set<PurchaseOrderDelivery>().SingleAsync(value => value.Id == purchase.DeliveryId);
+                Assert.Equal(frozen.MessageId, recoveredMessage.MessageId);
+                Assert.Equal(frozen.MimeBytes, recoveredMessage.MimeBytes);
+                Assert.Equal(frozen.DocumentBytes, recoveredMessage.DocumentBytes);
+                Assert.Equal(202, (await restored.OperationResults.SingleAsync(value => value.OperationId == purchase.Authorization)).ResultStatus);
+                Assert.False(await restored.Set<PurchaseDeliveryEvent>().AnyAsync(value =>
+                    value.DeliveryId == purchase.DeliveryId && value.Kind == PurchaseDeliveryEventKind.Accepted));
             }
 
-            using var restoredFactory = new ApiFactory(restoredSettings, "Development");
+            using var restoredFactory = new ApiFactory(restoredSettings, "Development", services =>
+            {
+                services.RemoveAll<IPurchaseMailTransport>();
+                services.AddSingleton<IPurchaseMailTransport>(mail);
+            });
             var restoredStock = new StockTestHarness(fixture, restoredFactory.Services);
             var reconciled = await restoredStock.RunAsync(actor, contingencyKey, contingency);
             var duplicate = await restoredStock.RunAsync(actor, contingencyKey, contingency);
@@ -127,6 +163,11 @@ public sealed class Hu08RecoveryTests(IdentityFixture fixture, ITestOutputHelper
                 await AssertBalanceAsync(restored, article, 16m, 3m, 4);
                 Assert.Equal(1, await restored.Set<StockMovement>().CountAsync(value => value.SupportReference == "COMPROBANTE-V14-001"));
                 Assert.Equal(1, await restored.OperationResults.CountAsync(value => value.OperationId == contingencyKey));
+                var outbox = await restored.Set<OutboxMessage>().SingleAsync(value => value.DeliveryId == purchase.DeliveryId);
+                Assert.Equal(PurchaseOutboxState.Pending, outbox.State);
+                Assert.Equal(0, outbox.Attempts);
+                Assert.Equal(purchase.Authorization, outbox.ActiveAuthorizationOperationId);
+                Assert.Single(mail.Control.Messages);
             }
             watch.Stop();
             var rpo = failureTime - checkpoint;
@@ -135,6 +176,7 @@ public sealed class Hu08RecoveryTests(IdentityFixture fixture, ITestOutputHelper
             output.WriteLine($"Punto recuperado: {checkpoint:O}. Incidente simulado: {failureTime:O}.");
             output.WriteLine($"RPO técnico: {rpo.TotalSeconds:F3} s. RTO técnico, hasta conciliación: {watch.Elapsed.TotalSeconds:F3} s.");
             output.WriteLine("DBCC CHECKDB sin errores. Fuente y destino con identificadores de servidor distintos.");
+            output.WriteLine("Compra y MIME restaurados al punto Pending. Se observó una salida posterior al corte; el host restaurado permaneció con correo pausado.");
         }
         finally
         {

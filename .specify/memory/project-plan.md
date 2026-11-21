@@ -343,7 +343,36 @@ parciales repetidas y recuperación de respuestas perdidas. Builds, tests de apl
 usabilidad y restauración de las historias siguen pendientes. La validación del contenedor
 se realiza por separado con la guía común y su prueba de persistencia.
 
+### Concreción de diseño HU-07, 2026-11-20
+
+El [plan HU-07](../../specs/007-gestionar-pedidos-proveedores/plan.md) concreta compras y
+correo sin cambiar arquitectura ni efectos/estados de stock. Propone MailKit 5.0.0 en el
+BackgroundService previsto y factoring privado del ejecutor único para comandos internos
+tipados, autorizados por una solicitud persistida, sin sesión simulada ni ActorId libre.
+Su [protocolo](../../specs/007-gestionar-pedidos-proveedores/contracts/integration.md)
+define claim/SMTP/finalización separados, lease/fencing y recuperación; el retry humano
+usa nueva operación HTTP sobre la misma entrega/MessageId/documento. No actualiza resultados
+históricos. Se conservan permisos actuales y primera referencia de borrador HU-08.
+
+Entrega funcional local cerrada con [evidencia](../../specs/007-gestionar-pedidos-proveedores/validation/acceptance.md);
+SC-007 sigue pendiente en guardados. El usuario confirmó la [revisión A+B de HU-07](../../specs/007-gestionar-pedidos-proveedores/validation/shared-review.md).
+Impacto: HU-08 consume cobertura/locks reales
+de PurchaseOrderLine; H0/StockCore/HU-02 requieren regresión del ejecutor/transporte; HU-01
+actualiza versión del pedido junto a sus acumulados y acepta V-02/V-06; HU-06 mantiene
+solo navegación a compras, sin generación automática. HU-03/HU-04/HU-05 conservan su
+protocolo/aritmética y deben seguir consumiendo el mismo ejecutor. H5 mantiene restauración
+y aceptación humana. No se acredita revisión ni aceptación por esta actualización.
+
 ## Complexity Tracking
+
+Optimización local HU-07 del 2026-11-21: tras dos ensayos SC-007 inconclusos se reduce
+la lectura de snapshots antes de paginar y el número de viajes para bloqueos de una fase,
+sin cambiar su protocolo. La migración aditiva `20261120194234_HU07PurchasingQueryIndexes`
+añade el índice estado/creación/número/ID sobre la cadena que incluye HU07PurchasingOutbox.
+`20261121025020_HU07ArticleLookupIndex` añade cobertura por estado/SKU/ID del catálogo,
+consumida por el filtro opcional skuPrefix sin cambiar q, entidades o permisos.
+La semántica y los permisos permanecen sujetos a las pruebas comunes. Perfil y ensayos
+en [rendimiento HU-07](../../specs/007-gestionar-pedidos-proveedores/validation/performance.md).
 
 Sin violaciones constitucionales que justificar. Los bloqueos, el diario y la idempotencia
 responden directamente a integridad y trazabilidad. El outbox se limita al correo de compras;

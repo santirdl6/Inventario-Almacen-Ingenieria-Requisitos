@@ -95,7 +95,6 @@ public sealed class IdentityFixture : IAsyncLifetime
     {
         if (bootstrapServices is not null)
             await bootstrapServices.DisposeAsync();
-        SqlConnection.ClearAllPools();
         if (initializationAttempted)
         {
             var name = Settings["Database:Name"]!;
@@ -103,6 +102,10 @@ public sealed class IdentityFixture : IAsyncLifetime
             // Solo se eliminan nombres aleatorios generados por este fixture.
             if (name != "InventoryH0Tests_" + suffix || login != "h0_" + suffix)
                 throw new InvalidOperationException("No se permite limpiar una base ajena al fixture.");
+            // Clear only this fixture's runtime pool, not connections belonging to parallel fixtures.
+            using (var runtimePool = new SqlConnection(DatabaseConfiguration.ApplicationConnection(
+                new ConfigurationBuilder().AddInMemoryCollection(Settings).Build())))
+                SqlConnection.ClearPool(runtimePool);
             await using var connection = new SqlConnection(masterConnection);
             await connection.OpenAsync();
             await using var command = connection.CreateCommand();
@@ -112,7 +115,20 @@ public sealed class IdentityFixture : IAsyncLifetime
                     ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
                     DROP DATABASE [{name}];
                 END;
-                IF SUSER_ID(N'{login}') IS NOT NULL DROP LOGIN [{login}];
+                DECLARE @attempt int = 0;
+                WHILE SUSER_ID(N'{login}') IS NOT NULL
+                BEGIN
+                    BEGIN TRY
+                        DROP LOGIN [{login}];
+                        BREAK;
+                    END TRY
+                    BEGIN CATCH
+                        -- Pool disposal may still be completing its network logout. Do not mask other errors.
+                        IF ERROR_NUMBER() <> 15434 OR @attempt >= 10 THROW;
+                        SET @attempt += 1;
+                        WAITFOR DELAY '00:00:00.100';
+                    END CATCH;
+                END;
                 """;
             await command.ExecuteNonQueryAsync();
         }

@@ -1,11 +1,14 @@
 using Inventario.Api.Infrastructure.Http;
 using Inventario.Api.Features.MasterData;
 using Inventario.Api.Features.Locations;
+using Inventario.Api.Features.Purchasing;
+using Inventario.Api.Features.Receiving;
 using Inventario.Api.Features.MasterData.Maintenance;
 using Inventario.Api.Features.Stock.Core;
 using Inventario.Api.Infrastructure.Identity;
 using Inventario.Api.Infrastructure.Persistence;
 using Inventario.Api.Infrastructure.Persistence.Operations;
+using Inventario.Api.Infrastructure.Messaging;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,6 +26,10 @@ builder.Services.AddInventoryOperations();
 builder.Services.AddMasterData();
 builder.Services.AddStockCore();
 builder.Services.AddLocations();
+builder.Services.AddPurchasing();
+builder.Services.AddReceiving();
+if (!initialize && !builder.Configuration.GetValue<bool>("Maintenance:Hu08FamilyPreparation"))
+    builder.Services.AddHostedService(provider => provider.GetRequiredService<PurchaseDeliveryWorker>());
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
 {
     context.ProblemDetails.Extensions.TryAdd("traceId", context.HttpContext.TraceIdentifier);
@@ -100,6 +107,8 @@ else
 {
     api.MapMasterDataEndpoints();
     api.MapLocationEndpoints();
+    api.MapPurchasingEndpoints();
+    api.MapReceivingEndpoints();
 }
 
 if (app.Environment.IsDevelopment())

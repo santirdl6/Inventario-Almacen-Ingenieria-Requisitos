@@ -26,6 +26,35 @@ public sealed partial class StockCore
     public const int MaximumLines = 200;
     private static readonly TimeSpan AllowedClockSkew = TimeSpan.FromMinutes(5);
 
+    // Called only after the receipt writer has locked the original purchase, receipt,
+    // correction, locations and articles and revalidated allocation-level limits.
+    internal async Task<StockOperationOutcome> CorrectReceiptAsync(OperationContext context, Guid correctionId,
+        StockMovement original, string reason, IReadOnlyList<ReceiptCorrectionBucket> buckets, CancellationToken cancellation)
+    {
+        if (original.Kind != MovementKind.Receipt || string.IsNullOrWhiteSpace(reason) || reason.Length > StockMovement.ReasonMaxLength)
+            throw StockProblems.Validation("reason", "Indica un movimiento de entrada y un motivo válido.");
+        if (buckets.Count == 0 || buckets.Any(value => value.Quantity <= 0 || decimal.Round(value.Quantity, 3) != value.Quantity))
+            throw StockProblems.Validation("lines", "Indica cantidades positivas de hasta tres decimales.");
+        var db = context.Database;
+        var now = DateTimeOffset.UtcNow;
+        var movement = new StockMovement(MovementKind.Correction, "receipt-correction", correctionId, reason.Trim(), context.ActorId,
+            now, now, context.OperationId, original.SupportReference, original.SupportNotApplicableReason,
+            original.CounterpartyReference, original.CounterpartyNotApplicableReason);
+        movement.LinkOriginal(original.Id);
+        foreach (var bucket in buckets)
+        {
+            var balance = await db.Set<StockBalance>().FindAsync([bucket.ArticleId, bucket.LocationId, bucket.LotId], cancellation);
+            if (balance is null || bucket.Quantity > balance.Available)
+                throw StockProblems.InsufficientStock("No hay existencias disponibles suficientes para compensar la entrada.");
+            var entry = new StockEntry(movement.Id, bucket.ArticleId, bucket.LocationId, bucket.LotId,
+                bucket.Quantity, bucket.Unit, StockEffect.AdjustDown);
+            movement.AddEntry(entry);
+            balance.Apply(entry.PhysicalDelta, entry.ReservedDelta);
+        }
+        db.Add(movement);
+        return new StockOperationOutcome(context.OperationId, movement.Id, movement.SourceDocumentType, correctionId, now);
+    }
+
     // Valida y normaliza. El cuerpo normalizado es el que el consumidor pasa en OperationRequest,
     // para que 6 y 6.000 o un lote en minúsculas sean la misma intención (R-04).
     public static StockCommand Prepare(StockOperation operation, StockCommandContext context,

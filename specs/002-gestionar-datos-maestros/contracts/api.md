@@ -1,8 +1,9 @@
 # Contrato HTTP particular de HU-08
 
-**Fecha de diseño**: 2026-11-12. Implementados el 2026-11-17: familias, GET/POST/PUT
-de artículos, contexto auxiliar, resultados y mantenimiento transitorio. Proveedores,
-DELETE e historial siguen pendientes. Evidencia en [US2](../validation/us2.md).
+**Fecha de diseño**: 2026-11-12. Catálogos, contexto, resultados, proveedores, DELETE e
+historial implementados en el cierre técnico del 2026-11-19;
+[aceptación](../validation/acceptance.md). Ampliación compatible de consulta `skuPrefix`
+del 2026-11-21 consumida por HU-07, con revisión A+B pendiente.
 Extiende el [contrato común](../../../.specify/memory/project/contracts/api.md),
 sin sustituirlo. Datos en [data-model](../data-model.md); coordinación en
 [integration](integration.md). Base `/api/v1`, JSON UTF-8 y mismo origen.
@@ -27,7 +28,7 @@ No hay registro público ni gestión de usuarios nueva.
 | GET /suppliers/{id} | UUID | 200 SupplierDetail y ETag. |
 | POST /suppliers | SupplierWrite de alta | 201 MutationResult y Location/ETag. |
 | PUT /suppliers/{id} | SupplierWrite completo | 200 MutationResult y nuevo ETag. |
-| GET /articles | Filtros comunes y familyId opcional | 200 Page de ArticleSummary. |
+| GET /articles | Filtros comunes, familyId y skuPrefix opcionales | 200 Page de ArticleSummary. |
 | GET /articles/{id} | UUID | 200 ArticleDetail y ETag. |
 | GET /articles/{id}/context | UUID | 200 contexto auxiliar de familia, política y capacidades, sin ETag. |
 | POST /articles | ArticleWrite de alta | 201 MutationResult y Location/ETag. |
@@ -82,6 +83,11 @@ adivine si tiene saldo.
 
 - `q` opcional: Trim, hasta 200 caracteres, búsqueda literal parcial por código o nombre,
   sin distinguir mayúsculas. No se interpreta como SQL ni como expresión de comodines.
+- `skuPrefix` opcional en artículos: Trim + ToUpperInvariant, máximo 64 caracteres;
+  prefijo literal sobre SKU, con `%`/`_` tratados como texto y no comodines. Puede combinarse
+  con q/familyId/state/página mediante intersección. Vacío no limita; exceso devuelve 422.
+  HU-07 lo consume al elegir explícitamente «Prefijo del código SKU» en su selector;
+  no sustituye el q por contenido de los catálogos ni reabre el alcance cerrado de HU-08.
 - `state=active|inactive|all`, por defecto active. Cualquier otro valor: 422.
 - page desde 1, pageSize por defecto 25 y máximo 100; orden por Code/Sku e Id estable.
   Page: `{ items, page, pageSize, totalCount }`, incluyendo items=[] y totalCount=0.

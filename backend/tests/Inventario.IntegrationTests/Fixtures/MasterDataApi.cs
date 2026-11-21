@@ -10,13 +10,13 @@ public sealed class MasterDataApi(HttpClient client, string token) : IDisposable
 {
     public HttpClient Client { get; } = client;
     public string Token { get; } = token;
-    public static async Task<MasterDataApi> LoginAsync(IdentityFixture fixture, ApiFactory factory, string role = "GestorMaestros")
+    public static async Task<MasterDataApi> LoginAsync(IdentityFixture fixture, ApiFactory factory, string role = "GestorMaestros", params string[] additionalRoles)
     {
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions
         { HandleCookies = true, AllowAutoRedirect = false, BaseAddress = new Uri("https://localhost") });
         var csrf = await client.GetFromJsonAsync<JsonElement>("/api/v1/auth/csrf");
         using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/login")
-        { Content = JsonContent.Create(new { email = await fixture.CreateUserAsync(role), password = IdentityFixture.Password }) };
+        { Content = JsonContent.Create(new { email = await fixture.CreateUserAsync([role, .. additionalRoles]), password = IdentityFixture.Password }) };
         request.Headers.Add("X-XSRF-TOKEN", csrf.GetProperty("requestToken").GetString());
         var response = await client.SendAsync(request);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

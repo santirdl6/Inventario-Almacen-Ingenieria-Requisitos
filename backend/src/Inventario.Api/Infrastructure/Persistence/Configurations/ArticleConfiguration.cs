@@ -19,6 +19,8 @@ internal sealed class ArticleConfiguration : IEntityTypeConfiguration<Article>
         builder.Property(article => article.Sku).HasMaxLength(64).IsRequired()
             .UseCollation("Latin1_General_100_CI_AS");
         builder.HasIndex(article => article.Sku).IsUnique();
+        builder.HasIndex(article => new { article.IsActive, article.Sku, article.Id })
+            .IncludeProperties(article => new { article.FamilyId, article.Name, article.BaseUnit, article.AllowsFractional, article.TracksLot });
         builder.Property(article => article.Name).HasMaxLength(200).IsRequired();
         builder.Property(article => article.BaseUnit).HasMaxLength(32).IsRequired();
         builder.Property(article => article.Version).IsRowVersion();

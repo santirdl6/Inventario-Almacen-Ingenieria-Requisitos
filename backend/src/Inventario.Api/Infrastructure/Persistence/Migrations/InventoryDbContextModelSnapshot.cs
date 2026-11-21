@@ -22,6 +22,8 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.HasSequence("PurchaseOrderNumbers");
+
             modelBuilder.Entity("Inventario.Api.Domain.Locations.Location", b =>
                 {
                     b.Property<Guid>("Id")
@@ -144,6 +146,10 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Sku")
                         .IsUnique();
+
+                    b.HasIndex("IsActive", "Sku", "Id");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("IsActive", "Sku", "Id"), new[] { "FamilyId", "Name", "BaseUnit", "AllowsFractional", "TracksLot" });
 
                     b.ToTable("Articles", null, t =>
                         {
@@ -290,6 +296,896 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_Suppliers_Code_NotBlank", "LEN(LTRIM(RTRIM([Code]))) > 0");
 
                             t.HasCheckConstraint("CK_Suppliers_Name_NotBlank", "LEN(LTRIM(RTRIM([Name]))) > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Purchasing.OutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("AcceptanceUncertain")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("ActiveAuthorizationOperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("AuthorizedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CurrentAttemptId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Cycle")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CycleAttempts")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("DeliveryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("FinishOperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("LastErrorSummary")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<long>("LeaseGeneration")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("LeaseOwner")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("LeaseUntil")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("NextAttemptAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("SentAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActiveAuthorizationOperationId");
+
+                    b.HasIndex("AuthorizedBy");
+
+                    b.HasIndex("DeliveryId")
+                        .IsUnique();
+
+                    b.HasIndex("DocumentId");
+
+                    b.HasIndex("State", "LeaseUntil");
+
+                    b.HasIndex("State", "NextAttemptAt");
+
+                    b.ToTable("OutboxMessages", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OutboxMessages_Accepted", "([State]='Sent' AND [SentAt] IS NOT NULL) OR ([State]<>'Sent' AND [SentAt] IS NULL)");
+
+                            t.HasCheckConstraint("CK_OutboxMessages_Counters", "[Cycle]>=1 AND [CycleAttempts] BETWEEN 0 AND 5 AND [Attempts]>=[CycleAttempts] AND [LeaseGeneration]>=0");
+
+                            t.HasCheckConstraint("CK_OutboxMessages_Lease", "([State]='Processing' AND [LeaseOwner] IS NOT NULL AND [LeaseUntil] IS NOT NULL AND [CurrentAttemptId] IS NOT NULL AND [FinishOperationId] IS NOT NULL) OR ([State]<>'Processing' AND [LeaseOwner] IS NULL AND [LeaseUntil] IS NULL AND [CurrentAttemptId] IS NULL AND [FinishOperationId] IS NULL)");
+
+                            t.HasCheckConstraint("CK_OutboxMessages_State", "[State] IN ('Pending','Processing','Sent','Failed') AND [Type]='PurchaseOrderEmail'");
+                        });
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Purchasing.PurchaseDeliveryEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("AttemptId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AuthorizationOperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("DeliveryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ExecutionKind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.Property<long?>("LeaseGeneration")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("ObservedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetimeoffset")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid?>("WorkerInstanceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorId");
+
+                    b.HasIndex("AuthorizationOperationId");
+
+                    b.HasIndex("DeliveryId", "RecordedAt");
+
+                    b.HasIndex("OperationId", "Kind", "DeliveryId")
+                        .IsUnique();
+
+                    b.ToTable("PurchaseDeliveryEvents", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PurchaseDeliveryEvents_Execution", "[ExecutionKind] IN ('Human','Worker')");
+
+                            t.HasCheckConstraint("CK_PurchaseDeliveryEvents_Generation", "[LeaseGeneration] IS NULL OR [LeaseGeneration]>=0");
+
+                            t.HasCheckConstraint("CK_PurchaseDeliveryEvents_Kind", "[Kind] IN ('Requested','Retried','Claimed','LeaseExpired','Accepted','TransientFailure','PermanentFailure','Uncertain','LateObservation')");
+
+                            t.HasCheckConstraint("CK_PurchaseDeliveryEvents_Outcome", "ISJSON([Outcome], VALUE)=1");
+                        });
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Purchasing.PurchaseOrder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("char(3)");
+
+                    b.Property<DateOnly>("ExpectedDeliveryDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasDefaultValueSql("CONCAT('PO-', FORMAT(NEXT VALUE FOR [PurchaseOrderNumbers], '00000000'))");
+
+                    b.Property<Guid>("RevisionStamp")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SendStatus")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<DateTimeOffset?>("SentAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.Property<Guid>("SupplierId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SupplierSnapshot")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("Number")
+                        .IsUnique();
+
+                    b.HasIndex("SupplierId", "State");
+
+                    b.HasIndex("CreatedAt", "Number", "Id");
+
+                    b.HasIndex("State", "CreatedAt", "Number", "Id");
+
+                    b.ToTable("PurchaseOrders", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PurchaseOrders_Currency", "LEN([Currency])=3 AND [Currency] COLLATE Latin1_General_100_BIN2 NOT LIKE '%[^A-Z]%'");
+
+                            t.HasCheckConstraint("CK_PurchaseOrders_SendStatus", "[SendStatus] IN ('None','Pending','Accepted','Failed')");
+
+                            t.HasCheckConstraint("CK_PurchaseOrders_Snapshot", "ISJSON([SupplierSnapshot])=1");
+
+                            t.HasCheckConstraint("CK_PurchaseOrders_State", "[State] IN ('Draft','Sent','PartiallyReceived','Received')");
+
+                            t.HasCheckConstraint("CK_PurchaseOrders_StateSend", "([SendStatus] IN ('None','Pending','Failed') AND [State]='Draft' AND [SentAt] IS NULL) OR ([SendStatus]='Accepted' AND [State] IN ('Sent','PartiallyReceived','Received') AND [SentAt] IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Purchasing.PurchaseOrderAudit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("After")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Before")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PurchaseOrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorId");
+
+                    b.HasIndex("PurchaseOrderId", "RecordedAt");
+
+                    b.HasIndex("OperationId", "PurchaseOrderId", "Action")
+                        .IsUnique();
+
+                    b.ToTable("PurchaseOrderAudit", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PurchaseOrderAudit_Action", "[Action] IN ('Create','Update','RequestSend','RetrySend')");
+
+                            t.HasCheckConstraint("CK_PurchaseOrderAudit_After", "[After] IS NULL OR ISJSON([After], VALUE)=1");
+
+                            t.HasCheckConstraint("CK_PurchaseOrderAudit_Before", "[Before] IS NULL OR ISJSON([Before], VALUE)=1");
+                        });
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Purchasing.PurchaseOrderDelivery", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("DocumentBytes")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<byte[]>("DocumentHash")
+                        .IsRequired()
+                        .HasColumnType("binary(32)");
+
+                    b.Property<string>("DocumentName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("DocumentSnapshot")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MediaType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<byte[]>("MessageHash")
+                        .IsRequired()
+                        .HasColumnType("binary(32)");
+
+                    b.Property<string>("MessageId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<byte[]>("MimeBytes")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<Guid>("PurchaseOrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RecipientEmail")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid>("RequestOperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("RequestedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RequiredPermission")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("ReviewedToken")
+                        .IsRequired()
+                        .HasMaxLength(44)
+                        .HasColumnType("nvarchar(44)");
+
+                    b.Property<string>("SenderEmail")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("TemplateVersion")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageId")
+                        .IsUnique();
+
+                    b.HasIndex("PurchaseOrderId")
+                        .IsUnique();
+
+                    b.HasIndex("RequestOperationId");
+
+                    b.HasIndex("RequestedBy");
+
+                    b.ToTable("PurchaseOrderDeliveries", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PurchaseOrderDeliveries_Contacts", "LEN([RecipientEmail])>0 AND LEN([SenderEmail])>0 AND CHARINDEX(CHAR(13),[RecipientEmail]+[SenderEmail])=0 AND CHARINDEX(CHAR(10),[RecipientEmail]+[SenderEmail])=0");
+
+                            t.HasCheckConstraint("CK_PurchaseOrderDeliveries_Permission", "[RequiredPermission]='Purchasing.Send'");
+
+                            t.HasCheckConstraint("CK_PurchaseOrderDeliveries_Snapshot", "ISJSON([DocumentSnapshot])=1");
+                        });
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Purchasing.PurchaseOrderLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ArticleSnapshot")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateOnly>("ExpectedDeliveryDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("OrderedQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("PurchaseOrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("ReceivedQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticleId");
+
+                    b.HasIndex("PurchaseOrderId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("PurchaseOrderLines", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PurchaseOrderLines_Position", "[Position]>0");
+
+                            t.HasCheckConstraint("CK_PurchaseOrderLines_Price", "[UnitPrice]>=0");
+
+                            t.HasCheckConstraint("CK_PurchaseOrderLines_Quantity", "[OrderedQuantity]>0 AND [ReceivedQuantity]>=0 AND [ReceivedQuantity]<=[OrderedQuantity]");
+
+                            t.HasCheckConstraint("CK_PurchaseOrderLines_Snapshot", "ISJSON([ArticleSnapshot])=1");
+                        });
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Receiving.Receipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CounterpartyReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("MovementId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("OperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PurchaseOrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset?>("RecordedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("RevisionStamp")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("SupplierDocumentReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SupportNotApplicableReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("MovementId")
+                        .IsUnique()
+                        .HasFilter("[MovementId] IS NOT NULL");
+
+                    b.HasIndex("OperationId")
+                        .IsUnique()
+                        .HasFilter("[OperationId] IS NOT NULL");
+
+                    b.HasIndex("ActorId", "OccurredAt");
+
+                    b.HasIndex("PurchaseOrderId", "OccurredAt", "Id");
+
+                    b.ToTable("Receipts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Receipts_Confirmation", "([State] = 'Draft' AND [RecordedAt] IS NULL AND [ActorId] IS NULL AND [OperationId] IS NULL AND [MovementId] IS NULL AND [CounterpartyReference] IS NULL)\nOR ([State] = 'Confirmed' AND [RecordedAt] IS NOT NULL AND [ActorId] IS NOT NULL AND [OperationId] IS NOT NULL AND [MovementId] IS NOT NULL AND [CounterpartyReference] IS NOT NULL AND [Reason] IS NOT NULL\n    AND (([SupplierDocumentReference] IS NULL AND [SupportNotApplicableReason] IS NOT NULL) OR ([SupplierDocumentReference] IS NOT NULL AND [SupportNotApplicableReason] IS NULL)))");
+                        });
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Receiving.ReceiptAllocation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("LocationSnapshot")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("LotCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<Guid?>("LotId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<Guid>("ReceiptLineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LocationId");
+
+                    b.HasIndex("LotId");
+
+                    b.HasIndex("ReceiptLineId");
+
+                    b.ToTable("ReceiptAllocations", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ReceiptAllocations_Quantity", "[Quantity] > 0");
+
+                            t.HasCheckConstraint("CK_ReceiptAllocations_Snapshot", "([LotId] IS NULL AND [LocationSnapshot] IS NULL) OR ([LotId] IS NOT NULL AND [LotCode] IS NOT NULL AND [LocationSnapshot] IS NOT NULL AND ISJSON([LocationSnapshot]) = 1)");
+                        });
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Receiving.ReceiptContingencyScope", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("AuthorizationOperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("AuthorizedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("AuthorizedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Differences")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ExpectedVouchers")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("JournalEvidence")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Locations")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PurchaseEvidence")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("PurchaseOrders")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("RevisionStamp")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("StockEvidence")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorizationOperationId");
+
+                    b.HasIndex("AuthorizedBy");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.ToTable("ReceiptContingencyScopes", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ReceiptContingencyScopes_Json", "ISJSON([PurchaseOrders]) = 1 AND ISJSON([Locations]) = 1 AND ISJSON([ExpectedVouchers]) = 1 AND ISJSON([Differences]) = 1");
+
+                            t.HasCheckConstraint("CK_ReceiptContingencyScopes_State", "([State] = 'Suspended' AND [AuthorizedBy] IS NULL AND [AuthorizedAt] IS NULL AND [AuthorizationOperationId] IS NULL) OR ([State] = 'ReopeningAuthorized' AND [AuthorizedBy] IS NOT NULL AND [AuthorizedAt] IS NOT NULL AND [AuthorizationOperationId] IS NOT NULL AND [JournalEvidence] IS NOT NULL AND [StockEvidence] IS NOT NULL AND [PurchaseEvidence] IS NOT NULL)");
+                        });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Receiving.ReceiptCorrection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("MovementId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OriginalMovementId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("ReceiptId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorId");
+
+                    b.HasIndex("MovementId")
+                        .IsUnique();
+
+                    b.HasIndex("OperationId")
+                        .IsUnique();
+
+                    b.HasIndex("OriginalMovementId");
+
+                    b.HasIndex("ReceiptId");
+
+                    b.ToTable("ReceiptCorrections", (string)null);
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Receiving.ReceiptCorrectionLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CorrectionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<Guid>("ReceiptAllocationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceiptAllocationId");
+
+                    b.HasIndex("CorrectionId", "ReceiptAllocationId")
+                        .IsUnique();
+
+                    b.ToTable("ReceiptCorrectionLines", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ReceiptCorrectionLines_Quantity", "[Quantity] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Receiving.ReceiptIncident", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("ObservedDescription")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ObservedUnit")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<decimal?>("Quantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("ReceiptId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ReceiptLineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceiptId");
+
+                    b.HasIndex("ReceiptLineId");
+
+                    b.ToTable("ReceiptIncidents", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ReceiptIncidents_Quantity", "[Quantity] IS NULL OR [Quantity] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Receiving.ReceiptLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("AcceptedQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("ArticleSnapshot")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DiscrepancyReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal?>("OrderedAtConfirmation")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("PendingAfterConfirmation")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<Guid>("PurchaseOrderLineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ReceiptId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("ReceivedBeforeConfirmation")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("ReportedQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PurchaseOrderLineId");
+
+                    b.HasIndex("ReceiptId", "PurchaseOrderLineId")
+                        .IsUnique();
+
+                    b.ToTable("ReceiptLines", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ReceiptLines_Discrepancy", "[ReportedQuantity] = [AcceptedQuantity] OR ([DiscrepancyReason] IS NOT NULL AND LEN(LTRIM(RTRIM([DiscrepancyReason]))) > 0)");
+
+                            t.HasCheckConstraint("CK_ReceiptLines_Quantities", "[AcceptedQuantity] >= 0 AND [AcceptedQuantity] <= [ReportedQuantity]");
+
+                            t.HasCheckConstraint("CK_ReceiptLines_Snapshot", "[ArticleSnapshot] IS NULL OR ISJSON([ArticleSnapshot]) = 1");
+                        });
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.ContingencyReference", b =>
+                {
+                    b.Property<string>("VoucherId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<Guid>("ImportedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("NormalizedData")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("ReceiptId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("ReconciledAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("ReconciledOperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ResponsibleReference")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.HasKey("VoucherId");
+
+                    b.HasIndex("ImportedBy");
+
+                    b.HasIndex("ReceiptId")
+                        .IsUnique();
+
+                    b.HasIndex("ReconciledOperationId")
+                        .IsUnique();
+
+                    b.ToTable("ContingencyReferences", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ContingencyReferences_Data", "ISJSON([NormalizedData]) = 1");
+
+                            t.HasCheckConstraint("CK_ContingencyReferences_Type", "[Type] = 'Receive'");
                         });
                 });
 
@@ -792,6 +1688,299 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Inventario.Api.Domain.Purchasing.OutboxMessage", b =>
+                {
+                    b.HasOne("Inventario.Api.Infrastructure.Persistence.Operations.OperationResult", null)
+                        .WithMany()
+                        .HasForeignKey("ActiveAuthorizationOperationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("AuthorizedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Purchasing.PurchaseOrderDelivery", null)
+                        .WithOne()
+                        .HasForeignKey("Inventario.Api.Domain.Purchasing.OutboxMessage", "DeliveryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Purchasing.PurchaseOrder", null)
+                        .WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Purchasing.PurchaseDeliveryEvent", b =>
+                {
+                    b.HasOne("Inventario.Api.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ActorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Infrastructure.Persistence.Operations.OperationResult", null)
+                        .WithMany()
+                        .HasForeignKey("AuthorizationOperationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Purchasing.PurchaseOrderDelivery", null)
+                        .WithMany()
+                        .HasForeignKey("DeliveryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Infrastructure.Persistence.Operations.OperationResult", null)
+                        .WithMany()
+                        .HasForeignKey("OperationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Purchasing.PurchaseOrder", b =>
+                {
+                    b.HasOne("Inventario.Api.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.MasterData.Supplier", null)
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Purchasing.PurchaseOrderAudit", b =>
+                {
+                    b.HasOne("Inventario.Api.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ActorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Infrastructure.Persistence.Operations.OperationResult", null)
+                        .WithMany()
+                        .HasForeignKey("OperationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Purchasing.PurchaseOrder", null)
+                        .WithMany()
+                        .HasForeignKey("PurchaseOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Purchasing.PurchaseOrderDelivery", b =>
+                {
+                    b.HasOne("Inventario.Api.Domain.Purchasing.PurchaseOrder", null)
+                        .WithMany()
+                        .HasForeignKey("PurchaseOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Infrastructure.Persistence.Operations.OperationResult", null)
+                        .WithMany()
+                        .HasForeignKey("RequestOperationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("RequestedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Purchasing.PurchaseOrderLine", b =>
+                {
+                    b.HasOne("Inventario.Api.Domain.MasterData.Article", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Purchasing.PurchaseOrder", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("PurchaseOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Receiving.Receipt", b =>
+                {
+                    b.HasOne("Inventario.Api.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ActorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Inventario.Api.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Stock.StockMovement", null)
+                        .WithMany()
+                        .HasForeignKey("MovementId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Inventario.Api.Infrastructure.Persistence.Operations.OperationResult", null)
+                        .WithMany()
+                        .HasForeignKey("OperationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Inventario.Api.Domain.Purchasing.PurchaseOrder", null)
+                        .WithMany()
+                        .HasForeignKey("PurchaseOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Receiving.ReceiptAllocation", b =>
+                {
+                    b.HasOne("Inventario.Api.Domain.Locations.Location", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Stock.Lot", null)
+                        .WithMany()
+                        .HasForeignKey("LotId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Inventario.Api.Domain.Receiving.ReceiptLine", null)
+                        .WithMany("Allocations")
+                        .HasForeignKey("ReceiptLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Receiving.ReceiptContingencyScope", b =>
+                {
+                    b.HasOne("Inventario.Api.Infrastructure.Persistence.Operations.OperationResult", null)
+                        .WithMany()
+                        .HasForeignKey("AuthorizationOperationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Inventario.Api.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("AuthorizedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Inventario.Api.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Receiving.ReceiptCorrection", b =>
+                {
+                    b.HasOne("Inventario.Api.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ActorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Stock.StockMovement", null)
+                        .WithMany()
+                        .HasForeignKey("MovementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Infrastructure.Persistence.Operations.OperationResult", null)
+                        .WithMany()
+                        .HasForeignKey("OperationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Stock.StockMovement", null)
+                        .WithMany()
+                        .HasForeignKey("OriginalMovementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Receiving.Receipt", null)
+                        .WithMany()
+                        .HasForeignKey("ReceiptId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Receiving.ReceiptCorrectionLine", b =>
+                {
+                    b.HasOne("Inventario.Api.Domain.Receiving.ReceiptCorrection", null)
+                        .WithMany()
+                        .HasForeignKey("CorrectionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Receiving.ReceiptAllocation", null)
+                        .WithMany()
+                        .HasForeignKey("ReceiptAllocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Receiving.ReceiptIncident", b =>
+                {
+                    b.HasOne("Inventario.Api.Domain.Receiving.Receipt", null)
+                        .WithMany("Incidents")
+                        .HasForeignKey("ReceiptId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Receiving.ReceiptLine", null)
+                        .WithMany()
+                        .HasForeignKey("ReceiptLineId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Receiving.ReceiptLine", b =>
+                {
+                    b.HasOne("Inventario.Api.Domain.Purchasing.PurchaseOrderLine", null)
+                        .WithMany()
+                        .HasForeignKey("PurchaseOrderLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Receiving.Receipt", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("ReceiptId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Stock.ContingencyReference", b =>
+                {
+                    b.HasOne("Inventario.Api.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ImportedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Domain.Receiving.Receipt", null)
+                        .WithMany()
+                        .HasForeignKey("ReceiptId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Inventario.Api.Infrastructure.Persistence.Operations.OperationResult", null)
+                        .WithMany()
+                        .HasForeignKey("ReconciledOperationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Inventario.Api.Domain.Stock.Lot", b =>
                 {
                     b.HasOne("Inventario.Api.Domain.MasterData.Article", null)
@@ -944,6 +2133,23 @@ namespace Inventario.Api.Infrastructure.Persistence.Migrations
                 {
                     b.Navigation("Policy")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Purchasing.PurchaseOrder", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Receiving.Receipt", b =>
+                {
+                    b.Navigation("Incidents");
+
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Inventario.Api.Domain.Receiving.ReceiptLine", b =>
+                {
+                    b.Navigation("Allocations");
                 });
 
             modelBuilder.Entity("Inventario.Api.Domain.Stock.StockMovement", b =>

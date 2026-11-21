@@ -10,14 +10,14 @@ namespace Inventario.IntegrationTests;
 public sealed class MasterDataFirstReferenceTests(IdentityFixture fixture) : IClassFixture<IdentityFixture>
 {
     [Fact]
-    public void Current_model_links_every_stock_consumer_and_the_gate_is_not_a_permissive_stub()
+    public void Current_model_links_every_integrated_consumer_and_the_gate_is_not_a_permissive_stub()
     {
-        // Desde H0_StockCore (B) los consumidores reales son Lot, StockBalance y StockEntry; el gate
-        // pasa porque el núcleo de stock declara su contribución, no porque no haya consumidores.
+        // HU-07 añade PurchaseOrderLine a los consumidores existentes de StockCore; el gate
+        // solo pasa si ambos módulos declaran lector y enlace, no por omitir un consumidor.
         using var factory = fixture.Factory(); using var scope = factory.Services.CreateScope();
         scope.ServiceProvider.GetRequiredService<ArticleDefinitionReadiness>().EnsureReady();
         var db = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-        Assert.Equal(["Lot", "StockBalance", "StockEntry"],
+        Assert.Equal(["Lot", "PurchaseOrderLine", "StockBalance", "StockEntry"],
             ArticleUsageCoverageValidator.RequiredTypes(db.Model).Select(type => type.Name).Order(StringComparer.Ordinal));
     }
 

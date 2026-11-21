@@ -38,3 +38,5 @@ public sealed record StockOperationOutcome(
     string SourceDocumentType,
     Guid SourceDocumentId,
     DateTimeOffset RecordedAt);
+
+public sealed record ReceiptCorrectionBucket(Guid ArticleId, Guid LocationId, Guid LotId, decimal Quantity, string Unit);

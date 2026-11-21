@@ -44,6 +44,13 @@ Máximo tres intentos completos ante fallos transitorios; después se devuelve e
 La configuración de EF debe ejecutar la transacción completa dentro de su estrategia,
 no combinar reintentos de comandos SQL individuales con decisiones ya calculadas.
 
+Optimización local HU-07 (2026-11-21, revisión A+B pendiente): InventoryLocks envía los
+recursos de cada llamada de fase en un solo lote SQL. Conserva la lista ordinal mediante
+posiciones de un array JSON parametrizado; sp_getapplock se ejecuta secuencialmente con
+el mismo propietario Transaction, principal public y timeout de 5 s **por recurso**.
+El primer retorno negativo interrumpe el lote y provoca rollback del intento completo;
+no se adquieren recursos posteriores. No cambia fases, recursos, replay ni autorización.
+
 Concreción de formato para consumidores: UUID D en minúsculas; ordenar recursos de cada
 fase por su representación canónica con comparación ordinal. Los maestros Family/Supplier
 usan `document:family:{uuid}` y `document:supplier:{uuid}` dentro de la fase documental.
@@ -177,6 +184,20 @@ entrada ⇒ HasHistory. Si `H0_StockCore` aún no está aplicada (ventana HU-08 
 tablas y devuelve sin uso. Pendiente para las historias: el lector `IArticleMovementReader`
 del historial de artículo, CustomerOrder/Reservation (HU-03/HU-05), congelación de conteos
 y ajustes (HU-04), alertas (HU-06) y correcciones.
+
+## Continuación autorizada del correo de compras — diseño HU-07
+
+Concreción 2026-11-20, revisión A+B pendiente. Los comandos HTTP siguen obteniendo actor
+de ICurrentActor y policy actual. El worker de compras usa una entrada interna tipada del
+**mismo núcleo transaccional**, que resuelve actor/permiso desde la solicitud o retry
+confirmados; no acepta ActorId libre, sesión ficticia ni omisión de autorización.
+No hay cambio de ICurrentActor ni de los escritores HTTP de stock. Comandos internos
+de claim/finalización mantienen contexto limpio, operación → documentos, replay y
+evidencia/resultado/efectos juntos. SMTP está fuera de transacción y de la estrategia SQL.
+Lease/generación y autorización se revalidan después de locks; resultado histórico de
+claim no concede propiedad actual. Detalle y pruebas de regresión en
+[integración HU-07](../../../../specs/007-gestionar-pedidos-proveedores/contracts/integration.md).
+Esta continuación no habilita movimientos de stock desde correo.
 
 ## Cálculo de salida
 

@@ -28,8 +28,13 @@ Un escritor no se habilita sin esa cobertura; HU-08 no necesita reabrirse para a
 
 ## HU-07 — Compras — Persona A
 
-- [ ] INT-HU07-01 Integrar PurchaseOrder/Line con el contrato de aceptación de escritores: primera línea de borrador, retirada de la última línea, definición vigente e imposibilidad de borrado con documentos. Conservar instantáneas históricas de artículo/proveedor y cobertura SQL real. Origen HU-08 T035/T076/T100/T101; US2.8, FR-009/010/019.
-- [ ] INT-HU07-02 Verificar editar, desactivar y reactivar el proveedor con pedidos existentes: identidad/documentos/instantáneas intactos, bloqueo de nuevas compras de proveedor o artículo inactivo bajo los recursos documentales compartidos y reanudación al reactivar. Origen HU-08 T076/T078/T102/T103; US3.3/3.4/3.6, FR-012/013, SC-007.
+- [X] INT-HU07-01 Integrar PurchaseOrder/Line con el contrato de aceptación de escritores: primera línea de borrador, retirada de la última línea, definición vigente e imposibilidad de borrado con documentos. Conservar instantáneas históricas de artículo/proveedor y cobertura SQL real. Origen HU-08 T035/T076/T100/T101; US2.8, FR-009/010/019. [Evidencia HU-07 US1](../007-gestionar-pedidos-proveedores/validation/us1.md).
+- [X] INT-HU07-02 Verificar editar, desactivar y reactivar el proveedor con pedidos existentes: identidad/documentos/instantáneas intactos, bloqueo de nuevas compras de proveedor o artículo inactivo bajo los recursos documentales compartidos y reanudación al reactivar. Origen HU-08 T076/T078/T102/T103; US3.3/3.4/3.6, FR-012/013, SC-007. [Evidencia HU-07 US1](../007-gestionar-pedidos-proveedores/validation/us1.md) y [US2](../007-gestionar-pedidos-proveedores/validation/us2.md). Aquí SC-007 es el criterio de origen de HU-08, no la prueba de carga de HU-07.
+
+**Seguimiento de rendimiento HU-07 (T055/SC-007)**: la consulta cumple; alta y corrección
+superan el p95 de 2 s. Conservar la tarea abierta para perfilar POST/PUT bajo carga y
+repetir el protocolo completo en un entorno SQL Server x64 representativo. La entrega
+funcional no acredita ese objetivo. [Evidencia](../007-gestionar-pedidos-proveedores/validation/performance.md).
 
 ## HU-01 — Recepciones — Persona A
 
@@ -58,9 +63,14 @@ Un escritor no se habilita sin esa cobertura; HU-08 no necesita reabrirse para a
 
 ## Coordinación e integración compartida — A+B
 
+La [revisión A+B de HU-07](../007-gestionar-pedidos-proveedores/validation/shared-review.md)
+fue confirmada por el usuario. COORD-01 mantiene su alcance específico de HU-08.
+
 - [ ] COORD-01 Revisar antes de integrar/fusionar los cambios compartidos de HU-08: IArticleMovementReader.FiltersAsync, campo CounterpartyNotApplicableReason, migración 20261119171332_HU08MovementCounterparty y snapshot, compatibilidad de replay y contratos actualizados. Registrar revisión real de la otra persona; conservar migraciones aplicadas y regenerar únicamente migraciones locales no compartidas si otra entrega adelanta la cadena. El cierre técnico local de HU-08 no certifica esta revisión. Origen T095 y parte de T097/T108; plan global y gobernanza.
 
 ## H5 — Aceptación operativa y puesta en servicio — Responsables del proyecto/almacén
+
+Evidencia reutilizable para H5-02: [restauración técnica V-14 con compras](../007-gestionar-pedidos-proveedores/validation/recovery-v14.md).
 
 - [ ] H5-01 Realizar y documentar SC-006 con tres gestores representativos: cada uno alta de familia/artículo/proveedor, corrección y desactivación sin asistencia; registrar incidencias, corregir y repetir lo afectado. Reutilizar el guion de `specs/002-gestionar-datos-maestros/validation/usability.md`. Se conserva la exclusión de este ejercicio en la entrega académica. Origen HU-08 T091/T105; SC-006 operativo. Los flujos de recepción/salida/traslado mantienen además la validación humana exigida por Constitution III en sus módulos.
 - [ ] H5-02 Completar V-14 operativo con compras, recepciones, reservas y contingencia reales: restauración independiente, conciliación de hechos posteriores, revisión de reapertura y RPO/RTO aprobados. Reutilizar el ensayo técnico y `Hu08RecoveryTests`, sin presentar sus tiempos de una base pequeña como aprobación operativa. Origen HU-08 T092/T107; Constitution V y guía global V-14.

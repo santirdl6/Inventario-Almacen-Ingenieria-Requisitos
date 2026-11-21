@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Inventario.Api.Domain.MasterData;
 using Inventario.Api.Domain.Stock;
+using Inventario.Api.Domain.Purchasing;
 using Inventario.Api.Features.MasterData.Queries;
 using Inventario.Api.Features.Stock.Core;
 using Inventario.Api.Infrastructure.Http;
@@ -44,13 +45,16 @@ public sealed class StockArticleIntegrationTests(IdentityFixture fixture) : ICla
         StockCore.Prepare(StockOperation.Receive, StockTestHarness.Context("receipt"), [new(article, location, null, quantity)]);
 
     [Fact]
-    public void Stock_is_the_only_article_consumer_and_its_contributor_covers_every_foreign_key()
+    public void Stock_and_purchasing_contributors_cover_every_article_foreign_key()
     {
         using var factory = fixture.Factory();
         using var scope = factory.Services.CreateScope();
         var database = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-        Assert.Equal(new HashSet<Type> { typeof(Lot), typeof(StockBalance), typeof(StockEntry) },
+        Assert.Equal(new HashSet<Type> { typeof(Lot), typeof(StockBalance), typeof(StockEntry), typeof(PurchaseOrderLine) },
             ArticleUsageCoverageValidator.RequiredTypes(database.Model));
+        Assert.Equal(new HashSet<Type> { typeof(Lot), typeof(StockBalance), typeof(StockEntry) },
+            scope.ServiceProvider.GetServices<IArticleUsageContributor>().OfType<StockArticleUsageContributor>()
+                .Single().ReferencingEntityTypes.ToHashSet());
         // Ni la cobertura de uso ni la de primera referencia quedan como 503 DependencyUnavailable.
         scope.ServiceProvider.GetRequiredService<ArticleUsageCoverageValidator>().EnsureCovered();
         scope.ServiceProvider.GetRequiredService<ArticleDefinitionReadiness>().EnsureReady();

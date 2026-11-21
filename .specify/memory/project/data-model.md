@@ -149,6 +149,16 @@ El comando de envío guarda la instantánea del documento y el outbox atómicame
 SMTP no se ejecuta dentro de la transacción. Correcciones posteriores a una recepción
 deben recalcular estado y pendientes bajo el bloqueo del pedido; no se elimina la recepción.
 
+Concreción de diseño HU-07 (2026-11-20, revisión A+B pendiente): fechas previstas son
+fechas civiles SQL date; instantes de hechos/registro siguen UTC. Currency única se
+captura en el pedido. Las líneas tienen UUID estable independiente de ArticleId y pueden
+repetir artículo. Snapshots solo cambian por reasignación explícita mientras Draft/None.
+Cada cambio de líneas/acumulados/estado representado toca la cabecera para avanzar su
+rowversion; HU-01 debe conservar esa propiedad al confirmar/corregir recepciones.
+PurchaseOrderLine aporta contributor real de uso/primer enlace HU-08. Mappings, auditoría
+de compras y reglas particulares en el
+[modelo HU-07](../../../specs/007-gestionar-pedidos-proveedores/data-model.md).
+
 ### Receipt, ReceiptLine y ReceiptAllocation
 
 Cabecera: Id, PurchaseOrderId, SupplierDocumentReference opcional, State
@@ -318,6 +328,17 @@ State (Pending/Processing/Sent/Failed), Attempts, NextAttemptAt, LeaseUntil,
 LastError, CreatedAt, SentAt. Unicidad de intención por pedido y versión de envío.
 Worker reclama con lease para recuperación tras caída; nunca guarda credenciales en Payload.
 Entrega al menos una vez; tras aceptación SMTP puede repetirse si se pierde el acuse local.
+
+Concreción HU-07: una PurchaseOrderDelivery inmutable por pedido en este alcance conserva
+payload/documento/MIME, destinatario/remitente, MessageId y autorización originales;
+OutboxMessage la referencia 1:1 y mantiene autoridad activa, ciclo/contadores, owner,
+generación de lease e incertidumbre. Retry manual crea otra OperationResult pero conserva
+Delivery/MessageId/documento. PurchaseOrderAudit y PurchaseDeliveryEvent son append-only;
+Delivery también deniega UPDATE/DELETE al rol runtime. No modificar OperationResult para
+reflejar progreso. El [modelo local](../../../specs/007-gestionar-pedidos-proveedores/data-model.md)
+detalla FK/constraints y evolución aditiva implementadas localmente mediante
+`20261120111422_HU07PurchasingOutbox`; evidencia de migración en
+[foundation](../../../specs/007-gestionar-pedidos-proveedores/validation/foundation.md), revisión A+B pendiente.
 
 ## Identidad y permisos — común
 

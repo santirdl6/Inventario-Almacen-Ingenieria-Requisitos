@@ -70,6 +70,7 @@ public sealed class StockMovement
     public IReadOnlyList<StockEntry> Entries => entries;
 
     internal void AddEntry(StockEntry entry) => entries.Add(entry);
+    internal void LinkOriginal(Guid originalMovementId) => OriginalMovementId = originalMovementId;
 }
 
 public sealed class StockEntry

@@ -7,9 +7,10 @@ import { Article, ArticleContext, ArticlePage, ArticleWrite } from './article.mo
 @Injectable({ providedIn: 'root' })
 export class ArticlesApiService {
   private readonly http = inject(HttpClient); private readonly mutations = inject(MasterDataMutationsService);
-  list(q: string, state: string, familyId: string, page: number): Promise<ArticlePage> {
+  list(q: string, state: string, familyId: string, page: number, skuPrefix?: string): Promise<ArticlePage> {
     let params = new HttpParams().set('q', q).set('state', state).set('page', page).set('pageSize', 25);
     if (familyId) params = params.set('familyId', familyId);
+    if (skuPrefix) params = params.set('skuPrefix', skuPrefix);
     return firstValueFrom(this.http.get<ArticlePage>('/api/v1/articles', { params }));
   }
   async detail(id: string): Promise<{ resource: Article; context: ArticleContext; etag: string }> {

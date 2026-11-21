@@ -118,6 +118,22 @@ public sealed class MasterDataArticleTests(IdentityFixture fixture) : IClassFixt
     }
 
     [Fact]
+    public async Task Sku_prefix_is_literal_case_insensitive_and_does_not_replace_the_existing_contains_search()
+    {
+        using var factory = fixture.Factory(); using var api = await MasterDataApi.LoginAsync(fixture, factory);
+        var family = await api.FamilyAsync(); var prefix = "PREFIX%_" + Guid.NewGuid().ToString("N").ToUpperInvariant();
+        await api.WriteAsync(HttpMethod.Post, "/api/v1/articles", Body(family, prefix + "-A"));
+        await api.WriteAsync(HttpMethod.Post, "/api/v1/articles", Body(family, "X-" + prefix));
+        var escaped = Uri.EscapeDataString(prefix.ToLowerInvariant());
+        var selected = await api.Client.GetFromJsonAsync<JsonElement>($"/api/v1/articles?skuPrefix={escaped}&familyId={family}");
+        Assert.Equal(1, selected.GetProperty("totalCount").GetInt32());
+        Assert.Equal(prefix + "-A", selected.GetProperty("items")[0].GetProperty("sku").GetString());
+        var contains = await api.Client.GetFromJsonAsync<JsonElement>($"/api/v1/articles?q={escaped}&familyId={family}");
+        Assert.Equal(2, contains.GetProperty("totalCount").GetInt32());
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await api.Client.GetAsync("/api/v1/articles?skuPrefix=" + new string('A', 65))).StatusCode);
+    }
+
+    [Fact]
     public async Task Invalid_internal_fields_duplicates_and_stale_versions_leave_no_partial_changes()
     {
         using var factory = fixture.Factory(); using var api = await MasterDataApi.LoginAsync(fixture, factory);

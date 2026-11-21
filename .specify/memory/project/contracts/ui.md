@@ -46,6 +46,16 @@ en cookies HttpOnly. No persistir contraseñas ni tokens de autenticación en al
 - Artículo inactivo: indicador textual y consulta del historial; no desaparece de documentos.
 - Alerta: disponible, mínimo y sugerencia; no presentar la sugerencia como pedido ya creado.
 
+## Concreción de compras y recuperación HU-07
+
+Diseño 2026-11-20, revisión A+B pendiente: Compras reutiliza el transporte/almacén de
+intenciones común y amplía permisos por acción, navegación y exclusión local por pedido
+entre edición y envío. Recuperar respuesta incierta conserva intención; retry de Failed
+crea otra acción sobre entrega congelada. Detalle histórico y contacto actual se separan;
+la revisión confirma destinatario/documento exactos. Rutas/estados/accesibilidad en
+[UI HU-07](../../../../specs/007-gestionar-pedidos-proveedores/contracts/ui.md).
+Esta ampliación conserva entradas previas de maestros/ubicaciones y separación por actor.
+
 ## Accesibilidad y validación con operarios
 
 Etiquetas y mensajes en español, foco tras error, operación por teclado, estados con texto

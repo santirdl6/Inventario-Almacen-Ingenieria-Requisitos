@@ -1,0 +1,4 @@
+services:
+  app:
+    environment:
+      Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command: Warning

@@ -1,6 +1,7 @@
 using Inventario.Api.Domain.Identity;
 using Inventario.Api.Infrastructure.Http;
 using Inventario.Api.Infrastructure.Identity;
+using Inventario.Api.Infrastructure.Messaging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,9 +13,31 @@ public sealed record OperationContext(InventoryDbContext Database, InventoryLock
 public sealed class InventoryOperationExecutor(IServiceScopeFactory scopes, IHttpContextAccessor accessor,
     ILogger<InventoryOperationExecutor> logger)
 {
-    public async Task<OperationResponse> ExecuteAsync(OperationRequest request,
+    public Task<OperationResponse> ExecuteAsync(OperationRequest request,
         Func<OperationContext, CancellationToken, Task<OperationResponse>> change,
-        CancellationToken cancellation = default)
+        CancellationToken cancellation = default) => ExecuteCoreAsync(request, change,
+            (services, _, token) => AuthorizeHttpAsync(request, services, token), cancellation);
+
+    // Restricted continuation of a persisted purchase authorization: no caller-supplied actor,
+    // policy or callback, and no synthetic HttpContext. It shares the exact transaction engine.
+    internal Task<OperationResponse> ExecuteDeliveryAsync(PurchaseDeliveryCommand command, CancellationToken cancellation = default) =>
+        ExecuteCoreAsync(command.Request(), (context, token) => context.Services.GetRequiredService<PurchaseDeliveryCommands>().ApplyAsync(context, command, token),
+            (_, database, token) => PurchaseDeliveryCommands.AuthorizeAsync(database, command, token), cancellation);
+
+    private async Task<Guid> AuthorizeHttpAsync(OperationRequest request, IServiceProvider services, CancellationToken cancellation)
+    {
+        var principal = accessor.HttpContext?.User;
+        if (principal?.Identity?.IsAuthenticated != true) throw new UnauthenticatedActorException();
+        var actor = await services.GetRequiredService<ICurrentActor>().GetRequiredActorIdAsync(cancellation);
+        if (!PermissionCatalog.IsOperationPolicy(request.RequiredPermission)
+            || !(await services.GetRequiredService<IAuthorizationService>().AuthorizeAsync(principal, null, request.RequiredPermission)).Succeeded)
+            throw new InventoryProblemException(403, "Forbidden", "Tu cuenta no tiene permiso para esta operación.");
+        return actor;
+    }
+
+    private async Task<OperationResponse> ExecuteCoreAsync(OperationRequest request,
+        Func<OperationContext, CancellationToken, Task<OperationResponse>> change,
+        Func<IServiceProvider, InventoryDbContext, CancellationToken, Task<Guid>> authorize, CancellationToken cancellation)
     {
         using var strategyScope = scopes.CreateScope();
         var strategyDatabase = strategyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
@@ -24,14 +47,7 @@ public sealed class InventoryOperationExecutor(IServiceScopeFactory scopes, IHtt
             using var scope = scopes.CreateScope();
             var services = scope.ServiceProvider;
             var database = services.GetRequiredService<InventoryDbContext>();
-            var principal = accessor.HttpContext?.User;
-            if (principal?.Identity?.IsAuthenticated != true)
-                throw new UnauthenticatedActorException();
-            var actor = await services.GetRequiredService<ICurrentActor>().GetRequiredActorIdAsync(cancellation);
-            if (!PermissionCatalog.All.Contains(request.RequiredPermission)
-                || !(await services.GetRequiredService<IAuthorizationService>()
-                    .AuthorizeAsync(principal, null, request.RequiredPermission)).Succeeded)
-                throw new InventoryProblemException(403, "Forbidden", "Tu cuenta no tiene permiso para esta operación.");
+            var actor = await authorize(services, database, cancellation);
             if (request.OperationId == Guid.Empty || request.Method.ToUpperInvariant() is not ("POST" or "PUT" or "PATCH" or "DELETE"))
                 throw new InventoryProblemException(400, "InvalidRequest", "La intención requiere una clave UUID y un método de escritura válidos.");
             var hash = RequestFingerprint.Create(request.Method, request.Resource, request.NormalizedBody);
