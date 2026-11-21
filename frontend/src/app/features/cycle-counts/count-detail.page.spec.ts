@@ -149,6 +149,35 @@ describe('CountDetailPage en borrador y en conteo', () => {
     expect(text(root)).toContain('Falta el contado de esta línea');
   });
 
+  it('rechaza en local un hallazgo fraccionario si el artículo no admite fracciones y lo admite si las admite (C6)', async () => {
+    const { fixture, root } = await render(COUNTING());
+    for (const [allowsFractional, expected] of [[false, 'solo admite cantidades enteras'], [true, null]] as const) {
+      type(root.querySelector<HTMLInputElement>('#found-article')!, 'tor');
+      await settle(fixture);
+      httpMock().expectOne(r => r.url === '/api/v1/articles' && r.params.get('q') === 'tor').flush({
+        items: [{ id: ART_B, sku: 'ART-B', name: 'Tornillo', baseUnit: 'UD', isActive: true, tracksLot: false, allowsFractional }] });
+      await settle(fixture);
+      button(root, 'ART-B · Tornillo').click();
+      await settle(fixture);
+      const where = root.querySelector<HTMLSelectElement>('#found-location')!;
+      where.value = U2;
+      where.dispatchEvent(new Event('change'));
+      type(root.querySelector<HTMLInputElement>('#found-quantity')!, '2,5');
+      await settle(fixture);
+      button(root, 'Añadir hallazgo').click();
+      await settle(fixture);
+      const error = root.querySelector('#found-quantity ~ .field-error');
+      if (expected) {
+        expect(text(error)).toContain(expected);
+        expect(root.querySelector('#found-quantity')?.getAttribute('aria-invalid')).toBe('true');
+        expect(root.querySelector('[data-testid="pending-found"]')).toBeNull();
+      } else {
+        expect(error).toBeNull();
+        expect(text(root.querySelector('[data-testid="pending-found"]'))).toContain('2.5 UD');
+      }
+    }
+  });
+
   it('añade un hallazgo con lote y cantidad y lo envía en found', async () => {
     const { fixture, root } = await render(COUNTING());
     const search = root.querySelector<HTMLInputElement>('#found-article')!;

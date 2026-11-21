@@ -504,8 +504,8 @@ export class CountDetailPage implements OnInit {
     if (!article) problem = 'Elige el artículo del hallazgo.';
     else if (!this.foundLocation()) problem = 'Elige la ubicación del hallazgo.';
     else if (article.tracksLot && !lotCode) problem = `El artículo ${article.sku} exige lote.`;
-    // La búsqueda no trae si admite fracciones: lo decide el servidor al guardar (found[i].countedPhysical).
-    else problem = this.quantityProblem(typed, { allowsFractions: true }, true);
+    // Convergence C6: fracciones según el artículo elegido; el servidor lo vuelve a comprobar (found[i].countedPhysical).
+    else problem = this.quantityProblem(typed, { allowsFractions: article.allowsFractional ?? true }, true);
     this.foundError.set(problem);
     if (problem || !article) { focusFirstError(this.host, this.injector); return; }
     this.pendingFound.update(items => [...items, { articleId: article.id, sku: article.sku, name: article.name, unit: article.baseUnit,

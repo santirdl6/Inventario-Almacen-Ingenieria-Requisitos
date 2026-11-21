@@ -426,8 +426,14 @@ queda como estaba (la skill solo añade).
     «1 línea con diferencia de 2 líneas». Observado: `''` (el total solo estaba en la revisión). El detalle lo
     muestra en todos los estados desde el inicio; la revisión conserva su frase; el borrador no lo muestra.
     Verde: Vitest 228/228, `tsc` y build. Sin cambios de backend.
-- [ ] C6 Validar en local la fracción del hallazgo con el artículo elegido, según FR-004 y FR-029
+- [X] C6 Validar en local la fracción del hallazgo con el artículo elegido, según FR-004 y FR-029
   (partial, G6).
+  - **Hecho**: rojo Vitest en `count-detail.page.spec.ts` (entrada: hallazgo de ART-B en UD con
+    `allowsFractional: false` y cantidad «2,5»). Esperado: error junto a «Cantidad» con `aria-invalid` y sin
+    añadirlo. Observado: sin error (`''`). `GET /articles` ya traía `allowsFractional`; `StockArticleOption`
+    (HU-05, archivo de B) lo recoge como campo opcional y el hallazgo valida con él («Este artículo solo
+    admite cantidades enteras.», el mismo mensaje que las filas esperadas). Si faltara, decide el servidor.
+    Con `allowsFractional: true`, 2.5 se admite. Verde: Vitest 229/229, `tsc` y build. Sin cambios de backend.
 - [ ] C7 Decidir el recorrido historial → conteo de la prueba independiente de US2: documentarlo en
   el quickstart o pedir a A un enlace del soporte `cycle-count` a `/inventarios/{id}` en
   `article-history.component.ts`, según US2 y US4.2 (partial, G7).

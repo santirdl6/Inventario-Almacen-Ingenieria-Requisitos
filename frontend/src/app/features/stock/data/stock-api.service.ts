@@ -36,6 +36,7 @@ export class StockApiService {
   searchArticles(query: string): Observable<StockArticleOption[]> {
     const params = new HttpParams().set('q', query).set('state', 'all').set('page', 1).set('pageSize', 25);
     return this.http.get<{ items: StockArticleOption[] }>('/api/v1/articles', { params }).pipe(
-      map(page => page.items.map(({ id, sku, name, baseUnit, isActive, tracksLot }) => ({ id, sku, name, baseUnit, isActive, tracksLot }))));
+      map(page => page.items.map(({ id, sku, name, baseUnit, isActive, tracksLot, allowsFractional }) =>
+        ({ id, sku, name, baseUnit, isActive, tracksLot, allowsFractional }))));
   }
 }

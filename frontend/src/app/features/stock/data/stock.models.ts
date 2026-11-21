@@ -4,6 +4,8 @@
 /** Artículo elegible en el selector propio (GET /articles?q=&state=all), incluidos inactivos. */
 export interface StockArticleOption {
   id: string; sku: string; name: string; baseUnit: string; isActive: boolean; tracksLot: boolean;
+  /** HU-04 Convergence C6: lo trae GET /articles; el hallazgo lo valida en local. */
+  allowsFractional?: boolean;
 }
 
 export interface StockLocation {
