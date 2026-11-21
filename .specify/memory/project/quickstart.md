@@ -377,3 +377,11 @@ visto bueno de A a P-01…P-08 sobre `3e2ad7e`). Matriz C del
   - Playwright 18/18 con `--grep-invert SC-005`, en el proyecto `inventario-hu08-e2e` y con E2E-03
     incluido (`ef9b596`).
 - **Fuera**: SC-006 y SC-007, que impiden dar HU-04 por aceptada.
+
+- **Tras la Convergence C1–C8 de HU-04** ([converge-2](../../../specs/006-realizar-inventarios-ciclicos/validation/converge-2.md)):
+  - backend 347/1/0 (`32d51d5`);
+  - Vitest 230/230, `tsc` y build sin errores (`7608a84`);
+  - Playwright 18/18 con `--grep-invert SC-005` (árbol de `9c8974a`);
+  - `CountScopeFrozen` nombra la ubicación y el conteo en salidas, reservas y ubicaciones (V-09);
+  - `GET /cycle-counts?correctsShipmentId=` (solo lectura, `Inventory.Read`) alimenta en `/salidas/{id}` el
+    aviso de que una salida corregida por un conteo no corrige el pedido (P-07).

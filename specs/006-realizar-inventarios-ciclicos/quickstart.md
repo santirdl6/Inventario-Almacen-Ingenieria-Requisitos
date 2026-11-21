@@ -99,6 +99,30 @@ de destino congelada → 409 `CountScopeFrozen` (P-05; S5 de tasks.md).
 
 **INT-HU04-01/02/03**: marcadas en `integration-tasks.md` con esta evidencia (P-07).
 
+### Verificación tras la Convergence C1–C8 (2026-11-21)
+
+No se ha vuelto a ejecutar nada en C9: se citan los commits de cada tarea. El detalle está en
+[converge-2](validation/converge-2.md).
+
+| Comprobación | Resultado | Commit | Línea base |
+|--------------|-----------|--------|------------|
+| Suite backend (tras C1, C2 y C3) | 347 aprobadas, 1 omitida (V-14), 0 fallidas | `00f5b8c`, `e9d3909`, `32d51d5` (último cambio de backend) | 347/1/0 |
+| Vitest | 230/230 en 50 archivos | `7608a84` (C8, último cambio de app) | 223/223 |
+| `tsc` de app, specs y E2E y `npm run build` | Sin errores | `7608a84` | — |
+| Playwright (`--grep-invert SC-005`) | 18/18, con E2E-02 y E2E-03 | árbol de `9c8974a` (código de `7608a84`) | 18/18 |
+
+**Novedades verificadas**:
+
+- C1: `CountScopeFrozen` nombra la ubicación y el conteo en salidas, reservas y ubicaciones
+  (`CountScopeFrozenTests`).
+- C2: `GET /cycle-counts` con responsables y códigos del alcance.
+- C3: filtro de solo lectura `GET /cycle-counts?correctsShipmentId=`, con `Inventory.Read` y 422 si el Id
+  no es válido, y aviso P-07 en `/salidas/{id}` (`ShipmentCorrectionTests.C19_…`,
+  `shipment-confirm.page.spec.ts`).
+- C5: total de líneas con diferencia en todos los estados.
+- C6: fracciones del hallazgo validadas en local.
+- C8: «En conteo» con `inOpenCount: true`.
+
 ### Desviaciones registradas (T010, T013–T017)
 
 - **C-15 / T010**: tras retirar el hallazgo, el artículo sin otras referencias admite el **borrado**,
