@@ -657,7 +657,7 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
     estaban construidas.
   - Verde: Playwright 17/17 con `--grep-invert SC-005` (base 16/16, más E2E-02), sin
     intermitencias; `tsc` E2E sin errores.
-- [ ] T018 ⚠ PR #9 Evidencia y verificación de la rama. Depende de T004–T017. Riesgo:
+- [X] T018 ⚠ PR #9 Evidencia y verificación de la rama. Depende de T004–T017. Riesgo:
   `specs/004-consultar-existencias/contracts/hu03-integration.md`.
   - Suite backend completa **tres veces**, `has-pending-model-changes`, cadena desde cero, Vitest,
     `tsc` de app, specs y E2E, `npm run build` y Playwright.
@@ -666,6 +666,13 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
     `specs/004-consultar-existencias/contracts/hu03-integration.md` § 5, anotar como **construidas**
     las pruebas de salida de HU-03 (reglas 3 y 4, S-18 completo, V-04) con sus nombres.
   - Preparar para T002 la evidencia de INT-HU03-01/02 y P-08.
+
+  **Hecho (2026-11-21)**:
+  - Backend 287/1/0 tres veces seguidas sobre `8275c43` (base 207/1/0); modelo sin cambios.
+  - Vitest 180/180 (base 147); `tsc` de app, specs y E2E y build correctos; Playwright 17/17.
+  - Evidencia por caso H y lo preparado para T002 en [quickstart § Evidencia](quickstart.md#evidencia).
+  - ⚑ `8275c43`: pruebas construidas anotadas en `hu03-integration.md` § 5.
+  - T002 no se aplica: espera a la aprobación de A.
 
 ---
 

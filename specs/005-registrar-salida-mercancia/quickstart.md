@@ -76,3 +76,51 @@ bucket repetiría línea, ubicación y lote (FR-002). Revisa (propio 4, posible 
 
 Al ejecutar: fecha, entorno, commit, número de pruebas y resultado por caso H, más la verificación
 de la rama (suite backend, `has-pending-model-changes`, Vitest, `tsc`, Playwright).
+
+### Verificación de la rama (T018, 2026-11-21)
+
+**Entorno y versión**:
+
+- Backend: `git archive` de `8275c43` con `mcr.microsoft.com/dotnet/sdk:10.0` sobre `mssql/server`
+  (Compose, red `inventario_default`), caché `inventario-nuget`.
+- Vitest, `tsc` y build: locales con Node 26.
+- Playwright 1.65 + Chromium en el proyecto Compose `inventario-hu08-e2e`, con la imagen construida
+  del árbol de `a134668`.
+- Windows 11 + Docker Desktop.
+
+| Comprobación | Resultado | Línea base |
+|--------------|-----------|------------|
+| Suite backend, tres veces seguidas | 287 aprobadas, 1 omitida (V-14), 0 fallidas en las tres | 207/1/0 antes de HU-03 |
+| `has-pending-model-changes` | Sin cambios | — |
+| Cadena desde cero | Cada fixture crea su base y aplica la cadena completa; revertir a HU-05 y reaplicar comprobado en T004 | — |
+| Vitest (`ng test --watch=false`) | 180/180 en 43 archivos | 147 antes de T013 |
+| `tsc` de app, specs y E2E y `npm run build` | Sin errores | — |
+| Playwright (`--grep-invert SC-005`), una ejecución | 17/17, con E2E-02 | 16/16 |
+
+**Casos H**, todos en verde en las tres ejecuciones:
+
+| Caso | Pruebas |
+|------|---------|
+| H-01 | `Hu03DomainTests` |
+| H-02 | `Hu03SchemaTests`, incluido el consumo tardío y los dos órdenes de confirmación |
+| H-03 | `CustomerOrderLookupTests` |
+| H-04–H-07 | `ShipmentDraftTests`, con M1, la retirada por edición y las 10 carreras de INT-HU03-01 |
+| H-08–H-15, H-18 | `ShipmentConfirmTests`, con las reglas 3–5 y `AssertShipmentInvariantsAsync` (H-14) |
+| H-16, H-17 | `ShipmentConcurrencyTests`, 15 pruebas |
+| H-19 | `ShipmentReliabilityTests` |
+| H-20 | Repartido entre `ShipmentDraftTests.H20_…`, `ShipmentConfirmTests.H20_…` y `CustomerOrderLookupTests` |
+| H-21 | `ShipmentQueryTests` |
+| Vitest de `/salidas` | 33 pruebas en 8 specs, más 7 de los archivos de A (T013) |
+| E2E-02 | `frontend/e2e/shipping.spec.ts` |
+
+**Para T002 (P-08 e INT-HU03-01/02)**:
+
+- **INT-HU03-01**: contrato de escritores en `ShipmentDraftTests`, con crear, editar, retirar y
+  borrar, y carreras con definición y borrado en ambos órdenes. Además, la confirmación frente a
+  `PUT` de definición y `DELETE` en `ShipmentConcurrencyTests`, y el contributor en `AddStockCore`
+  (`Hu03SchemaTests`).
+- **INT-HU03-02**: `ShipmentConfirmTests.H15_…` y la carrera con la desactivación en
+  `ShipmentConcurrencyTests`.
+- **V-04, V-05 extendido, V-07 y V-08**: H-10, H-11, H-16, H-18 y H-19, sobre `8275c43`.
+
+Sigue fuera: SC-006, SC-007 y `CountScopeFrozen` (INT-HU04-03).
