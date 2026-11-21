@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 FROM node:24-bookworm-slim AS frontend-build
 WORKDIR /source/frontend
 COPY frontend/package.json frontend/package-lock.json ./
