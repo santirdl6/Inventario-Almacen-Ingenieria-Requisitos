@@ -8,7 +8,9 @@ export interface PendingOperation {
   appRoute?: string;
 }
 const KEY = 'inventario.pending-operations';
-const APP_ROUTE = /^\/existencias\/pedidos\/(nuevo|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+// HU-05: /existencias/pedidos/…; HU-03: /salidas/pedidos/{id} (alta) y /salidas/{id} (salida).
+const APP_ROUTE = new RegExp(`^(/existencias/pedidos/(nuevo|${UUID})|/salidas/(pedidos/)?${UUID})$`, 'i');
 
 export function mutationPermission(resource: string): string | null {
   if (/^\/api\/v1\/(families|articles|suppliers)(\/[0-9a-f-]{36})?$/i.test(resource)) return 'MasterData.Manage';
