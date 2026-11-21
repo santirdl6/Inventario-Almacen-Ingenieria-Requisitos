@@ -199,7 +199,7 @@ y `operation-areas.ts` (H0). No se tocan `StockCore`, `InventoryOperationExecuto
 
 | Dependencia o riesgo | Efecto | Mitigación |
 |----------------------|--------|------------|
-| PR #9 (HU-05) sin fusionar | HU-03 se apoya en su código y su migración; si la revisión de A cambia algo, cambia la base. | Rama creada sobre la de HU-05; migración `HU03_Shipments` local y regenerable (D-10). |
+| PR #9 (HU-05) aprobado por A (2026-11-21), pendiente de fusionar | HU-03 se apoya en su código y su migración; si la fusión cambia algo, cambia la base. | Rama creada sobre la de HU-05 e integrada con merge (`ca9f6db`: C3, C4 y T001/T002 de HU-05); la migración de HU-05 no cambió y `has-pending-model-changes` sigue limpio. `HU03_Shipments` local y regenerable (D-10). |
 | Revisión de A de P-01…P-07 | Bloquea la fusión, no la implementación. | Cambios aditivos; si A rechaza la tabla de consumos (P-02), queda la invariante agregada (D-08, alternativa). |
 | Triggers en tablas gestionadas por EF (D-06) | EF 10 exige declarar `HasTrigger` en la tabla para no usar `OUTPUT` sin `INTO`; si se omite, las escrituras fallan. | Declarar `HasTrigger` en las tres configuraciones (salida, líneas y consumos); H-02 y todas las pruebas de escritura lo cubren. |
 | Orden de reservas a bloquear (D-03) | Una reserva creada entre la lectura previa y el bloqueo quedaría sin `reservation:{id}`. | `orderVersion` bajo bloqueo: cualquier reserva nueva renueva el pedido y da 412 antes de decidir; H-17 lo prueba. |

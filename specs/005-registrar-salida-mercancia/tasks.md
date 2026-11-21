@@ -52,7 +52,7 @@ comando de confirmación, así que T009–T010 llevan ambas etiquetas. US3 (inac
   [backlog de integración](../001-reparto-specs-inventario/integration-tasks.md#hu-03--salidas--persona-b).
 - **🔀 PR #9**: depende de la base de HU-05 tal como se fusione (ver «Dependencias externas»).
 - **⚠ PR #9**: edita archivos de HU-05 (de B) que pueden cambiar en la revisión del PR #9 o en su
-  fusión. Riesgo de conflicto al rebasar; antes de empezar, comprobar si han cambiado.
+  fusión. Riesgo de conflicto al integrar con merge; antes de empezar, comprobar si han cambiado.
 
 ## Path Conventions
 
@@ -83,7 +83,9 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   `.specify/memory/project/contracts/api.md`, `.specify/memory/project/contracts/stock-operations.md`,
   `.specify/memory/project/quickstart.md` (evidencia, tras T018) y
   `specs/001-reparto-specs-inventario/integration-tasks.md`. P-03 y P-05 amplían P-03 y P-06 de
-  HU-05, que aún esperan su propia aprobación: se aplican sobre ellos, no antes. **No se aplican
+  HU-05. A los aprobó y se aplicaron en `2894dad`, y ya están en esta rama por el merge `ca9f6db`.
+  Por eso los diffs de HU-03 se redactan sobre el texto actual de esos documentos (analyze-1 H6).
+  La fusión del PR #9 sigue siendo necesaria para que la base de HU-03 sea la definitiva. **No se aplican
   hasta la aprobación de A** (AGENTS.md, «Cambios compartidos»). Al tener evidencia (T018), marcar
   INT-HU03-01 e INT-HU03-02 en el backlog. ⚑ commit aparte.
 
@@ -503,9 +505,9 @@ las dos editan `ShipmentEndpoints.cs`.
 - **Riesgo de conflicto ⚠ con la revisión y la fusión del PR #9**: T003 (`Reservation.cs`,
   `CustomerOrder.cs`), T006 (`CustomerOrderQueries.cs`, `CustomerOrderDtos.cs`,
   `StockEndpoints.cs`) y T018 (`hu03-integration.md`) editan archivos de HU-05. No esperan a la
-  fusión. Antes de empezar cada una, comprobar si esos archivos cambiaron en `b/hu-05-consultar-existencias`
-  y rebasar primero. La revisión de A ya añadió C3 y C4 (`8009807`, `363de56`) y T001/T002
-  (`2894dad`).
+  fusión. Antes de empezar cada una, comprobar si esos archivos cambiaron en `origin/b/hu-05-consultar-existencias`
+  e integrarlos con **merge** (no rebase), como `ca9f6db`, que ya trae C3, C4 (`8009807`,
+  `363de56`) y T001/T002 (`2894dad`) de HU-05 (analyze-1 H6).
 - **A**: **T001/T002** (aprobación de P-01…P-08) y **T013** (archivos de A: se implementa ya, pero la
   fusión espera a su revisión). **T017** solo si hiciera falta tocar `docker-compose.yml`,
   `master-data.fixture.ts` o `MasterDataTestData.cs`, que hoy no se prevé; cualquier otro archivo de

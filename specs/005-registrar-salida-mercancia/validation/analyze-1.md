@@ -131,4 +131,21 @@ aceptada.
 
 ## Resolución
 
-Pendiente: se completa al aplicar las correcciones de H1–H6.
+Aplicada el 2026-11-21 en commits aparte, solo en documentación y tareas. Ninguna corrección exigió
+una decisión de diseño, así que no hubo preguntas a B. Siguen siendo 18 tareas, con Convergence
+vacía y «Si hay tiempo», y los enlaces relativos están verificados.
+
+| Hallazgo | Estado | Commit | Cambio |
+|----------|--------|--------|--------|
+| H1 | Resuelto | `745824c` | E2E-02 (quickstart y T017): cambia la cantidad propuesta a 6 en lugar de añadir otra fila del mismo bucket. |
+| H2 | Resuelto | `745824c` | shipping-ui y T016: la salida confirmada reabierta muestra el `operationId` del detalle, con prueba Vitest; E2E-02 lo comprueba al reabrir. |
+| H3 | Resuelto | `745824c` | shipping-ui y T015: el selector de buckets usa `StockApiService.allRows`, con prueba de un bucket posterior al 25. X4 queda integrada en T015 sin renumerar. |
+| H4 | Resuelto | `c341348` | T008, H-07 y H-17: retirada por `PUT` y carreras de edición del borrador frente a `PUT` de definición y `DELETE` del artículo; H-17 recoge la carrera salida / `PUT` de definición de T011. |
+| H5 | Resuelto | `745824c` | shipping-ui y T016: «Inactivo» en la revisión sin bloquear la confirmación, con prueba Vitest. |
+| H6 | Resuelto | commit «/speckit-analyze, corrige H6» | T002, aviso ⚠ y riesgo del plan: P-03/P-06 de HU-05 ya aprobados y aplicados (`2894dad`); integración por merge (`ca9f6db`); queda la fusión del PR #9. |
+
+**Sin cambiar, para decidir con B**:
+
+- **M3**: `ROLLBACK` + `THROW` frente a solo `THROW` en los triggers. Decisión de diseño, que
+  conviene revisar con A en T001 (c) antes de T004.
+- **M1, M2, M4, M5, L1–L3**: medios y bajos, fuera del alcance de esta fase.
