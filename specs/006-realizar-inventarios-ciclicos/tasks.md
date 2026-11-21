@@ -248,11 +248,17 @@ real en salidas, reservas y ubicaciones.
     cambio aprobado en P-06; las specs, en `features/cycle-counts/data/*-hu04.spec.ts` para no tocar las
     de A (como HU-03). Lecturas (`context`, `shipment-candidates`) y rutas mal formadas siguen en `null`.
     Verde: Vitest 195/195 (187 + 8), build correcto.
-- [ ] T014 [US1] Servicio, rutas, lista y nuevo: `cycle-counts-api.service.ts`, `cycle-counts.routes.ts`
+- [X] T014 [US1] Servicio, rutas, lista y nuevo: `cycle-counts-api.service.ts`, `cycle-counts.routes.ts`
   (sustituye el placeholder, H0), `count-list.page.ts` y `count-new.page.ts` con `allRows` para las
   ubicaciones, `begin(…, appRoute)` + `send()`, foco al primer error. Vitest en sus `.spec.ts`.
   **Rojo esperado**: la spec de la lista no encuentra la tabla porque sigue el placeholder. Depende de
   T006 (contrato) y T013.
+  - **Hecho**: rojo observado: las specs no compilan (`count-list.page` y `count-new.page` no existen) y la
+    ruta `''` sigue cargando el placeholder. Servicio con detalle + contexto releídos hasta coincidir
+    (D-12), ubicaciones activas de todas las páginas de 100 (patrón `allRows`) y las nueve escrituras con
+    `begin(…, appRoute)` + `send()`; modelos y `differenceText` en `data/cycle-counts.models.ts`; datos de
+    prueba en `testing/cycle-counts-testing.ts`. `operation-areas.spec.ts` (H0, B) cuenta `/inventarios`
+    como área desarrollada. La ruta `:id` llega con el detalle (T015). Verde: Vitest 204/204, build correcto.
 - [ ] T015 [US1] [US5] Detalle en borrador y en conteo: `count-detail.page.ts` (alcance, iniciar con
   aviso de congelación, contar con cero explícito, diferencias en texto, hallazgos, enviar; 412 con
   relectura sin perder lo escrito; 409 con relectura). Vitest. **Rojo esperado**: la spec no encuentra
