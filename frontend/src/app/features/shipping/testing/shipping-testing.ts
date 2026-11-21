@@ -78,7 +78,7 @@ export function stockPage(count: number) {
 
 /** Lecturas de una salida existente: detalle + contexto de la salida y detalle + contexto del pedido. */
 export async function flushExisting(fixture: { detectChanges(): void }, body = shipment(), version = '"s1"',
-  context = shipmentContext(version), reservations: unknown[] = []) {
+  context = shipmentContext(version), reservations: unknown[] = [], corrections: unknown[] = []) {
   httpMock().expectOne(`/api/v1/shipments/${SHIPMENT}`).flush(body, { headers: { ETag: version } });
   await settle(fixture);
   httpMock().expectOne(`/api/v1/shipments/${SHIPMENT}/context`).flush(context);
@@ -87,6 +87,12 @@ export async function flushExisting(fixture: { detectChanges(): void }, body = s
   await settle(fixture);
   httpMock().expectOne(`/api/v1/customer-orders/${ORDER}/context`).flush(orderContext());
   await settle(fixture);
+  // HU-04 Convergence C3 (US4.3): una salida confirmada busca los conteos que la corrigen.
+  if (body.state === 'Confirmed') {
+    httpMock().expectOne(r => r.url === '/api/v1/cycle-counts' && r.params.get('correctsShipmentId') === SHIPMENT)
+      .flush({ items: corrections, page: 1, pageSize: 100, totalCount: corrections.length });
+    await settle(fixture);
+  }
 }
 
 export function click(root: HTMLElement, selector: string) {

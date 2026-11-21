@@ -402,9 +402,20 @@ queda como estaba (la skill solo añade).
     ubicaciones…». `GET /cycle-counts` no tenía prueba backend; ahora la tiene. La lista muestra, por fila,
     los códigos del alcance y quién creó, inició y cerró (aprobó o canceló). Contratos API y UI
     actualizados. Verde: suite 347/1/0, Vitest 224/224, `tsc` de app, specs y E2E y build.
-- [ ] C3 Indicar en el detalle del pedido de cliente o de la salida corregida que un conteo vinculado
+- [X] C3 Indicar en el detalle del pedido de cliente o de la salida corregida que un conteo vinculado
   corrigió el físico sin cambiar lo servido, o acotar US4.3 al detalle del conteo con
   `/speckit-clarify`, según US4.3 y FR-019 (partial, G3).
+  - **Decisión de B (2026-11-21)**: opción 3, filtro de solo lectura `GET /cycle-counts?correctsShipmentId=`
+    con `Inventory.Read`, sin migración (usa `IX_CountLines_CorrectsShipmentId`), y aviso en `/salidas/{id}`.
+  - **Hecho**: rojo backend en `ShipmentCorrectionTests.C19_…` (entrada: salida de 6 cuando salieron 4,
+    corregida por un conteo confirmado; `GET /cycle-counts?correctsShipmentId=<otra salida>`). Esperado:
+    lista vacía. Observado: `Assert.Empty() Failure`, el parámetro se ignoraba. Rojo Vitest en
+    `shipment-confirm.page.spec.ts`: la salida confirmada no hacía la consulta («Expected one matching
+    request … found none»). Verde: el filtro devuelve solo el conteo vinculado, vacío sin vínculo y 422
+    con un Id no válido; `/salidas/{id}` confirmada avisa con el código del conteo (enlace al conteo) de que
+    el pedido no se corrige y sigue contando 6.000 UD servidas, y la línea de la salida sigue en 6.000 UD.
+    Archivos de B de HU-03 (`shipment-form.page.ts`, `shipping-testing.ts`, spec). Contratos API y UI
+    actualizados. Suite 347/1/0, Vitest 226/226, `tsc` y build.
 - [ ] C4 En el 409 `ReservedStockConflict` de la confirmación, enlazar al pedido o pedidos que reservan
   en el bucket, o corregir el contrato UI a `/existencias`, según contracts/cycle-counts-ui.md
   § Resultados (contradicts, G4).

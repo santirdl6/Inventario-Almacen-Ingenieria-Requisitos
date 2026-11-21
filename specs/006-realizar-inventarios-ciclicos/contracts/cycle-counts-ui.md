@@ -36,6 +36,10 @@ estados de operación e información que no debe ocultarse). Decisiones en [rese
   exigiría su acumulado y estado en el mismo commit, según el
   [contrato común § Correcciones](../../../.specify/memory/project/contracts/stock-operations.md#correcciones-y-contingencia);
   queda fuera de alcance (decisión aprobada por A el 2026-11-21).
+- **Aviso en la salida corregida (US4.3, Convergence C3)**: `/salidas/{id}` confirmada consulta
+  `GET /cycle-counts?correctsShipmentId={id}` y, si algún conteo la corrige, avisa con el código del
+  conteo (enlace a `/inventarios/{id}`) de que el físico se corrigió, pero el pedido sigue contando lo
+  registrado como servido, su estado no cambia y las reservas consumidas tampoco.
 
 ## Resultados y errores
 

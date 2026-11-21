@@ -87,10 +87,10 @@ public static class CycleCountEndpoints
             .ProducesProblem(412).ProducesProblem(422).ProducesProblem(428).ProducesProblem(503);
 
         // Lecturas (D-12): detalle versionado, contexto sin ETag y lista paginada.
-        counts.MapGet("", async (string? state, int? page, int? pageSize, CycleCountQueries queries, HttpContext context,
-                CancellationToken token) =>
+        counts.MapGet("", async (string? state, string? correctsShipmentId, int? page, int? pageSize, CycleCountQueries queries,
+                HttpContext context, CancellationToken token) =>
             {
-                var found = await queries.ListAsync(state, page, pageSize, token);
+                var found = await queries.ListAsync(state, correctsShipmentId, page, pageSize, token);
                 context.Response.Headers.CacheControl = "no-store";
                 return Results.Ok(found);
             })

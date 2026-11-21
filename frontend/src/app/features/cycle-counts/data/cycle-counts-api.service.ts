@@ -32,6 +32,12 @@ export class CycleCountsApiService {
     return firstValueFrom(this.http.get<CountPage>(CYCLE_COUNTS, { params }));
   }
 
+  /** Conteos con alguna línea vinculada a la salida (US4.3, Convergence C3); lectura con Inventory.Read. */
+  correcting(shipmentId: string): Promise<CountPage> {
+    const params = new HttpParams().set('correctsShipmentId', shipmentId).set('page', 1).set('pageSize', FULL_PAGE_SIZE);
+    return firstValueFrom(this.http.get<CountPage>(CYCLE_COUNTS, { params }));
+  }
+
   /** Dos lecturas de la misma revisión; si no coinciden, vuelve a leer ambas (hasta 3 veces). */
   async detail(id: string): Promise<CountDetail> {
     for (let attempt = 0; attempt < 3; attempt++) {

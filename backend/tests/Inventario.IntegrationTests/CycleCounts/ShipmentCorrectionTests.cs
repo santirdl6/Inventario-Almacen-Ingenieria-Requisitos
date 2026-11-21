@@ -87,6 +87,16 @@ public sealed class ShipmentCorrectionTests(IdentityFixture fixture) : IClassFix
             Assert.Equal(new[] { await database.Set<Inventario.Api.Domain.Locations.Location>().Where(value => value.Id == seed.Location)
                     .Select(value => value.Code).SingleAsync() },
                 row.GetProperty("locationCodes").EnumerateArray().Select(code => code.GetString()!).ToArray());
+
+        // US4.3 (Convergence C3): la pantalla de la salida encuentra el conteo que la corrige filtrando la
+        // lista por correctsShipmentId (solo lectura, Inventory.Read). Una salida sin vínculo no tiene ninguno.
+        var corrected = await operario.Client.GetFromJsonAsync<JsonElement>($"/api/v1/cycle-counts?correctsShipmentId={shipment:D}");
+        Assert.Equal(id, Assert.Single(corrected.GetProperty("items").EnumerateArray()).GetProperty("id").GetGuid());
+        Assert.Equal(1, corrected.GetProperty("totalCount").GetInt32());
+        var none = await operario.Client.GetFromJsonAsync<JsonElement>($"/api/v1/cycle-counts?correctsShipmentId={Guid.NewGuid():D}");
+        Assert.Empty(none.GetProperty("items").EnumerateArray());
+        using (var invalid = await operario.Client.GetAsync("/api/v1/cycle-counts?correctsShipmentId=x"))
+            await StockApiSupport.ProblemAsync(invalid, HttpStatusCode.UnprocessableEntity, "ValidationFailed");
     }
 
     [Fact]

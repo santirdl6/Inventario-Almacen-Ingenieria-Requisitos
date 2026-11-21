@@ -59,6 +59,29 @@ describe('ShipmentFormPage · revisar, confirmar y recuperar', () => {
     expect(text(root.querySelector('[data-testid="recorded-at"]'))).toMatch(/^Fecha de registro: 21\/11\/2026 \d{2}:05$/);
   });
 
+  it('una salida confirmada de 6 cuando salieron 4, corregida por un conteo, avisa de que el pedido no se corrige (US4.3; HU-04 C3)', async () => {
+    TestBed.configureTestingModule({ imports: [ShipmentFormPage], providers: locationsTestProviders({ id: SHIPMENT }) });
+    signIn(RECORD);
+    const fixture = TestBed.createComponent(ShipmentFormPage);
+    await settle(fixture);
+    const count = { id: 'count-1', countCode: 'CC-4A0000000000', state: 'Confirmed' };
+    await flushExisting(fixture, shipment('Confirmed', '6.000', 'op-6'), '"s1"', shipmentContext('"s1"', true, []), [], [count]);
+    const root = fixture.nativeElement as HTMLElement;
+    const notice = text(root.querySelector('[data-testid="count-correction"]'));
+    expect(notice).toContain('CC-4A0000000000');
+    expect(notice).toContain('corrigió las existencias de la ubicación');
+    expect(notice).toContain('el pedido no se corrige');
+    expect(notice).toContain('siguen contando 6.000 UD servidas');
+    expect(root.querySelector('[data-testid="count-correction"] a')?.getAttribute('href')).toBe('/inventarios/count-1');
+    // La salida sigue registrando 6 servidas: el ajuste no la modifica.
+    expect(text(root.querySelector('[data-testid="readonly-line"]'))).toContain('6.000 UD');
+  });
+
+  it('una salida confirmada sin conteo vinculado no muestra el aviso de corrección', async () => {
+    const { root } = await render(RECORD, shipment('Confirmed', '2.000', 'op-antigua'), shipmentContext('"s1"', true, []));
+    expect(root.querySelector('[data-testid="count-correction"]')).toBeNull();
+  });
+
   it('un borrador abierto solo con Inventory.Read no ofrece «Guardar», «Eliminar» ni «Revisar» (D-14)', async () => {
     const { root } = await render(['Inventory.Read']);
     for (const action of ['save', 'delete', 'review']) expect(root.querySelector(`[data-testid="${action}"]`)).toBeNull();

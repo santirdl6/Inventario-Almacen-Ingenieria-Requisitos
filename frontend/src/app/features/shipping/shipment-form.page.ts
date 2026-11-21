@@ -8,6 +8,8 @@ import { apiProblem } from '../../core/http/api-problem';
 import { MasterDataMutationsService } from '../../core/http/master-data-mutations.service';
 import { OperationStatusComponent } from '../../core/operations/operation-status.component';
 import { SessionService } from '../../core/session/session.service';
+import { CycleCountsApiService } from '../cycle-counts/data/cycle-counts-api.service';
+import { CountSummary, countRoute } from '../cycle-counts/data/cycle-counts.models';
 import { CustomerOrdersApiService, isUncertain } from '../stock/data/customer-orders-api.service';
 import { StockApiService } from '../stock/data/stock-api.service';
 import { OrderDetail, OrderLine, StockRow, lotText } from '../stock/data/stock.models';
@@ -55,6 +57,14 @@ export interface DraftRow {
           <p data-testid="recorded-at">Fecha de registro: {{ saved.shipment.recordedAt | date: 'dd/MM/yyyy HH:mm' }}</p>
           @if (saved.shipment.operationId) {
             <p data-testid="confirmed-operation">Salida confirmada con la operación {{ saved.shipment.operationId }}</p>
+          }
+          @if (corrections().length) {
+            <p class="error-text" data-testid="count-correction"><strong>Aviso:</strong> el conteo
+              @for (count of corrections(); track count.id; let last = $last) {
+                <a [routerLink]="countLink(count.id)">{{ count.countCode }}</a>@if (!last) {, }
+              }
+              corrigió las existencias de la ubicación de origen de esta salida, pero el pedido no se corrige: sus líneas
+              siguen contando {{ shippedText(saved) }} servidas, su estado no cambia y las reservas consumidas tampoco (P-07).</p>
           }
           @for (line of sortedLines(saved); track line.id) {
             <p data-testid="readonly-line">
@@ -135,6 +145,7 @@ export class ShipmentFormPage implements OnInit {
   readonly orderId = signal(this.params.get('orderId') ?? '');
   protected readonly api = inject(ShipmentsApiService);
   private readonly orders = inject(CustomerOrdersApiService);
+  private readonly counts = inject(CycleCountsApiService);
   private readonly stock = inject(StockApiService);
   private readonly session = inject(SessionService);
   protected readonly router = inject(Router);
@@ -157,6 +168,8 @@ export class ShipmentFormPage implements OnInit {
   /** Hay cambios sin guardar: la revisión usa las cifras de la salida guardada. */
   readonly dirty = signal(false);
   readonly releaseNeeded = signal(false);
+  /** HU-04 Convergence C3 (US4.3): conteos que corrigen esta salida confirmada (limitación P-07). */
+  readonly corrections = signal<CountSummary[]>([]);
   private readonly mutations = inject(MasterDataMutationsService);
   /** Operación pendiente de esta pantalla: la confirmación de la salida o el alta del borrador. */
   readonly pendingResource = computed(() => this.shipmentId ? confirmResource(this.shipmentId) : SHIPMENTS);
@@ -235,6 +248,8 @@ export class ShipmentFormPage implements OnInit {
         }
       }
       this.order.set(await this.orders.detail(this.orderId()));
+      const confirmed = this.detail()?.shipment.state === 'Confirmed' && this.session.has('Inventory.Read');
+      this.corrections.set(confirmed && this.shipmentId ? (await this.counts.correcting(this.shipmentId)).items : []);
     } catch (error) {
       this.error.set(apiProblem(error).status === 404 ? 'La salida o el pedido no existen.' : apiProblem(error).detail);
     }
@@ -246,6 +261,13 @@ export class ShipmentFormPage implements OnInit {
   }
 
   hasPending(line: OrderLine): boolean { return Number(line.pending) > 0; }
+
+  countLink(id: string): string { return countRoute(id); }
+
+  /** Cantidad registrada por la salida, con su unidad: lo que el pedido sigue contando como servido. */
+  shippedText(saved: ShipmentDetail): string {
+    return saved.shipment.lines.map(line => `${line.quantity} ${this.unitOf(line.customerOrderLineId)}`).join(', ');
+  }
 
   private line(orderLineId: string): OrderLine | undefined {
     return this.order()?.order.lines.find(line => line.id === orderLineId);

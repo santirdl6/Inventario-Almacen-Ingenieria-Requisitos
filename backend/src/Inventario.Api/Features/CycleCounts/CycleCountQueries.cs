@@ -73,9 +73,20 @@ public sealed class CycleCountQueries(InventoryDbContext database)
                 shipments, users.Select(user => user with { Name = user.Name.Length > 0 ? user.Name : user.Id.ToString("D") }).ToList());
         }, cancellation);
 
-    /// <summary>GET /cycle-counts?state=&amp;page=&amp;pageSize=: createdAt descendente, luego id.</summary>
-    public Task<PageResult<CycleCountSummary>> ListAsync(string? state, int? page, int? pageSize, CancellationToken cancellation)
+    /// <summary>
+    /// GET /cycle-counts?state=&amp;correctsShipmentId=&amp;page=&amp;pageSize=: createdAt descendente, luego id.
+    /// correctsShipmentId deja los conteos con alguna línea vinculada a esa salida (US4.3, Convergence C3).
+    /// </summary>
+    public Task<PageResult<CycleCountSummary>> ListAsync(string? state, string? correctsShipmentId, int? page, int? pageSize,
+        CancellationToken cancellation)
     {
+        Guid? shipment = null;
+        if (!string.IsNullOrWhiteSpace(correctsShipmentId))
+        {
+            if (!Guid.TryParse(correctsShipmentId.Trim(), out var parsed))
+                throw InventoryProblemException.Validation("correctsShipmentId", "La salida debe ser un identificador válido.");
+            shipment = parsed;
+        }
         CycleCountState? filter = null;
         if (!string.IsNullOrWhiteSpace(state))
         {
@@ -89,6 +100,7 @@ public sealed class CycleCountQueries(InventoryDbContext database)
         {
             var query = database.Set<CycleCount>().AsNoTracking();
             if (filter is { } value) query = query.Where(count => count.State == value);
+            if (shipment is { } corrected) query = query.Where(count => count.Lines.Any(line => line.CorrectsShipmentId == corrected));
             var total = await query.CountAsync(cancellation);
             var rows = await query.OrderByDescending(count => count.CreatedAt).ThenBy(count => count.Id)
                 .Skip(paging.Skip).Take(paging.PageSize)
