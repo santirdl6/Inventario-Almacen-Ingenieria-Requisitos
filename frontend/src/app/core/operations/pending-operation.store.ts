@@ -9,8 +9,9 @@ export interface PendingOperation {
 }
 const KEY = 'inventario.pending-operations';
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
-// HU-05: /existencias/pedidos/…; HU-03: /salidas/pedidos/{id} (alta) y /salidas/{id} (salida).
-const APP_ROUTE = new RegExp(`^(/existencias/pedidos/(nuevo|${UUID})|/salidas/(pedidos/)?${UUID})$`, 'i');
+// HU-05: /existencias/pedidos/…; HU-03: /salidas/pedidos/{id} (alta) y /salidas/{id} (salida);
+// HU-04: /inventarios/nuevo (alta) y /inventarios/{id} (conteo).
+const APP_ROUTE = new RegExp(`^(/existencias/pedidos/(nuevo|${UUID})|/salidas/(pedidos/)?${UUID}|/inventarios/(nuevo|${UUID}))$`, 'i');
 
 export function mutationPermission(resource: string): string | null {
   if (/^\/api\/v1\/(families|articles|suppliers)(\/[0-9a-f-]{36})?$/i.test(resource)) return 'MasterData.Manage';
@@ -20,6 +21,9 @@ export function mutationPermission(resource: string): string | null {
   if (/^\/api\/v1\/reservations(\/[0-9a-f-]{36}\/release)?$/i.test(resource)) return 'Reservations.Manage';
   // HU-03: crear, editar, eliminar y confirmar una salida.
   if (/^\/api\/v1\/shipments(\/[0-9a-f-]{36}(\/confirm)?)?$/i.test(resource)) return 'Shipping.Record';
+  // HU-04: crear, editar, iniciar, registrar líneas y enviar (Counts.Record); revisar, confirmar y cancelar (Inventory.Adjust).
+  if (/^\/api\/v1\/cycle-counts(\/[0-9a-f-]{36}(\/(start|submit|lines(\/[0-9a-f-]{36})?))?)?$/i.test(resource)) return 'Counts.Record';
+  if (/^\/api\/v1\/cycle-counts\/[0-9a-f-]{36}\/(review|confirm|cancel)$/i.test(resource)) return 'Inventory.Adjust';
   return null;
 }
 

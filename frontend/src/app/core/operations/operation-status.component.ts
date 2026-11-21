@@ -32,8 +32,11 @@ export class OperationStatusComponent {
   readonly busy = signal(false); readonly message = signal('');
   readonly checked = signal<string[]>([]);
   hasOriginal(operation: PendingOperation): boolean { return 'payload' in operation; }
-  /** HU-03: «Abrir salida» para /salidas/{id}; «Abrir pedido» para las rutas de pedido (HU-05 y alta de salida). */
-  openLabel(appRoute: string): string { return appRoute.startsWith('/salidas/') && !appRoute.startsWith('/salidas/pedidos/') ? 'Abrir salida' : 'Abrir pedido'; }
+  /** HU-03: «Abrir salida» para /salidas/{id}; HU-04: «Abrir conteo» para /inventarios/…; «Abrir pedido» para las rutas de pedido (HU-05 y alta de salida). */
+  openLabel(appRoute: string): string {
+    if (appRoute.startsWith('/inventarios/')) return 'Abrir conteo';
+    return appRoute.startsWith('/salidas/') && !appRoute.startsWith('/salidas/pedidos/') ? 'Abrir salida' : 'Abrir pedido';
+  }
   canRetry(operation: PendingOperation): boolean { const permission = mutationPermission(operation.resource); return this.hasOriginal(operation) && !!permission && this.session.has(permission) && this.checked().includes(operation.operationId); }
   route(operation: PendingOperation): string {
     if (operation.appRoute) return operation.appRoute; // HU-05: pedido de la reserva o liberación.
