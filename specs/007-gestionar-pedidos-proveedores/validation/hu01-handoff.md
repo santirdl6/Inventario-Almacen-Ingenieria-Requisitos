@@ -1,7 +1,7 @@
 # Handoff de compras a HU-01
 
 **Entrega local**: modelo y lectura de compras disponibles. **Aceptación integrada**:
-SC-006/V-02/V-06 pendientes del escritor real de HU-01. Véanse el
+el escritor real de HU-01 acredita SC-006/V-02/V-06. Véanse el
 [contrato de integración](../contracts/integration.md#7-contrato-entregado-a-hu-01-y-revisión-conjunta)
 y el [protocolo común de stock](../../../.specify/memory/project/contracts/stock-operations.md).
 
@@ -21,4 +21,6 @@ y el [protocolo común de stock](../../../.specify/memory/project/contracts/stoc
    puede confirmar. Comparar pedido, stock, diario, recepción y resultado tras el rechazo.
 
 La [regresión local](integration.md) incluye la prueba de proyección y ETag del lector,
-sin efectos de receiving. No sustituye V-02/V-06 con recepciones confirmadas por HU-01.
+sin efectos de receiving. La aceptación integrada con el escritor real de HU-01 y las pruebas
+V-02/V-06 se completaron en [Matriz de aceptación HU-01](../../008-registrar-recepcion-mercancia/validation/acceptance.md)
+y [Evidencia US1 de HU-01](../../008-registrar-recepcion-mercancia/validation/us1.md).

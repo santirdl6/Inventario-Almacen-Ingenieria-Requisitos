@@ -38,8 +38,8 @@ funcional no acredita ese objetivo. [Evidencia](../007-gestionar-pedidos-proveed
 
 ## HU-01 — Recepciones — Persona A
 
-- [ ] INT-HU01-01 Integrar Receipt/Line/Allocation con el contrato de aceptación de escritores desde el borrador; probar las referencias directas o indirectas reales, la retirada y las carreras con edición/borrado. Generar cantidades exclusivamente por el núcleo común con soporte y contraparte o sus motivos explícitos. Origen HU-08 T035/T064/T066/T075/T076/T100/T101; FR-009/010/019.
-- [ ] INT-HU01-02 Rechazar recepción nueva de artículo inactivo y probar confirmación/desactivación en ambos órdenes; conservar compra, recepción, instantáneas y trazabilidad previas. No acreditar este flujo solo por llamar Receive sin su documento. Origen HU-08 T078/T103; US4.6, FR-013/019, Q-09/V-12.
+- [X] INT-HU01-01 Integrar Receipt/Line/Allocation con el contrato de aceptación de escritores desde el borrador; probar las referencias directas o indirectas reales, la retirada y las carreras con edición/borrado. Generar cantidades exclusivamente por el núcleo común con soporte y contraparte o sus motivos explícitos. Origen HU-08 T035/T064/T066/T075/T076/T100/T101; FR-009/010/019. [Evidencia HU-01 US1](../008-registrar-recepcion-mercancia/validation/us1.md) y [aceptación](../008-registrar-recepcion-mercancia/validation/acceptance.md).
+- [X] INT-HU01-02 Rechazar recepción nueva de artículo inactivo y probar confirmación/desactivación en ambos órdenes; conservar compra, recepción, instantáneas y trazabilidad previas. No acreditar este flujo solo por llamar Receive sin su documento. Origen HU-08 T078/T103; US4.6, FR-013/019, Q-09/V-12. [Evidencia HU-01 US1](../008-registrar-recepcion-mercancia/validation/us1.md) y [aceptación](../008-registrar-recepcion-mercancia/validation/acceptance.md).
 
 ## HU-03 — Salidas — Persona B
 
