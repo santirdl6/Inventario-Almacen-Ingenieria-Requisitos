@@ -1,15 +1,22 @@
+import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { apiProblem } from '../../core/http/api-problem';
+import { MasterDataMutationsService } from '../../core/http/master-data-mutations.service';
+import { OperationStatusComponent } from '../../core/operations/operation-status.component';
 import { SessionService } from '../../core/session/session.service';
 import { CustomerOrdersApiService, isUncertain } from '../stock/data/customer-orders-api.service';
 import { StockApiService } from '../stock/data/stock-api.service';
 import { OrderDetail, OrderLine, StockRow, lotText } from '../stock/data/stock.models';
 import { focusFirstError } from '../stock/shared/focus-first-error';
 import { ShipmentsApiService } from './data/shipments-api.service';
-import { ShipmentDetail, ShipmentWrite, orderShipmentsRoute, shipmentRoute } from './data/shipping.models';
+import {
+  SHIPMENTS, SHIPMENT_STATE_LABELS, ShipmentDetail, ShipmentLineView, ShipmentWrite, confirmResource, orderShipmentsRoute, shipmentRoute
+} from './data/shipping.models';
+import { ReviewLine, ShipmentReviewDialog } from './shipment-review-dialog';
 
 /** Fila del borrador: un origen (bucket) de una línea de pedido con su cantidad. */
 export interface DraftRow {
@@ -25,20 +32,42 @@ export interface DraftRow {
  */
 @Component({
   selector: 'app-shipment-form-page',
-  imports: [RouterLink],
+  imports: [DatePipe, OperationStatusComponent, RouterLink, ShipmentReviewDialog],
   styleUrl: '../stock/stock.css',
   template: `
     @if (message()) { <p role="status">{{ message() }}</p> }
-    @if (error()) { <p class="error-text" role="alert">{{ error() }}</p> }
+    @if (error()) {
+      <p class="error-text" role="alert">{{ error() }}</p>
+      @if (releaseNeeded()) {
+        <p><a data-testid="release-link" [routerLink]="'/existencias/pedidos/' + orderId()">Abrir el pedido en Existencias para liberar</a></p>
+      }
+    }
+    <app-operation-status [resource]="pendingResource()" />
 
     @if (order(); as current) {
       <h1>{{ shipmentId ? 'Salida' : 'Nueva salida' }} del pedido {{ current.order.externalReference }}</h1>
       <p>Cliente: {{ current.order.customerReference }} · <a [routerLink]="orderRoute()">Volver al pedido</a></p>
 
+      @if (detail(); as saved) {
+        @if (!editable()) {
+          <p>Estado: {{ stateLabel(saved.shipment.state) }} · Fecha del hecho: {{ saved.shipment.occurredAt | date: 'dd/MM/yyyy HH:mm' }}
+            · Responsable: {{ saved.context.actorName }}</p>
+          @if (saved.shipment.operationId) {
+            <p data-testid="confirmed-operation">Salida confirmada con la operación {{ saved.shipment.operationId }}</p>
+          }
+          @for (line of sortedLines(saved); track line.id) {
+            <p data-testid="readonly-line">
+              {{ origin(saved, line.locationId, line.lotId) }} · {{ line.quantity }} {{ unitOf(line.customerOrderLineId) }}
+              @if (saved.shipment.state === 'Confirmed') { · Reserva propia consumida {{ line.ownReservationConsumed }} {{ unitOf(line.customerOrderLineId) }} }
+            </p>
+          }
+        }
+      }
+
       @if (editable()) {
         <div class="field">
           <label for="occurred-at">Fecha y hora en que sale la mercancía</label>
-          <input id="occurred-at" type="datetime-local" [value]="occurredAt()" (input)="occurredAt.set(value($event))"
+          <input id="occurred-at" type="datetime-local" [value]="occurredAt()" (input)="occurredAt.set(value($event)); dirty.set(true)"
             [attr.aria-invalid]="errors()['occurredAt'] ? 'true' : null" />
           @if (errors()['occurredAt']; as messages) { <span class="field-error">{{ messages[0] }}</span> }
         </div>
@@ -79,7 +108,13 @@ export interface DraftRow {
 
         <button type="button" data-testid="save" [disabled]="busy() || rows().length === 0" (click)="save()">Guardar borrador</button>
         @if (shipmentId) {
+          <button type="button" data-testid="review" [disabled]="busy() || dirty()" (click)="reviewing.set(true)">Revisar y confirmar</button>
           <button type="button" data-testid="delete" [disabled]="busy()" (click)="confirmingDelete.set(true)">Eliminar borrador</button>
+          @if (dirty()) { <p class="meta">Guarda el borrador antes de revisarlo.</p> }
+        }
+        @if (reviewing() && detail(); as saved) {
+          <app-shipment-review-dialog [orderReference]="current.order.externalReference" [customer]="current.order.customerReference"
+            [lines]="reviewLines(saved)" [busy]="busy()" (confirmed)="confirm()" (cancelled)="reviewing.set(false)" />
         }
         @if (confirmingDelete()) {
           <section class="dialog" role="alertdialog" aria-labelledby="delete-title" data-testid="delete-confirmation">
@@ -95,7 +130,7 @@ export interface DraftRow {
 export class ShipmentFormPage implements OnInit {
   private readonly params = inject(ActivatedRoute).snapshot.paramMap;
   readonly shipmentId = this.params.get('id');
-  private readonly orderId = signal(this.params.get('orderId') ?? '');
+  readonly orderId = signal(this.params.get('orderId') ?? '');
   protected readonly api = inject(ShipmentsApiService);
   private readonly orders = inject(CustomerOrdersApiService);
   private readonly stock = inject(StockApiService);
@@ -116,12 +151,70 @@ export class ShipmentFormPage implements OnInit {
   readonly message = signal<string | null>(null);
   readonly busy = signal(false);
   readonly confirmingDelete = signal(false);
+  readonly reviewing = signal(false);
+  /** Hay cambios sin guardar: la revisión usa las cifras de la salida guardada. */
+  readonly dirty = signal(false);
+  readonly releaseNeeded = signal(false);
+  private readonly mutations = inject(MasterDataMutationsService);
+  /** Operación pendiente de esta pantalla: la confirmación de la salida o el alta del borrador. */
+  readonly pendingResource = computed(() => this.shipmentId ? confirmResource(this.shipmentId) : SHIPMENTS);
   readonly canRecord = computed(() => this.session.has('Shipping.Record'));
   /** Solo un borrador y solo con Shipping.Record (FR-019, D-14). */
   readonly editable = computed(() => this.canRecord() && (this.detail()?.shipment.state ?? 'Draft') === 'Draft');
   readonly orderRoute = computed(() => orderShipmentsRoute(this.orderId()));
 
+  constructor() {
+    // Operación recuperada («Comprobar resultado» o «Repetir»): se vuelve a leer la salida.
+    this.mutations.recovered.pipe(takeUntilDestroyed(inject(DestroyRef))).subscribe(() => void this.load(true));
+  }
+
   async ngOnInit(): Promise<void> { await this.load(true); }
+
+  stateLabel(state: string): string { return SHIPMENT_STATE_LABELS[state] ?? state; }
+
+  sortedLines(saved: ShipmentDetail): ShipmentLineView[] {
+    return [...saved.shipment.lines].sort((a, b) => a.id.localeCompare(b.id));
+  }
+
+  /** Líneas guardadas con las cifras de `review` del mismo contexto (D-12). */
+  reviewLines(saved: ShipmentDetail): ReviewLine[] {
+    return this.sortedLines(saved).map(line => {
+      const article = saved.context.articles.find(item => item.id === line.articleId);
+      return {
+        id: line.id, sku: article?.sku ?? '', name: article?.name ?? '', isActive: article?.isActive ?? true,
+        unit: article?.baseUnit ?? '', origin: this.origin(saved, line.locationId, line.lotId), quantity: line.quantity,
+        review: saved.context.review.find(item => item.lineId === line.id)
+      };
+    });
+  }
+
+  /** Confirmar con el If-Match de la salida y la versión del pedido revisada (D-05). */
+  async confirm(): Promise<void> {
+    const saved = this.detail();
+    if (this.busy() || !saved || !this.shipmentId) return;
+    this.busy.set(true);
+    this.error.set(null);
+    this.message.set(null);
+    this.releaseNeeded.set(false);
+    try {
+      const result = await this.api.confirm(this.shipmentId, saved.context.orderVersion, saved.etag);
+      this.reviewing.set(false);
+      this.message.set(`Salida registrada. Operación ${result.body?.operationId ?? ''}.`);
+      await this.load(true);
+    } catch (error) {
+      this.reviewing.set(false);
+      if (error instanceof HttpErrorResponse && error.status === 409 && apiProblem(error).code === 'ReservedStockConflict') {
+        this.releaseNeeded.set(true);
+        this.error.set(`${apiProblem(error).detail} Pídelo a un responsable del almacén.`);
+        focusFirstError(this.host, this.injector);
+      } else {
+        await this.fail(error, 'la salida se confirmó',
+          'Los datos cambiaron desde que los revisaste. Se ha vuelto a leer la revisión; compruébala y confirma de nuevo.');
+      }
+    } finally {
+      this.busy.set(false);
+    }
+  }
 
   /** Lee la salida (si existe) y el pedido; con `resetRows` sustituye las filas por las guardadas. */
   async load(resetRows: boolean): Promise<void> {
@@ -131,6 +224,7 @@ export class ShipmentFormPage implements OnInit {
         this.detail.set(detail);
         this.orderId.set(detail.shipment.customerOrderId);
         if (resetRows) {
+          this.dirty.set(false);
           this.occurredAt.set(localInput(detail.shipment.occurredAt));
           this.rows.set([...detail.shipment.lines].sort((a, b) => a.id.localeCompare(b.id)).map(line => ({
             orderLineId: line.customerOrderLineId, locationId: line.locationId, lotId: line.lotId,
@@ -177,6 +271,7 @@ export class ShipmentFormPage implements OnInit {
         origin: this.originFromOrder(current, allocation.locationId, allocation.lotId), quantity: quantity.toFixed(3), proposed: true });
     }
     this.rows.update(rows => [...rows, ...added]);
+    if (added.length) this.dirty.set(true);
   }
 
   async chooseOrigin(line: OrderLine): Promise<void> {
@@ -197,14 +292,17 @@ export class ShipmentFormPage implements OnInit {
     this.rows.update(rows => [...rows, { orderLineId: line.id, locationId: bucket.location.id, lotId: bucket.lot.id,
       origin: `${bucket.location.code} · ${lotText(bucket.lot)}`, quantity: '', proposed: false }]);
     this.selecting.set(null);
+    this.dirty.set(true);
   }
 
   setQuantity(index: number, quantity: string): void {
     this.rows.update(rows => rows.map((row, position) => position === index ? { ...row, quantity } : row));
+    this.dirty.set(true);
   }
 
   removeRow(index: number): void {
     this.rows.update(rows => rows.filter((_, position) => position !== index));
+    this.dirty.set(true);
     this.errors.set({});
   }
 
@@ -260,13 +358,14 @@ export class ShipmentFormPage implements OnInit {
   }
 
   /** Rechazo: incierto, 412 (relee sin perder lo escrito) o errores por campo con foco al primero. */
-  protected async fail(error: unknown, what: string): Promise<void> {
+  protected async fail(error: unknown, what: string,
+    stale = 'Otra persona cambió la salida o el pedido. Se ha vuelto a leer; revisa tus datos y repite.'): Promise<void> {
     if (isUncertain(error)) {
       this.error.set(`Resultado pendiente de comprobar: no sabemos si ${what}. Comprueba el resultado antes de repetir.`);
       return;
     }
     if (error instanceof HttpErrorResponse && error.status === 412) {
-      this.error.set('Otra persona cambió la salida o el pedido. Se ha vuelto a leer; revisa tus datos y repite.');
+      this.error.set(stale);
       await this.load(false);
     } else if (!(error instanceof HttpErrorResponse)) {
       this.error.set(error instanceof Error ? error.message : 'No se pudo completar la operación.');
@@ -278,7 +377,7 @@ export class ShipmentFormPage implements OnInit {
     focusFirstError(this.host, this.injector);
   }
 
-  private origin(detail: ShipmentDetail, locationId: string, lotId: string): string {
+  origin(detail: ShipmentDetail, locationId: string, lotId: string): string {
     const location = detail.context.locations.find(item => item.id === locationId);
     const lot = detail.context.lots.find(item => item.id === lotId);
     return `${location?.code ?? ''} · ${lot ? lotText(lot) : ''}`;

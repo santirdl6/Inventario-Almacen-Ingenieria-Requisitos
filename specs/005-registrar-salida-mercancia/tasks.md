@@ -576,7 +576,7 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
     `If-Match` y 412 sin perder lo escrito; `DELETE` con confirmación). Más 1 en
     `order-shipments.page.spec.ts`.
   - Vitest 169/169 (base 154); `tsc` correcto.
-- [ ] T016 [US1] [US2] Revisar, confirmar y recuperar. Depende de T015.
+- [X] T016 [US1] [US2] Revisar, confirmar y recuperar. Depende de T015.
   - `shipment-review-dialog.ts` (`cdkTrapFocus`, Escape): cifras de `review`, aviso en texto si la
     cantidad supera la posible, «Inactivo» en texto junto al artículo inactivo sin deshabilitar la
     confirmación (US3.2, FR-006; analyze-1 H5), nota de revalidación, «Confirmar salida» con
@@ -602,6 +602,23 @@ reservas. **Prueba independiente**: H-08 (sin reservas) y H-10 (V-04).
   - Vitest completo, `tsc` de app y specs y `npm run build` en verde.
 
   (US1.2–US1.3, US2.2, US2.4, US5.3; FR-006, FR-010–FR-012, FR-023–FR-025.)
+
+  **Hecho (2026-11-21)**:
+  - `shipment-review-dialog.ts` (`cdkTrapFocus`, Escape): cifras de `review`, «Inactivo» y el aviso
+    de cantidad mayor que la posible, ambos en texto y sin bloquear.
+  - En `shipment-form.page`: «Revisar y confirmar» solo con el borrador guardado; confirmar con
+    `If-Match` y `orderVersion`. Resultados según el contrato: 200 con la operación; 409
+    `InsufficientStock` con foco al aviso; 409 `ReservedStockConflict` con enlace a
+    `/existencias/pedidos/:id`; 412 relee.
+  - Solo lectura para la salida confirmada y para el borrador sin `Shipping.Record`, con «Salida
+    confirmada con la operación {id}» (analyze-1 H2).
+  - `OperationStatusComponent` con «Abrir salida».
+  - Las utilidades de prueba pasan a `testing/shipping-testing.ts`, para no ejecutar dos veces las
+    pruebas de T015 al importarlas.
+  - Rojo previo: 11 (4 del diálogo y 7 de la página) contra el esqueleto del diálogo y la página de
+    T015.
+  - Verde: `shipment-review-dialog.spec.ts` 4/4 y `shipment-confirm.page.spec.ts` 7/7; Vitest
+    180/180 (base 154); `tsc` de app, specs y E2E sin errores; `npm run build` correcto.
 
 ---
 
