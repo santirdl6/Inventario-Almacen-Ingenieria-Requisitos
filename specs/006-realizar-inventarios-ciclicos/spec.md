@@ -305,8 +305,9 @@ recargar; un usuario sin permiso de registro de conteos no puede crear ni inicia
   un conteo. La aprobación DEBE registrarse con su autor y su instante aunque la misma persona haya
   contado.
 - **FR-009**: La confirmación DEBE exigir un motivo para cada línea con diferencia distinta de cero.
-- **FR-010**: La confirmación DEBE, en una sola operación atómica: añadir un movimiento de ajuste
-  por cada línea con diferencia (al alza o a la baja, por la cantidad absoluta de la diferencia),
+- **FR-010**: La confirmación DEBE, en una sola operación atómica: añadir el movimiento de ajuste
+  del conteo, con una entrada por cada línea con diferencia (al alza o a la baja, por la cantidad
+  absoluta de la diferencia; sin diferencias no hay movimiento),
   dejar el físico de cada bucket igual al contado, registrar la aprobación y liberar todas las
   ubicaciones del conteo.
 - **FR-011**: La confirmación DEBE rechazarse, sin cambios y conservando la congelación, si el
@@ -349,7 +350,8 @@ recargar; un usuario sin permiso de registro de conteos no puede crear ni inicia
 
 - **FR-021**: Cada ajuste DEBE registrar identificador, tipo, artículo, ubicación, lote, cantidad
   positiva, unidad, sentido, fecha y hora del hecho y del registro, quien contó, quien autorizó,
-  motivo, el conteo como documento de soporte y, si la hay, la salida corregida vinculada, y como contraparte el
+  motivo (el de cada diferencia se conserva en su línea del conteo, inmutable tras cerrar), el
+  conteo como documento de soporte y, si la hay, la salida corregida vinculada, y como contraparte el
   motivo expreso de no aplicación, ya que un ajuste no tiene contraparte externa.
 - **FR-022**: El historial de existencias DEBE mostrar los ajustes con sus datos y permitir llegar
   al conteo o a la salida que los originó.
