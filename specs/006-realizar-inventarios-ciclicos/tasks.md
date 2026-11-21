@@ -90,7 +90,8 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   tablas de H0.
 - [ ] T005 ⚑ 🔀 PR #10 [US3] [INT-HU04-03] Lector de congelación real (D-04):
   `Features/Locations/ILocationUsage.cs` (HU-02) consulta `CountLocations` con `IsFrozen = 1`. Pruebas
-  en `CycleCounts/CountScopeFrozenTests.cs` con una fila congelada sembrada directamente: confirmar una
+  en `CycleCounts/CountScopeFrozenTests.cs` (C-12, primera mitad; la segunda la cierra T009) con una
+  fila congelada sembrada directamente: confirmar una
   salida, reservar, desactivar una ubicación vacía y cambiar su tipo → 409 `CountScopeFrozen` sin
   cambios; liberar una reserva sigue admitido (Q1); `inOpenCount = true` en `GET /locations` y su
   detalle. **Rojo esperado**: las cuatro operaciones responden 2xx porque el lector devuelve `false`.
@@ -132,7 +133,9 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   `CountCode` y `CounterpartyNotApplicableReason`; `IsFrozen = 0`; aprobación y `OperationId`; **sin
   modificar líneas**) y `POST …/cancel` (motivo 1–500, sin efectos en stock). Pruebas en
   `CycleCountConfirmTests.cs`: C-08, C-09 (liberar durante el conteo y confirmar), C-10, C-11, C-14
-  (invariantes 1–5 y 7 en cada confirmación) y C-16 (artículo inactivo). **Rojo esperado**: 404 en
+  (invariantes 1–5 y 7 en cada confirmación) y C-16 (artículo inactivo). En `CountScopeFrozenTests.cs`,
+  la segunda mitad de C-12 (US3.7, SC-002): tras confirmar y tras cancelar, confirmar una salida,
+  reservar, desactivar y cambiar el tipo vuelven a admitirse. **Rojo esperado**: 404 en
   `/confirm`; después, `ReservedStockConflict` ausente si no se revalida. Depende de T004 y T008.
 
 **Checkpoint MVP**: con T003–T009 el ciclo conteo → diferencias → ajuste funciona y la congelación es
@@ -142,8 +145,9 @@ real en salidas, reservas y ubicaciones.
 
 - [ ] T010 🔀 PR #10 [US3] [INT-HU04-01] [INT-HU04-03] Carreras en `CycleCountConcurrencyTests.cs` con
   `LockBarrier` y conexiones independientes, **en ambos órdenes**: iniciar frente a confirmar una salida,
-  reservar y desactivar la ubicación (C-13, 20 rondas); confirmar frente a liberar una reserva; añadir un
-  hallazgo frente a la edición de definición y el borrado del artículo (C-15). **Rojo esperado**: sin rojo
+  reservar y desactivar la ubicación (C-13, 20 rondas); confirmar frente a liberar una reserva; añadir y
+  retirar un hallazgo frente a la edición de definición y el borrado del artículo (C-15); tras la
+  retirada, el artículo sin otras referencias admite la edición y el borrado. **Rojo esperado**: sin rojo
   natural si T005–T009 ya serializan; comprobar con una mutación temporal (quitar `LocationsAsync` del
   inicio) que la carrera falla, y anotarla. Depende de T009.
 - [ ] T011 [P] [US6] Fiabilidad y permisos en `CycleCountReliabilityTests.cs`: replay de las nueve

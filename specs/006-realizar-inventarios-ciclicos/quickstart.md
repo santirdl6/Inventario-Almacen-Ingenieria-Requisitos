@@ -33,7 +33,7 @@ Nada de lo siguiente está ejecutado: es la matriz que las tareas deben dejar en
 | C-12 | Con U1 congelada: confirmar salida, reservar, desactivar U1 vacía y cambiar su tipo; `inOpenCount`; borrador sin congelar | 409 `CountScopeFrozen` sin cambios; `inOpenCount = true`; el borrador no bloquea; tras cerrar, todo admitido | FR-014, FR-016, US3 | V-09 |
 | C-13 | Carreras con `LockBarrier` en ambos órdenes: iniciar frente a confirmar salida, reservar y desactivar U1; confirmar frente a liberar | Uno completo primero; teórico = físico tras la operación ganadora; nada perdido ni duplicado (20 rondas) | FR-017, SC-003 | — |
 | C-14 | Invariantes 1–7 del data-model en cada confirmación de la batería | Todas se cumplen | SC-001 | — |
-| C-15 | Hallazgo frente a edición de definición y borrado del artículo (ambos órdenes) | Serializados por `article:{id}`; sin artículo borrado con referencias | FR-024, INT-HU04-01 | — |
+| C-15 | Añadir y retirar un hallazgo frente a edición de definición y borrado del artículo (ambos órdenes) | Serializados por `article:{id}`; sin artículo borrado con referencias; tras la retirada, edición y borrado admitidos si no hay otras referencias | FR-024, INT-HU04-01 | — |
 | C-16 | Conteo de un artículo inactivo con diferencia | Ajuste con motivo y autorización; historial y unidades conservados | FR-025, INT-HU04-02 | V-12 |
 | C-17 | Replay de cada escritura; misma clave con otro cuerpo; `If-Match` viejo o ausente | Mismo resultado sin segundo ajuste; 409 `IdempotencyConflict`; 412/428 | FR-026, FR-027, SC-004 | V-07 |
 | C-18 | Fallo inducido tras guardar en la confirmación (`FailAfterSaveInterceptor`) | Nada aplicado o todo aplicado; `GET /operations/{id}` coherente | FR-028 | V-08 |

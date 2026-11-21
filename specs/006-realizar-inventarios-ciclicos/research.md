@@ -286,7 +286,7 @@ para `/inventarios/(nuevo|{uuid})`.
 
 - Carreras con conexiones independientes y `LockBarrier` en **ambos órdenes**: inicio de conteo
   frente a confirmar salida, reservar y desactivar la ubicación; confirmar frente a liberar;
-  hallazgo frente a edición de definición y borrado del artículo (INT-HU04-01).
+  añadir y retirar un hallazgo frente a edición de definición y borrado del artículo (INT-HU04-01).
 - `FailAfterSaveInterceptor` en la confirmación (V-08).
 - Invariantes en cada confirmación: físico = contado; Σ entradas del bucket = diferencia; ninguna
   ubicación congelada en un conteo cerrado; diario = saldo.
