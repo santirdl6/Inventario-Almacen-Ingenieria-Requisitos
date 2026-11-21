@@ -310,13 +310,20 @@ real en salidas, reservas y ubicaciones.
 
 ## Phase 8: Cierre
 
-- [ ] T018 ⚑ Evidencia y documentos: [quickstart.md](quickstart.md) § Evidencia con la matriz C y la
+- [X] T018 ⚑ Evidencia y documentos: [quickstart.md](quickstart.md) § Evidencia con la matriz C y la
   suite completa; estado de [spec.md](spec.md); en `integration-tasks.md` marcar INT-HU04-01/02/03 con su
   evidencia (P-07); evidencia V-09/V-10 en el quickstart común (P-08). Sin código. Depende de T010, T011,
   T012 y, si se hicieron, T017.
   - **Acordado con A en T001 (2026-11-21)**: los cierres de INT-HU04-01/02/03 se ligan a su evidencia
     (P-07); en el quickstart común publicar la evidencia de la matriz C e incluir V-07, V-08 y V-12 del
     plan, y dejar identificada la prueba de recepción de V-09 que queda pendiente de HU-01 (P-08, P-05).
+  - **Hecho**: sin ejecutar de nuevo (sin cambios de código desde `ef9b596`); se citan backend 347/1/0
+    (`2215155`), Vitest 223/223 y build (`a084bfa`) y Playwright 18/18 (`ef9b596`). `055a8bb` (⚑ común):
+    INT-HU04-01/02/03 marcadas con su evidencia y quickstart común § 11 con la matriz C, V-07, V-08, V-09
+    (conteo, salida y ajuste), V-10 y V-12, y la prueba de recepción de V-09 identificada y pendiente de
+    HU-01. Quickstart de HU-04 § Evidencia con la matriz C y las desviaciones de T010 y T013–T017; C-15
+    corregido (tras retirar el hallazgo se admite el borrado, la definición sigue bloqueada). Estado de
+    spec.md actualizado.
 
 ---
 

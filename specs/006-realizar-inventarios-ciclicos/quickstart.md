@@ -5,7 +5,7 @@ Guía de validación de la feature. Preparación del entorno, cuentas y receta D
 Rutas y errores: [contrato API](contracts/cycle-counts-api.md); pantallas:
 [contrato UI](contracts/cycle-counts-ui.md); invariantes: [data-model](data-model.md#invariantes-comprobables-quickstart-c-14).
 
-Nada de lo siguiente está ejecutado: es la matriz que las tareas deben dejar en verde.
+Matriz ejecutada en T003–T017; resultados en § [Evidencia](#evidencia).
 
 ## Comandos
 
@@ -33,7 +33,7 @@ Nada de lo siguiente está ejecutado: es la matriz que las tareas deben dejar en
 | C-12 | Con U1 congelada: confirmar salida, reservar, desactivar U1 y cambiar su tipo (vacía y ocupada); `inOpenCount`; borrador sin congelar | 409 `CountScopeFrozen` sin cambios; `inOpenCount = true`; el borrador no bloquea; tras cerrar, todo admitido | FR-014, FR-016, US3 | V-09 |
 | C-13 | Carreras con `LockBarrier` en ambos órdenes: iniciar frente a confirmar salida, reservar y desactivar U1; confirmar frente a liberar | Uno completo primero; teórico = físico tras la operación ganadora; nada perdido ni duplicado (20 rondas) | FR-017, SC-003 | — |
 | C-14 | Invariantes 1–7 del data-model en cada confirmación de la batería | Todas se cumplen | SC-001 | — |
-| C-15 | Añadir y retirar un hallazgo frente a edición de definición y borrado del artículo (ambos órdenes) | Serializados por `article:{id}`; sin artículo borrado con referencias; tras la retirada, edición y borrado admitidos si no hay otras referencias | FR-024, INT-HU04-01 | — |
+| C-15 | Añadir y retirar un hallazgo frente a edición de definición y borrado del artículo (ambos órdenes) | Serializados por `article:{id}`; sin artículo borrado con referencias; tras la retirada, borrado admitido si no hay otras referencias, pero la definición sigue bloqueada (regla de A en `ArticleCommands`: la primera referencia bloquea la definición aunque después se retire) | FR-024, INT-HU04-01 | — |
 | C-16 | Conteo de un artículo inactivo con diferencia | Ajuste con motivo y autorización; historial y unidades conservados | FR-025, INT-HU04-02 | V-12 |
 | C-17 | Replay de cada escritura; misma clave con otro cuerpo; `If-Match` viejo o ausente | Mismo resultado sin segundo ajuste; 409 `IdempotencyConflict`; 412/428 | FR-026, FR-027, SC-004 | V-07 |
 | C-18 | Fallo inducido tras guardar en la confirmación (`FailAfterSaveInterceptor`) | Nada aplicado o todo aplicado; `GET /operations/{id}` coherente | FR-028 | V-08 |
@@ -57,4 +57,65 @@ Nada de lo siguiente está ejecutado: es la matriz que las tareas deben dejar en
 
 ## Evidencia
 
-Se completará por tarea con fecha, commit, entorno, resultado e incidencias.
+### Verificación de la rama (T018, 2026-11-21)
+
+T018 no vuelve a ejecutar nada: es documentación y no hay cambios de código desde `ef9b596`. Se citan
+los resultados de cada tarea.
+
+**Entorno**: backend con `git archive` y `mcr.microsoft.com/dotnet/sdk:10.0` sobre `mssql/server`
+(Compose, red `inventario_default`, caché `inventario-nuget`); Vitest, `tsc` y build locales con Node;
+Playwright + Chromium en el proyecto Compose `inventario-hu08-e2e` con la imagen del árbol actual;
+Windows 11 + Docker Desktop.
+
+| Comprobación | Resultado | Commit | Línea base |
+|--------------|-----------|--------|------------|
+| Suite backend | 347 aprobadas, 1 omitida (V-14), 0 fallidas | `2215155` (T012, último cambio de backend) | 291/1/0 |
+| `has-pending-model-changes` | Sin cambios | `2215155` | — |
+| Vitest (`ng test --watch=false`) | 223/223 (36 de `/inventarios`) | `a084bfa` (T016, último cambio de app) | 187/187 |
+| `tsc` de app, specs y E2E y `npm run build` | Sin errores | `a084bfa`, `ef9b596` | — |
+| Playwright (`--grep-invert SC-005`) | 18/18, con E2E-03 | `ef9b596` (T017) | 17/17 |
+
+**Matriz C**, toda en verde en la suite de `2215155`:
+
+| Caso | Pruebas | Tarea |
+|------|---------|-------|
+| C-01 | `Hu04SchemaTests` (4), conjunto exacto de FK en `Hu05SchemaTests` | T003 |
+| C-02 | `StockCoreAdjustTests` (4) | T004 |
+| C-03 | `CycleCountDraftTests` (2) | T006 |
+| C-04, C-05 | `CycleCountStartTests` (3) | T007 |
+| C-06, C-07 | `CycleCountLinesTests` (2) | T008 |
+| C-08–C-11, C-14, C-16 | `CycleCountConfirmTests` (6), invariantes 1–5 y 7 en cada confirmación | T009 |
+| C-12 | `CountScopeFrozenTests` (3) | T005, T009 |
+| C-13, C-15 | `CycleCountConcurrencyTests` (17) | T010 |
+| C-17, C-18 y matriz de permisos | `CycleCountReliabilityTests` (12) | T011 |
+| C-19, C-20 (con la invariante 6) | `ShipmentCorrectionTests` (2) | T012 |
+| Vitest de `/inventarios` | 7 specs: lista 3, nuevo 5, detalle 10, revisión 9, rutas 1, y 8 de los archivos de A (T013) | T013–T016 |
+| E2E-03 | `frontend/e2e/hu04-cycle-counts.spec.ts` | T017 |
+
+**V común** (publicada en el [quickstart común § 11](../../.specify/memory/project/quickstart.md#11-hu-04--evidencia-de-integración-del-2026-11-21)):
+V-07 = C-17; V-08 = C-18; V-09 = C-04, C-06, C-08, C-12 (salida y reserva); V-10 = C-07, C-09, C-11;
+V-12 = C-16. La recepción de V-09 queda pendiente de HU-01: confirmar una recepción con una ubicación
+de destino congelada → 409 `CountScopeFrozen` (P-05; S5 de tasks.md).
+
+**INT-HU04-01/02/03**: marcadas en `integration-tasks.md` con esta evidencia (P-07).
+
+### Desviaciones registradas (T010, T013–T017)
+
+- **C-15 / T010**: tras retirar el hallazgo, el artículo sin otras referencias admite el **borrado**,
+  pero su **definición sigue bloqueada** por la regla común de A (`ArticleCommands`,
+  `ArticleDefinitionLocked`: «la primera referencia bloquea unidad, lotes y fracciones, aunque después se
+  retire»). El enunciado original de C-15 y de T010 («edición admitida») era incorrecto; corregido aquí.
+- **T013**: los archivos de A van en su propio commit (`17bc62a`); las specs, en
+  `features/cycle-counts/data/*-hu04.spec.ts` para no tocar las de A.
+- **T014**: `operation-areas.spec.ts` (H0, archivo de B) se toca en una línea para contar
+  `/inventarios` como área desarrollada.
+- **T016**: el 409 `ReservedStockConflict` enlaza a `/existencias` para liberar la reserva, no al
+  pedido como dice el [contrato UI](contracts/cycle-counts-ui.md) § Errores.
+- **T015**: la fila de hallazgo no comprueba en local si el artículo admite fracciones; lo rechaza el
+  servidor (422 por línea). Las filas esperadas sí lo comprueban.
+- **T017**: sin rojo natural observable (el fixture de A exige una imagen con las migraciones actuales,
+  que ya incluye T014–T016); comprobado con `tsc` del proyecto E2E. M1 de analyze-1 resuelto con datos
+  únicos por ejecución y un `finally` que cancela por API el conteo abierto con una sesión propia del
+  responsable, sin tocar el fixture de A.
+
+Sigue fuera: SC-006, SC-007 y lo de «Si hay tiempo» (S1–S6).

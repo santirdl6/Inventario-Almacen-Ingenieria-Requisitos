@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-21
 
-**Status**: Draft
+**Status**: Implementada (T003–T018; 2026-11-21). Integrable, no aceptada: faltan SC-006 y SC-007, y la prueba de recepción sobre un alcance congelado depende de HU-01 (ver [quickstart § Evidencia](quickstart.md#evidencia)).
 
 **Input**: User description: "HU-04 «Realizar inventarios cíclicos» (Persona B). Directorio specs/006-realizar-inventarios-ciclicos. Debe cubrir lo que otras historias dejaron a HU-04: (a) CountScopeFrozen: bloquear reservar, liberar y confirmar salidas sobre un ámbito con un conteo abierto (hoy IsInOpenCountAsync devuelve false; INT-HU04-03); (b) la corrección de una salida confirmada errónea mediante el ajuste (Q3 y P-07 de HU-03), dejando claro que el ajuste corrige el físico pero no lo servido ni el consumo de reservas. Reutiliza el modelo común: idempotencia, If-Match/ETag, bloqueos de InventoryLocks, diario de solo adición, contraparte con exactamente uno de CounterpartyReference o CounterpartyNotApplicableReason, permisos Counts.Record (Operario y ResponsableAlmacen) e Inventory.Adjust (ResponsableAlmacen). Alcance acotado: ciclo conteo → diferencias → ajuste y congelado del ámbito; lo accesorio fuera y marcado. Máximo 3 [NEEDS CLARIFICATION]."
 
