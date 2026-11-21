@@ -62,7 +62,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
 ## Phase 2: Fundamentos (bloquean las historias)
 
-- [ ] T003 ⚑ 🔀 PR #10 [INT-HU04-01] Dominio, esquema y uso del artículo:
+- [X] T003 ⚑ 🔀 PR #10 [INT-HU04-01] Dominio, esquema y uso del artículo:
   - `Domain/Stock/CycleCount.cs`, `CountLocation.cs`, `CountLine.cs` con las transiciones de D-02 y los
     campos de [data-model](data-model.md): `CountCode` «`CC-` + 12 primeros hexadecimales del Id»,
     único; `State` en `Draft`, `Counting`, `AwaitingApproval`, `Confirmed`, `Cancelled`;
@@ -81,6 +81,11 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
   - **Rojo esperado**: `Hu04SchemaTests` falla porque las tablas no existen; tras añadir la
     configuración sin contributor, `Hu05SchemaTests` falla porque `CountLine` referencia `Article` sin
     declararse.
+  - **Hecho**: rojo observado 1) `Hu04SchemaTests` 5/5 en rojo, `FindEntityType(CycleCount)` null y
+    migración ausente; 2) con configuración y migración, sin contributor: `EnsureCovered` falla en
+    `Hu03/Hu04SchemaTests`, `Hu05SchemaTests` no tiene `CountLine` y HU-08 responde 503. Verde: suite
+    296/1 omitida, `has-pending-model-changes` limpio. `Hu03SchemaTests` pasa a comprobar que HU-03
+    sigue en la cadena (ya no es la última). Migración `20261121152857_HU04_CycleCounts`.
 - [ ] T004 [P] ⚑ [INT-HU04-02] Operación `Adjust` en `StockCore` (D-13):
   `Features/Stock/Core/StockCommands.cs` (`StockOperation.Adjust` → `MovementKind.Adjustment`) y
   `StockCore.cs` (`PrepareAdjustment` con diferencia con signo; `AdjustUp` crea lote y saldo si faltan;

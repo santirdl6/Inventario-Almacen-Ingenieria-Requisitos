@@ -41,7 +41,8 @@ public sealed class Hu03SchemaTests(IdentityFixture fixture) : IClassFixture<Ide
         scope.ServiceProvider.GetRequiredService<ArticleUsageCoverageValidator>().EnsureCovered();
         scope.ServiceProvider.GetRequiredService<ArticleDefinitionReadiness>().EnsureReady();
         Assert.False(database.Database.HasPendingModelChanges());
-        Assert.EndsWith(MigrationSuffix, database.Database.GetMigrations().Last());
+        // HU-03 sigue en la cadena; desde HU-04 (T003) ya no es la última (Hu04SchemaTests lo comprueba).
+        Assert.Contains(database.Database.GetMigrations(), name => name.EndsWith(MigrationSuffix, StringComparison.Ordinal));
     }
 
     [Fact]

@@ -62,6 +62,10 @@ public static class StockCoreRegistration
         services.AddScoped<Shipping.ShipmentArticleUsageContributor>();
         services.AddScoped<IArticleUsageContributor>(provider => provider.GetRequiredService<Shipping.ShipmentArticleUsageContributor>());
         services.AddScoped<IArticleFirstReferenceContributor>(provider => provider.GetRequiredService<Shipping.ShipmentArticleUsageContributor>());
+        // HU-04 (T003, D-08): las líneas de conteo también referencian Article; mismo motivo que HU-03.
+        services.AddScoped<CycleCounts.CycleCountArticleUsageContributor>();
+        services.AddScoped<IArticleUsageContributor>(provider => provider.GetRequiredService<CycleCounts.CycleCountArticleUsageContributor>());
+        services.AddScoped<IArticleFirstReferenceContributor>(provider => provider.GetRequiredService<CycleCounts.CycleCountArticleUsageContributor>());
         services.AddScoped<IArticleMovementReader, StockArticleMovementReader>();
         return services;
     }

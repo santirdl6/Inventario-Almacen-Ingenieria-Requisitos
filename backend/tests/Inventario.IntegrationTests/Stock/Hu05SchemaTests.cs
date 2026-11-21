@@ -30,9 +30,10 @@ public sealed class Hu05SchemaTests(IdentityFixture fixture) : IClassFixture<Ide
         Assert.NotNull(database.Model.FindEntityType(typeof(CustomerOrderLine)));
         Assert.NotNull(database.Model.FindEntityType(typeof(Reservation)));
         Assert.NotNull(database.Model.FindEntityType(typeof(ReservationAllocation)));
-        // Conjunto exacto de tipos con FK a Article; HU-03 (T004, D-09) añade ShipmentLine.
+        // Conjunto exacto de tipos con FK a Article; HU-03 (T004, D-09) añade ShipmentLine y HU-04 (T003, D-08), CountLine.
         Assert.Equal(new HashSet<Type> { typeof(Lot), typeof(StockBalance), typeof(StockEntry),
-                typeof(CustomerOrderLine), typeof(ReservationAllocation), typeof(Inventario.Api.Domain.Shipping.ShipmentLine) },
+                typeof(CustomerOrderLine), typeof(ReservationAllocation), typeof(Inventario.Api.Domain.Shipping.ShipmentLine),
+                typeof(CountLine) },
             ArticleUsageCoverageValidator.RequiredTypes(database.Model));
         // Sin contributor de HU-05, HU-08 respondería 503 DependencyUnavailable.
         scope.ServiceProvider.GetRequiredService<ArticleUsageCoverageValidator>().EnsureCovered();
