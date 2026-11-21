@@ -95,7 +95,7 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
 
 **Objetivo**: dominio, tablas, triggers y registro de la feature sobre la cadena única de migraciones.
 
-- [ ] T003 ⚠ PR #9 Línea base y dominio. Depende de nada. Riesgo: `Reservation.cs` y
+- [X] T003 ⚠ PR #9 Línea base y dominio. Depende de nada. Riesgo: `Reservation.cs` y
   `CustomerOrder.cs` de HU-05.
   - Primero, ejecutar la suite backend con la receta Docker y anotar el número de pruebas en verde
     (última conocida en HU-05: 206/1/0) y Vitest (143/143).
@@ -119,6 +119,14 @@ Backend en `backend/src/Inventario.Api/` y pruebas en
     `has-pending-model-changes` sigue limpio y la suite queda en verde.
 
   (D-04; data-model; FR-002, FR-008, FR-009.)
+
+  **Hecho (2026-11-21)**:
+  - Línea base: 207 aprobadas, 1 omitida, 0 fallidas (suite sobre `363de56`; desde entonces, la
+    rama solo cambió documentos).
+  - Rojo previo: `Hu03DomainTests` no compilaba, por CS1061 en `Consume`, `Ship` y
+    `DeriveFulfilment` y por CS0234, al no existir `Domain.Shipping`.
+  - Verde: 18 pruebas (H-01); suite 225/1/0; sin cambios de modelo.
+  - Dos commits: `e5d5d96` (⚑ HU-05) y el de `Shipment.cs`.
 - [ ] T004 [INT-HU03-01] 🔀 PR #9 Esquema completo **en un solo commit** (los triggers y el modelo no
   se separan sin romper `has-pending-model-changes`). Depende de T003.
   - **Rojo esperado**: crear `Shipping/Hu03SchemaTests.cs` (H-02) y ampliar el conjunto exacto de

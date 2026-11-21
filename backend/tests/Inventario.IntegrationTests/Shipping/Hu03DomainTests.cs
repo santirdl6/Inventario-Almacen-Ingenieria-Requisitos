@@ -1,3 +1,4 @@
+using Inventario.Api.Domain.Shipping;
 using Inventario.Api.Domain.Stock;
 using Xunit;
 
@@ -97,5 +98,119 @@ public sealed class Hu03DomainTests
         // Idempotente: un pedido ya servido sigue servido.
         order.DeriveFulfilment();
         Assert.Equal(CustomerOrderState.Fulfilled, order.State);
+    }
+
+    // --- Documento de salida: Draft → Confirmed, líneas y consumos (data-model) ---
+
+    private static readonly Guid OrderLineA = Guid.NewGuid();
+    private static readonly Guid OtherLocation = Guid.NewGuid();
+    private static readonly DateTimeOffset Now = new(2026, 11, 21, 9, 30, 0, TimeSpan.Zero);
+
+    private static ShipmentLineRequest Line(Guid? location = null, decimal quantity = 4m, Guid? orderLine = null) =>
+        new(orderLine ?? OrderLineA, ArticleA, location ?? Location, Lot, quantity);
+
+    private static Shipment Draft(params ShipmentLineRequest[] lines) =>
+        Shipment.CreateDraft(Guid.NewGuid(), Guid.NewGuid(), Now.AddHours(-1), lines.Length == 0 ? [Line()] : lines,
+            Guid.NewGuid(), Now);
+
+    [Fact]
+    public void A_new_shipment_is_a_draft_without_operation_and_with_its_lines()
+    {
+        var actor = Guid.NewGuid();
+        var shipment = Shipment.CreateDraft(Guid.NewGuid(), Guid.NewGuid(), Now.AddHours(-1),
+            [Line(), Line(OtherLocation, 2m)], actor, Now);
+
+        Assert.Equal(ShipmentState.Draft, shipment.State);
+        Assert.Null(shipment.OperationId);
+        Assert.Equal(Now.AddHours(-1), shipment.OccurredAt);
+        Assert.Equal(Now, shipment.RecordedAt);
+        Assert.Equal(actor, shipment.ActorId);
+        Assert.Equal(2, shipment.Lines.Count);
+        Assert.All(shipment.Lines, line => Assert.Equal(shipment.Id, line.ShipmentId));
+        // Una línea de pedido puede servirse desde varios orígenes (FR-002).
+        Assert.Equal([4m, 2m], shipment.Lines.Select(line => line.Quantity));
+    }
+
+    [Fact]
+    public void A_shipment_requires_identity_order_actor_and_the_time_of_the_fact()
+    {
+        Assert.Throws<ArgumentException>(() => Shipment.CreateDraft(Guid.Empty, Guid.NewGuid(), Now, [Line()], Guid.NewGuid(), Now));
+        Assert.Throws<ArgumentException>(() => Shipment.CreateDraft(Guid.NewGuid(), Guid.Empty, Now, [Line()], Guid.NewGuid(), Now));
+        Assert.Throws<ArgumentException>(() => Shipment.CreateDraft(Guid.NewGuid(), Guid.NewGuid(), Now, [Line()], Guid.Empty, Now));
+        Assert.Throws<ArgumentException>(() => Shipment.CreateDraft(Guid.NewGuid(), Guid.NewGuid(), default, [Line()], Guid.NewGuid(), Now));
+    }
+
+    [Fact]
+    public void A_shipment_has_between_1_and_100_lines_and_one_per_order_line_and_bucket()
+    {
+        Assert.Throws<ArgumentException>(() => Shipment.CreateDraft(Guid.NewGuid(), Guid.NewGuid(), Now, [], Guid.NewGuid(), Now));
+        Assert.Throws<ArgumentException>(() => Draft(Enumerable.Range(0, Shipment.MaxLines + 1)
+            .Select(_ => Line(Guid.NewGuid(), 1m)).ToArray()));
+        Assert.Equal(Shipment.MaxLines, Draft(Enumerable.Range(0, Shipment.MaxLines)
+            .Select(_ => Line(Guid.NewGuid(), 1m)).ToArray()).Lines.Count);
+        // UX_ShipmentLines_Shipment_Bucket: misma línea de pedido, ubicación y lote dos veces.
+        Assert.Throws<ArgumentException>(() => Draft(Line(), Line(quantity: 2m)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(1.0005)]
+    public void Line_quantity_is_positive_with_three_decimals(decimal quantity) =>
+        Assert.Throws<ArgumentException>(() => Draft(Line(quantity: quantity)));
+
+    [Fact]
+    public void Lines_require_order_line_article_location_and_lot() =>
+        Assert.Throws<ArgumentException>(() => Draft(new ShipmentLineRequest(OrderLineA, ArticleA, Location, Guid.Empty, 1m)));
+
+    [Fact]
+    public void A_draft_can_replace_its_date_and_lines()
+    {
+        var shipment = Draft();
+        var editor = Guid.NewGuid();
+        shipment.ReplaceDraft(Now.AddHours(-2), [Line(OtherLocation, 3m)], editor, Now.AddMinutes(5));
+
+        Assert.Equal(ShipmentState.Draft, shipment.State);
+        Assert.Equal(Now.AddHours(-2), shipment.OccurredAt);
+        Assert.Equal(Now.AddMinutes(5), shipment.RecordedAt);
+        Assert.Equal(editor, shipment.ActorId);
+        Assert.Equal(OtherLocation, shipment.Lines.Single().LocationId);
+        Assert.Equal(3m, shipment.Lines.Single().Quantity);
+    }
+
+    [Fact]
+    public void Only_draft_to_confirmed_and_a_confirmed_shipment_is_immutable()
+    {
+        var shipment = Draft();
+        var operation = Guid.NewGuid();
+        var confirmer = Guid.NewGuid();
+        Assert.Throws<ArgumentException>(() => shipment.Confirm(Guid.Empty, confirmer, Now));
+
+        shipment.Confirm(operation, confirmer, Now.AddMinutes(10));
+        Assert.Equal(ShipmentState.Confirmed, shipment.State);
+        Assert.Equal(operation, shipment.OperationId);
+        Assert.Equal(confirmer, shipment.ActorId);
+        Assert.Equal(Now.AddMinutes(10), shipment.RecordedAt);
+
+        Assert.Throws<InvalidOperationException>(() => shipment.Confirm(Guid.NewGuid(), confirmer, Now));
+        Assert.Throws<InvalidOperationException>(() => shipment.ReplaceDraft(Now, [Line()], confirmer, Now));
+        Assert.Equal(operation, shipment.OperationId);
+    }
+
+    [Fact]
+    public void A_consumption_belongs_to_the_operation_that_creates_it()
+    {
+        var line = Guid.NewGuid();
+        var allocation = Guid.NewGuid();
+        var operation = Guid.NewGuid();
+        var consumption = ShipmentReservationConsumption.Create(line, allocation, 4m, operation);
+
+        Assert.Equal(line, consumption.ShipmentLineId);
+        Assert.Equal(allocation, consumption.ReservationAllocationId);
+        Assert.Equal(4m, consumption.Quantity);
+        Assert.Equal(operation, consumption.OperationId);
+        Assert.Throws<ArgumentException>(() => ShipmentReservationConsumption.Create(line, allocation, 0m, operation));
+        Assert.Throws<ArgumentException>(() => ShipmentReservationConsumption.Create(line, allocation, 1m, Guid.Empty));
+        Assert.Throws<ArgumentException>(() => ShipmentReservationConsumption.Create(Guid.Empty, allocation, 1m, operation));
     }
 }
